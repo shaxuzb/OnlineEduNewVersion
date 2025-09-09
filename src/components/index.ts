@@ -8,5 +8,5 @@ export { default as FullscreenVideoPlayer } from './ui/FullscreenVideoPlayer';
 // Add form components here when created
 
 // Feature-specific Components
-export { UpdateBottomSheet } from './UpdateBottomSheet';
+export { default as UpdateNotificationSheet } from './UpdateNotificationSheet';
 // Add feature-specific components here when created
