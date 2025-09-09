@@ -119,12 +119,14 @@ const UpdateNotificationSheet: React.FC<UpdateNotificationSheetProps> = ({
               </View>
             </View>
             
-            <TouchableOpacity 
-              style={styles.closeButton}
-              onPress={onClose}
-            >
-              <Ionicons name="close" size={24} color="#666" />
-            </TouchableOpacity>
+            {!versionInfo.forceUpdate && (
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={onClose}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Version Info */}
@@ -176,13 +178,15 @@ const UpdateNotificationSheet: React.FC<UpdateNotificationSheetProps> = ({
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.laterButton}
-              onPress={handleUpdateLater}
-              activeOpacity={0.6}
-            >
-              <Text style={styles.laterButtonText}>Keyinroq</Text>
-            </TouchableOpacity>
+            {!versionInfo.forceUpdate && (
+              <TouchableOpacity 
+                style={styles.laterButton}
+                onPress={handleUpdateLater}
+                activeOpacity={0.6}
+              >
+                <Text style={styles.laterButtonText}>Keyinroq</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Bottom indicator */}

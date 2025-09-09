@@ -1,152 +1,120 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import VersionService, { VersionInfo } from '../services/versionService';
+import { useState, useEffect, useCallback } from "react";
+import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import VersionService, { VersionInfo } from "../services/versionService";
 
 interface UseVersionCheckReturn {
   versionInfo: VersionInfo | null;
   isChecking: boolean;
-  updateAvailable: boolean;
   showUpdateSheet: boolean;
-  error: string | null;
   checkForUpdates: () => Promise<void>;
   dismissUpdate: () => void;
   setShowUpdateSheet: (show: boolean) => void;
 }
 
-const LAST_UPDATE_CHECK_KEY = '@last_update_check';
-const UPDATE_DISMISSED_KEY = '@update_dismissed_version';
-const CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 soat
+const LAST_CHECK_KEY = "@last_update_check";
+const DISMISSED_VERSION_KEY = "@dismissed_version";
+const CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
 
-export const useVersionCheck = (
-  autoCheck: boolean = true,
-  showOnAppStart: boolean = true
-): UseVersionCheckReturn => {
+export const useVersionCheck = (): UseVersionCheckReturn => {
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [showUpdateSheet, setShowUpdateSheet] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  // Oxirgi tekshirish vaqtini saqlash
-  const saveLastCheckTime = async () => {
+  // Check if we should check for updates
+  const shouldCheck = async (): Promise<boolean> => {
     try {
-      await AsyncStorage.setItem(LAST_UPDATE_CHECK_KEY, Date.now().toString());
-    } catch (error) {
-      console.error('Last check time saqlashda xatolik:', error);
+      const lastCheck = await AsyncStorage.getItem(LAST_CHECK_KEY);
+      if (!lastCheck) return true;
+
+      const timeSinceLastCheck = Date.now() - parseInt(lastCheck);
+      return timeSinceLastCheck > CHECK_INTERVAL;
+    } catch {
+      return true;
     }
   };
 
-  // Oxirgi tekshirish vaqtini olish
-  const getLastCheckTime = async (): Promise<number> => {
+  // Check if version was dismissed
+  const isVersionDismissed = async (version: string): Promise<boolean> => {
     try {
-      const timeStr = await AsyncStorage.getItem(LAST_UPDATE_CHECK_KEY);
-      return timeStr ? parseInt(timeStr, 10) : 0;
-    } catch (error) {
-      console.error('Last check time olishda xatolik:', error);
-      return 0;
-    }
-  };
-
-  // Update dismiss qilinganligini saqlash
-  const saveUpdateDismissed = async (version: string) => {
-    try {
-      await AsyncStorage.setItem(UPDATE_DISMISSED_KEY, version);
-    } catch (error) {
-      console.error('Update dismiss saqlashda xatolik:', error);
-    }
-  };
-
-  // Update dismiss qilinganligini tekshirish
-  const isUpdateDismissed = async (version: string): Promise<boolean> => {
-    try {
-      const dismissedVersion = await AsyncStorage.getItem(UPDATE_DISMISSED_KEY);
+      const dismissedVersion = await AsyncStorage.getItem(
+        DISMISSED_VERSION_KEY
+      );
       return dismissedVersion === version;
-    } catch (error) {
-      console.error('Update dismiss tekshirishda xatolik:', error);
+    } catch {
       return false;
     }
   };
 
-  // Tekshirish kerakmi deb qarash
-  const shouldCheck = async (): Promise<boolean> => {
-    const lastCheck = await getLastCheckTime();
-    const now = Date.now();
-    return (now - lastCheck) > CHECK_INTERVAL;
+  // Save last check time
+  const saveLastCheckTime = async () => {
+    try {
+      await AsyncStorage.setItem(LAST_CHECK_KEY, Date.now().toString());
+    } catch (error) {
+      console.error("Failed to save last check time:", error);
+    }
   };
 
-  // Versiya tekshirish
+  // Main check function
   const checkForUpdates = useCallback(async () => {
-    if (isChecking) return;
 
+    if (isChecking || Platform.OS === "web") return;
+    
     setIsChecking(true);
-    setError(null);
 
     try {
-      // Development rejimida mock data ishlatish
-      const versionResult = __DEV__ 
-        ? await VersionService.checkForUpdatesMock()
-        : await VersionService.checkForUpdates();
+      // Always use real GitHub API
+      const result = await VersionService.checkForUpdates();
+      console.log("Version check result:", result);
 
-      setVersionInfo(versionResult);
+      setVersionInfo(result);
 
-      if (versionResult.updateAvailable) {
-        // Update dismiss qilinmaganini tekshirish
-        const dismissed = await isUpdateDismissed(versionResult.storeVersion);
-        
-        if (!dismissed && showOnAppStart) {
-          // Bottom sheet ko'rsatish uchun kichik kechikish
-          setTimeout(() => {
-            setShowUpdateSheet(true);
-          }, 1000);
+      if (result.updateAvailable) {
+        const dismissed = await isVersionDismissed(result.storeVersion);
+        if (!dismissed) {
+          setTimeout(() => setShowUpdateSheet(true), 1000);
         }
       }
 
       await saveLastCheckTime();
-    } catch (err: any) {
-      setError(err.message || 'Versiya tekshirishda xatolik');
-      console.error('Version check error:', err);
+    } catch (error) {
+      console.error("Version check failed:", error);
     } finally {
       setIsChecking(false);
     }
-  }, [isChecking, showOnAppStart]);
+  }, [isChecking]);
 
-  // Update ni keyinroq qilish
+  // Dismiss update
   const dismissUpdate = useCallback(async () => {
     if (versionInfo?.storeVersion) {
-      await saveUpdateDismissed(versionInfo.storeVersion);
+      try {
+        await AsyncStorage.setItem(
+          DISMISSED_VERSION_KEY,
+          versionInfo.storeVersion
+        );
+      } catch (error) {
+        console.error("Failed to dismiss update:", error);
+      }
     }
   }, [versionInfo]);
 
-  // Komponent mount bo'lganda avtomatik tekshirish
+  // Auto check on mount
   useEffect(() => {
-    if (autoCheck && Platform.OS !== 'web') {
-      const initCheck = async () => {
-        const shouldCheckNow = await shouldCheck();
-        if (shouldCheckNow) {
-          checkForUpdates();
-        } else {
-          // Oxirgi saqlangan ma'lumotlarni yuklash
-          try {
-            // Bu yerda siz oxirgi saqlangan version info ni yuklashingiz mumkin
-            // Hozircha faqat tekshirish amalga oshiramiz
-          } catch (error) {
-            console.error('Cached version info yuklashda xatolik:', error);
-          }
-        }
-      };
+    const initCheck = async () => {
 
-      // App ochilgandan 2 soniya keyin tekshirish
-      const timeout = setTimeout(initCheck, 2000);
-      return () => clearTimeout(timeout);
-    }
-  }, [autoCheck, checkForUpdates]);
+      // if (await shouldCheck()) {
+        checkForUpdates();
+      // }
+    };
+
+    const timer = setTimeout(initCheck, 2000);
+    return () => clearTimeout(timer);
+  }, [checkForUpdates]);
 
   return {
     versionInfo,
     isChecking,
-    updateAvailable: versionInfo?.updateAvailable || false,
     showUpdateSheet,
-    error,
     checkForUpdates,
     dismissUpdate,
     setShowUpdateSheet,

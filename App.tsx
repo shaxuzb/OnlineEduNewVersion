@@ -15,19 +15,12 @@ export default function App() {
     showUpdateSheet,
     setShowUpdateSheet,
     dismissUpdate,
-    isChecking,
-    error,
-  } = useVersionCheck(true, true);
+  } = useVersionCheck();
 
   useEffect(() => {
     // Prepare the app
     const prepare = async () => {
       try {
-        // Pre-load fonts, make any API calls you need to do here
-        const response = await fetch(
-          `https://play.google.com/store/apps/details?id=com.anonymous.onlineedu`
-        );
-        console.log(response);
 
         await new Promise((resolve) => setTimeout(resolve, 1000));
       } catch (e) {
@@ -38,26 +31,9 @@ export default function App() {
     prepare();
   }, []);
 
-  // Log version checking status
-  useEffect(() => {
-    console.log(versionInfo);
-
-    if (versionInfo) {
-      console.log("Version Info:", {
-        current: versionInfo.currentVersion,
-        store: versionInfo.storeVersion,
-        updateAvailable: versionInfo.updateAvailable,
-      });
-    }
-
-    if (error) {
-      console.log("Version check error:", error);
-    }
-  }, [versionInfo, error]);
-
   const handleUpdateLater = () => {
+    
     dismissUpdate();
-    console.log("Update dismissed for version:", versionInfo?.storeVersion);
   };
 
   return (
