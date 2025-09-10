@@ -69,25 +69,28 @@ export default function GeometriyaScreen() {
     navigation.goBack();
   };
 
-  const handleLessonPress = (lesson: Lesson) => {
+  const handleLessonPress = (lesson: Lesson, sectionTitle?: string) => {
     if (!lesson.isLocked) {
       // Navigate to lesson detail screen
       (navigation as any).navigate('LessonDetail', {
         lessonId: lesson.id,
         lessonTitle: lesson.title,
-        mavzu: `${lesson.id}-mavzu`
+        mavzu: `${lesson.id}-mavzu`,
+        courseType: 'geometriya',
+        courseName: 'Geometriya (2)',
+        sectionTitle: sectionTitle || '1-mavzu'
       });
     }
   };
 
-  const renderLesson = (lesson: Lesson) => (
+  const renderLesson = (lesson: Lesson, sectionTitle: string) => (
     <TouchableOpacity
       key={lesson.id}
       style={[
         styles.lessonCard,
         lesson.isLocked && styles.lockedLessonCard
       ]}
-      onPress={() => handleLessonPress(lesson)}
+      onPress={() => handleLessonPress(lesson, sectionTitle)}
       disabled={lesson.isLocked}
     >
       <View style={styles.lessonContent}>
@@ -119,7 +122,7 @@ export default function GeometriyaScreen() {
   const renderSection = (section: Section) => (
     <View key={section.id} style={styles.section}>
       <Text style={styles.sectionTitle}>{section.title}</Text>
-      {section.lessons.map(renderLesson)}
+      {section.lessons.map(lesson => renderLesson(lesson, section.title))}
     </View>
   );
 

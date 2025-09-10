@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import AppNavigation from "./src/navigation/AppNavigation";
 import { AuthProvider } from "./src/context/AuthContext";
+import { BookmarkProvider } from "./src/context/BookmarkContext";
 import * as SplashScreen from "expo-splash-screen";
 import { UpdateNotificationSheet } from "./src/components";
 import { useVersionCheck } from "./src/hooks/useVersionCheck";
@@ -38,17 +39,19 @@ export default function App() {
 
   return (
     <AuthProvider>
-      <AppNavigation />
+      <BookmarkProvider>
+        <AppNavigation />
 
-      {/* Update Notification Bottom Sheet */}
-      {versionInfo && (
-        <UpdateNotificationSheet
-          visible={showUpdateSheet}
-          versionInfo={versionInfo}
-          onClose={() => setShowUpdateSheet(false)}
-          onUpdateLater={handleUpdateLater}
-        />
-      )}
+        {/* Update Notification Bottom Sheet */}
+        {versionInfo && (
+          <UpdateNotificationSheet
+            visible={showUpdateSheet}
+            versionInfo={versionInfo}
+            onClose={() => setShowUpdateSheet(false)}
+            onUpdateLater={handleUpdateLater}
+          />
+        )}
+      </BookmarkProvider>
     </AuthProvider>
   );
 }

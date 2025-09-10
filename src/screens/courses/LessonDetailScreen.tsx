@@ -1,35 +1,65 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../utils';
+import { useBookmark } from '../../context/BookmarkContext';
+import { BookmarkedLesson } from '../../types';
 
 const { width } = Dimensions.get('window');
 
 export default function LessonDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const [isBookmarked, setIsBookmarked] = useState(false);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  
+  const { addBookmark, removeBookmark, isBookmarked: isLessonBookmarked } = useBookmark();
 
   // Get lesson data from route params
-  const { lessonId, lessonTitle, mavzu } = (route.params as any) || {};
+  const { lessonId, lessonTitle, mavzu, courseType, courseName, sectionTitle } = (route.params as any) || {};
   
   const lessonData = {
     id: lessonId || 1,
     title: lessonTitle || 'Natural sonlar va ular ustida amallar',
     mavzu: mavzu || '1-mavzu',
+    courseType: courseType || 'algebra',
+    courseName: courseName || 'Algebra (4)',
+    sectionTitle: sectionTitle || '1-mavzu',
     videoUrl: 'https://sample-video-url.com',
     duration: '15:30'
   };
+
+  // Check if current lesson is bookmarked
+  const isBookmarked = isLessonBookmarked(lessonData.id, lessonData.courseType);
 
   const handleGoBack = () => {
     navigation.goBack();
   };
 
-  const handleBookmark = () => {
-    setIsBookmarked(!isBookmarked);
+  const handleBookmark = async () => {
+    try {
+      if (isBookmarked) {
+        await removeBookmark(lessonData.id, lessonData.courseType);
+        Alert.alert('Saqlash', 'Dars saqlashdan olib tashlandi!');
+      } else {
+        const bookmarkData: BookmarkedLesson = {
+          id: lessonData.id,
+          title: lessonData.title,
+          mavzu: lessonData.mavzu,
+          courseType: lessonData.courseType as 'algebra' | 'geometriya' | 'milliy-sertifikat' | 'olimpiadaga-kirish',
+          courseName: lessonData.courseName,
+          sectionTitle: lessonData.sectionTitle,
+          duration: lessonData.duration,
+          bookmarkedAt: new Date().toISOString()
+        };
+        
+        await addBookmark(bookmarkData);
+        Alert.alert('Saqlash', 'Dars muvaffaqiyatli saqlandi!');
+      }
+    } catch (error) {
+      Alert.alert('Xatolik', 'Darsni saqlashda xatolik yuz berdi!');
+    }
   };
 
   const handlePlayVideo = () => {
@@ -41,8 +71,13 @@ export default function LessonDetailScreen() {
   };
 
   const handleMashqlar = () => {
-    console.log('Open exercises');
-    // Navigate to exercises screen
+    // Navigate to interactive quiz screen with the specified exercise PDF
+    const pdfPath = 'C:/Users/RICH BOY/Desktop/7-MOCK TEST (@matematikadanonlinetestlar).pdf';
+    (navigation as any).navigate('QuizScreen', {
+      pdfPath: pdfPath,
+      title: 'Mashqlar',
+      mavzu: lessonData.mavzu
+    });
   };
 
   const handleOralQuestions = () => {

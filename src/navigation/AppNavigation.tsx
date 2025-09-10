@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,9 +11,16 @@ import SaveScreen from '../screens/save/SaveScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import LoadingScreen from '../components/LoadingScreen';
+import StatistikaScreen from '../screens/courses/StatistikaScreen';
+import LessonDetailScreen from '../screens/courses/LessonDetailScreen';
+import VideoPlayerScreen from '../screens/courses/VideoPlayerScreen';
+import PDFViewerScreen from '../screens/courses/PDFViewerScreen';
+import QuizScreen from '../screens/courses/QuizScreen';
+import QuizResultsScreen from '../screens/courses/QuizResultsScreen';
 import { useAuth } from '../context/AuthContext';
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
 const MainTabNavigator = () => (
   <Tab.Navigator
@@ -60,6 +68,46 @@ const MainTabNavigator = () => (
       </Tab.Navigator>
 );
 
+const MainStackNavigator = () => (
+  <Stack.Navigator>
+    <Stack.Screen 
+      name="MainTabs" 
+      component={MainTabNavigator} 
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen 
+      name="Statistika" 
+      component={StatistikaScreen} 
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen 
+      name="LessonDetail" 
+      component={LessonDetailScreen} 
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen 
+      name="VideoPlayer" 
+      component={VideoPlayerScreen} 
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen 
+      name="PDFViewer" 
+      component={PDFViewerScreen} 
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen 
+      name="QuizScreen" 
+      component={QuizScreen} 
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen 
+      name="QuizResults" 
+      component={QuizResultsScreen} 
+      options={{ headerShown: false }}
+    />
+  </Stack.Navigator>
+);
+
 export default function AppNavigation() {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -72,7 +120,7 @@ export default function AppNavigation() {
     <NavigationContainer>
       <StatusBar style="auto" />
       {isAuthenticated ? (
-        <MainTabNavigator />
+        <MainStackNavigator />
       ) : (
         <LoginScreen />
       )}

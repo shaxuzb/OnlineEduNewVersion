@@ -18,6 +18,7 @@ interface RemoteVersionData {
 
 class VersionService {
   private static readonly VERSION_URL = 'https://raw.githubusercontent.com/shaxuzb/OnlineEduNewVersion/main/version.json';
+  private static readonly CDN_URL = 'https://cdn.jsdelivr.net/gh/shaxuzb/OnlineEduNewVersion@main/version.json';
 
   /**
    * Get current app version
@@ -54,26 +55,71 @@ class VersionService {
   }
 
   /**
-   * Fetch remote version data
+   * Try fetch from a single URL with cache busting
    */
-  private static async fetchRemoteVersion(): Promise<RemoteVersionData> {
-    const response = await fetch(this.VERSION_URL, {
-      headers: { 'Cache-Control': 'no-cache' }
+  private static async tryFetch(baseUrl: string): Promise<RemoteVersionData> {
+    const urlWithCacheBuster = `${baseUrl}?nocache=${new Date().getTime()}`;
+    console.log('Trying to fetch from:', urlWithCacheBuster);
+    
+    const response = await fetch(urlWithCacheBuster, {
+      method: 'GET',
+      headers: { 
+        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'If-Modified-Since': '0',
+        'If-None-Match': ''
+      },
+      cache: 'no-store'
     });
     
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     
-    const data = await response.json();
+    const rawText = await response.text();
+    console.log('Raw response from', baseUrl, ':', rawText);
+    
+    const data = JSON.parse(rawText);
     
     // Validate the received data
     if (!data.latestVersion || !this.isValidVersion(data.latestVersion)) {
       throw new Error(`Invalid version format: ${data.latestVersion}`);
     }
     
-    console.log('Raw GitHub data:', data);
     return data;
+  }
+
+  /**
+   * Fetch remote version data with fallback
+   */
+  private static async fetchRemoteVersion(): Promise<RemoteVersionData> {
+    const urls = [
+      this.VERSION_URL,  // Primary: GitHub Raw
+      this.CDN_URL       // Fallback: jsDelivr CDN
+    ];
+    
+    let lastError: Error | null = null;
+    
+    for (let i = 0; i < urls.length; i++) {
+      try {
+        console.log(`Attempting fetch ${i + 1}/${urls.length} from: ${urls[i]}`);
+        const data = await this.tryFetch(urls[i]);
+        console.log('Successfully fetched data:', data);
+        return data;
+      } catch (error) {
+        lastError = error as Error;
+        console.warn(`Fetch attempt ${i + 1} failed:`, error);
+        
+        if (i < urls.length - 1) {
+          console.log('Trying next URL...');
+          // Wait 1 second before trying next URL
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+    }
+    
+    throw lastError || new Error('All fetch attempts failed');
   }
 
   /**

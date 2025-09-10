@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import VersionService, { VersionInfo } from "../services/versionService";
@@ -14,12 +14,14 @@ interface UseVersionCheckReturn {
 
 const LAST_CHECK_KEY = "@last_update_check";
 const DISMISSED_VERSION_KEY = "@dismissed_version";
-const CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
+const CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes for testing
 
 export const useVersionCheck = (): UseVersionCheckReturn => {
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [showUpdateSheet, setShowUpdateSheet] = useState(false);
+  const hasCheckedRef = useRef(false);
+  const isCheckingRef = useRef(false);
 
   // Check if we should check for updates
   const shouldCheck = async (): Promise<boolean> => {
@@ -57,32 +59,34 @@ export const useVersionCheck = (): UseVersionCheckReturn => {
 
   // Main check function
   const checkForUpdates = useCallback(async () => {
+    if (Platform.OS === 'web') return;
+    if (isCheckingRef.current) return;
 
-    if (isChecking || Platform.OS === "web") return;
-    
+    isCheckingRef.current = true;
     setIsChecking(true);
 
     try {
       // Always use real GitHub API
       const result = await VersionService.checkForUpdates();
-      console.log("Version check result:", result);
+      console.log('Version check result:', result);
 
       setVersionInfo(result);
 
       if (result.updateAvailable) {
         const dismissed = await isVersionDismissed(result.storeVersion);
         if (!dismissed) {
-          setTimeout(() => setShowUpdateSheet(true), 1000);
+          setTimeout(() => setShowUpdateSheet(true), 800);
         }
       }
 
       await saveLastCheckTime();
     } catch (error) {
-      console.error("Version check failed:", error);
+      console.error('Version check failed:', error);
     } finally {
+      isCheckingRef.current = false;
       setIsChecking(false);
     }
-  }, [isChecking]);
+  }, []);
 
   // Dismiss update
   const dismissUpdate = useCallback(async () => {
@@ -98,16 +102,30 @@ export const useVersionCheck = (): UseVersionCheckReturn => {
     }
   }, [versionInfo]);
 
-  // Auto check on mount
+  // Auto check on first mount only
   useEffect(() => {
     const initCheck = async () => {
+      if (hasCheckedRef.current) return;
+      hasCheckedRef.current = true;
 
-      // if (await shouldCheck()) {
+      console.log('Initializing version check...');
+      
+      // Clear cache for testing - remove this in production
+      await AsyncStorage.removeItem(LAST_CHECK_KEY);
+      await AsyncStorage.removeItem(DISMISSED_VERSION_KEY);
+      
+      const shouldCheckNow = await shouldCheck();
+      console.log('Should check for updates:', shouldCheckNow);
+      
+      if (shouldCheckNow) {
+        console.log('Starting version check...');
         checkForUpdates();
-      // }
+      } else {
+        console.log('Skipping version check - checked recently');
+      }
     };
 
-    const timer = setTimeout(initCheck, 2000);
+    const timer = setTimeout(initCheck, 1500);
     return () => clearTimeout(timer);
   }, [checkForUpdates]);
 

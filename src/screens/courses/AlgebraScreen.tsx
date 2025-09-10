@@ -17,13 +17,16 @@ export default function AlgebraScreen() {
     navigation.goBack();
   };
 
-  const handleLessonPress = (lesson: Lesson) => {
+  const handleLessonPress = (lesson: Lesson, sectionTitle?: string) => {
     if (!lesson.isLocked) {
       // Navigate to lesson detail screen
       (navigation as any).navigate('LessonDetail', {
         lessonId: lesson.id,
         lessonTitle: lesson.title,
-        mavzu: `${lesson.id}-mavzu`
+        mavzu: `${lesson.id}-mavzu`,
+        courseType: 'algebra',
+        courseName: 'Algebra (4)',
+        sectionTitle: sectionTitle || '1-mavzu'
       });
     }
   };
@@ -32,7 +35,11 @@ export default function AlgebraScreen() {
     <View key={section.id} style={styles.section}>
       <Text style={styles.sectionTitle}>{section.title}</Text>
       {section.lessons.map(lesson => (
-        <LessonCard key={lesson.id} lesson={lesson} onPress={handleLessonPress} />
+        <LessonCard 
+          key={lesson.id} 
+          lesson={lesson} 
+          onPress={(lesson) => handleLessonPress(lesson, section.title)} 
+        />
       ))}
     </View>
   );
