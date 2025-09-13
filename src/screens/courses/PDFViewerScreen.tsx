@@ -12,12 +12,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import Pdf from "react-native-pdf";
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from "../../utils";
+import { useTheme } from "../../context/ThemeContext";
+import { Theme } from "../../types";
+import { SPACING, FONT_SIZES, BORDER_RADIUS } from "../../utils";
 const { width, height } = Dimensions.get("window");
 
 export default function PDFViewerScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -74,7 +78,7 @@ export default function PDFViewerScreen() {
       <View style={styles.content}>
         {loading && (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
+            <ActivityIndicator size="large" color={theme.colors.primary} />
             <Text style={styles.loadingText}>PDF yuklanmoqda...</Text>
           </View>
         )}
@@ -95,12 +99,12 @@ export default function PDFViewerScreen() {
             minScale={1.0}
             maxScale={3.0}
             renderActivityIndicator={() => (
-              <ActivityIndicator size="large" color={COLORS.primary} />
+              <ActivityIndicator size="large" color={theme.colors.primary} />
             )}
           />
         ) : (
           <View style={styles.errorContainer}>
-            <Ionicons name="document-outline" size={64} color={COLORS.gray} />
+            <Ionicons name="document-outline" size={64} color={theme.colors.textMuted} />
             <Text style={styles.errorTitle}>PDF topilmadi</Text>
             <Text style={styles.errorText}>
               Fayl manzili: {pdfPath || "Belgilanmagan"}
@@ -115,16 +119,16 @@ export default function PDFViewerScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.secondary,
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: COLORS.primary,
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.base,
     minHeight: 60,
@@ -141,11 +145,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: "bold",
-    color: COLORS.white,
+    color: 'white',
   },
   headerSubtitle: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.white,
+    color: 'white',
     opacity: 0.8,
   },
   pageIndicator: {
@@ -158,23 +162,23 @@ const styles = StyleSheet.create({
   },
   pageText: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.white,
+    color: 'white',
     fontWeight: "500",
   },
   content: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: theme.colors.card,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: COLORS.white,
+    backgroundColor: theme.colors.card,
   },
   loadingText: {
     marginTop: SPACING.base,
     fontSize: FONT_SIZES.base,
-    color: COLORS.text,
+    color: theme.colors.text,
   },
   pdf: {
     flex: 1,
@@ -190,27 +194,27 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: FONT_SIZES.xl,
     fontWeight: "bold",
-    color: COLORS.text,
+    color: theme.colors.text,
     marginTop: SPACING.base,
     marginBottom: SPACING.sm,
     textAlign: "center",
   },
   errorText: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.gray,
+    color: theme.colors.textSecondary,
     textAlign: "center",
     marginBottom: SPACING.xl,
     lineHeight: 22,
   },
   retryButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.base,
     borderRadius: BORDER_RADIUS.base,
   },
   retryButtonText: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.white,
+    color: 'white',
     fontWeight: "500",
   },
 });

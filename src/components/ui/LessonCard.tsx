@@ -2,7 +2,8 @@ import React from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { Lesson } from '../../types';
+import { useTheme } from '../../context/ThemeContext';
+import { Lesson, Theme } from '../../types';
 
 interface LessonCardProps {
   lesson: Lesson;
@@ -10,6 +11,9 @@ interface LessonCardProps {
 }
 
 export default function LessonCard({ lesson, onPress }: LessonCardProps) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+  
   return (
     <TouchableOpacity
       style={[
@@ -25,7 +29,7 @@ export default function LessonCard({ lesson, onPress }: LessonCardProps) {
             <Ionicons 
               name={lesson.isLocked ? "lock-closed" : "lock-open"} 
               size={16} 
-              color={lesson.isLocked ? "#9ca3af" : "#10b981"} 
+              color={lesson.isLocked ? theme.colors.textMuted : theme.colors.success} 
             />
           </View>
           <View style={styles.lessonInfo}>
@@ -39,27 +43,27 @@ export default function LessonCard({ lesson, onPress }: LessonCardProps) {
           </View>
         </View>
         {!lesson.isLocked && (
-          <Ionicons name="hand-left" size={20} color="#fbbf24" />
+          <Ionicons name="hand-left" size={20} color={theme.colors.warning} />
         )}
       </View>
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   lessonCard: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.card,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
   },
   lockedLessonCard: {
-    backgroundColor: '#f9fafb',
+    backgroundColor: theme.colors.surface,
     opacity: 0.7,
   },
   lessonContent: {
@@ -80,15 +84,15 @@ const styles = StyleSheet.create({
   },
   lessonNumber: {
     fontSize: 14,
-    color: '#6b7280',
+    color: theme.colors.textSecondary,
     marginBottom: 4,
   },
   lessonTitle: {
     fontSize: 16,
-    color: '#1f2937',
+    color: theme.colors.text,
     lineHeight: 20,
   },
   lockedLessonTitle: {
-    color: '#9ca3af',
+    color: theme.colors.textMuted,
   },
 });

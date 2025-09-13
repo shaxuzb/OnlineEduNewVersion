@@ -59,7 +59,7 @@ class VersionService {
    */
   private static async tryFetch(baseUrl: string): Promise<RemoteVersionData> {
     const urlWithCacheBuster = `${baseUrl}?nocache=${new Date().getTime()}`;
-    console.log('Trying to fetch from:', urlWithCacheBuster);
+    // console.log('Trying to fetch from:', urlWithCacheBuster);
     
     const response = await fetch(urlWithCacheBuster, {
       method: 'GET',
@@ -78,7 +78,7 @@ class VersionService {
     }
     
     const rawText = await response.text();
-    console.log('Raw response from', baseUrl, ':', rawText);
+    // console.log('Raw response from', baseUrl, ':', rawText);
     
     const data = JSON.parse(rawText);
     
@@ -103,16 +103,16 @@ class VersionService {
     
     for (let i = 0; i < urls.length; i++) {
       try {
-        console.log(`Attempting fetch ${i + 1}/${urls.length} from: ${urls[i]}`);
+        // console.log(`Attempting fetch ${i + 1}/${urls.length} from: ${urls[i]}`);
         const data = await this.tryFetch(urls[i]);
-        console.log('Successfully fetched data:', data);
+        // console.log('Successfully fetched data:', data);
         return data;
       } catch (error) {
         lastError = error as Error;
-        console.warn(`Fetch attempt ${i + 1} failed:`, error);
+        // console.warn(`Fetch attempt ${i + 1} failed:`, error);
         
         if (i < urls.length - 1) {
-          console.log('Trying next URL...');
+          // console.log('Trying next URL...');
           // Wait 1 second before trying next URL
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
@@ -128,23 +128,23 @@ class VersionService {
   static async checkForUpdates(): Promise<VersionInfo> {
     try {
       const currentVersion = this.getCurrentVersion();
-      console.log('Fetching version from GitHub...', this.VERSION_URL);
+      // console.log('Fetching version from GitHub...', this.VERSION_URL);
       
       const remoteData = await this.fetchRemoteVersion();
-      console.log('Remote data received:', remoteData);
+      // console.log('Remote data received:', remoteData);
       
       const updateAvailable = this.isNewerVersion(currentVersion, remoteData.latestVersion);
       const storeUrl = Platform.OS === 'ios' 
         ? remoteData.updateUrlIos 
         : remoteData.updateUrlAndroid;
 
-      console.log('Version comparison result:', {
-        current: currentVersion,
-        remote: remoteData.latestVersion,
-        updateAvailable,
-        platform: Platform.OS,
-        storeUrl
-      });
+      // console.log('Version comparison result:', {
+      //   current: currentVersion,
+      //   remote: remoteData.latestVersion,
+      //   updateAvailable,
+      //   platform: Platform.OS,
+      //   storeUrl
+      // });
 
       return {
         currentVersion,
@@ -154,7 +154,7 @@ class VersionService {
         forceUpdate: remoteData.forceUpdate
       };
     } catch (error) {
-      console.error('Version check failed:', error);
+      // console.error('Version check failed:', error);
       
       // Fallback
       const currentVersion = this.getCurrentVersion();

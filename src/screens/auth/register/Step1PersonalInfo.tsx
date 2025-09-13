@@ -12,6 +12,8 @@ import {
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { useRegister } from '../../../context/RegisterContext';
+import { useTheme } from '../../../context/ThemeContext';
+import { Theme } from '../../../types';
 import { Ionicons } from '@expo/vector-icons';
 
 // Validation schema
@@ -32,6 +34,8 @@ const Step1Schema = Yup.object().shape({
 
 const Step1PersonalInfo: React.FC = () => {
   const { registerData, updateRegisterData, nextStep } = useRegister();
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
 
   const handleNext = (values: { firstName: string; lastName: string; middleName: string }) => {
     updateRegisterData(values);
@@ -73,7 +77,7 @@ const Step1PersonalInfo: React.FC = () => {
                       touched.firstName && errors.firstName && styles.inputError
                     ]}
                     placeholder="Ism"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={theme.colors.placeholder}
                     value={values.firstName}
                     onChangeText={handleChange('firstName')}
                     onBlur={handleBlur('firstName')}
@@ -93,7 +97,7 @@ const Step1PersonalInfo: React.FC = () => {
                       touched.lastName && errors.lastName && styles.inputError
                     ]}
                     placeholder="Familya"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={theme.colors.placeholder}
                     value={values.lastName}
                     onChangeText={handleChange('lastName')}
                     onBlur={handleBlur('lastName')}
@@ -113,7 +117,7 @@ const Step1PersonalInfo: React.FC = () => {
                       touched.middleName && errors.middleName && styles.inputError
                     ]}
                     placeholder="Sharif"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={theme.colors.placeholder}
                     value={values.middleName}
                     onChangeText={handleChange('middleName')}
                     onBlur={handleBlur('middleName')}
@@ -146,10 +150,10 @@ const Step1PersonalInfo: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.colors.background,
   },
   scrollContainer: {
     flexGrow: 1,
@@ -167,13 +171,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: theme.colors.text,
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
   },
@@ -185,26 +189,26 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.inputBorder,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    backgroundColor: '#F9FAFB',
-    color: '#1F2937',
+    backgroundColor: theme.colors.inputBackground,
+    color: theme.colors.text,
   },
   inputError: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
+    borderColor: theme.colors.error,
+    backgroundColor: theme.colors.error + '10',
   },
   errorText: {
-    color: '#EF4444',
+    color: theme.colors.error,
     fontSize: 14,
     marginTop: 6,
     marginLeft: 4,
   },
   nextButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: theme.colors.primary,
     borderRadius: 12,
     paddingVertical: 16,
     flexDirection: 'row',
@@ -213,7 +217,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   nextButtonDisabled: {
-    backgroundColor: '#D1D5DB',
+    backgroundColor: theme.colors.border,
   },
   nextButtonText: {
     color: 'white',

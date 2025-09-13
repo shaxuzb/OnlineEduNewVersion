@@ -8,6 +8,8 @@ import {
   StatusBar,
 } from 'react-native';
 import { RegisterProvider, useRegister } from '../../context/RegisterContext';
+import { useTheme } from '../../context/ThemeContext';
+import { Theme } from '../../types';
 import Step1PersonalInfo from './register/Step1PersonalInfo';
 import Step2ContactInfo from './register/Step2ContactInfo';
 import Step2OTPVerification from './register/Step2OTPVerification';
@@ -20,6 +22,8 @@ const ProgressIndicator: React.FC<{ currentStep: number; totalSteps: number }> =
   currentStep, 
   totalSteps 
 }) => {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const getStepStatus = (step: number) => {
     if (step < currentStep) return 'completed';
     if (step === currentStep) return 'active';
@@ -70,6 +74,8 @@ interface RegisterScreenContentProps {
 
 const RegisterScreenContent: React.FC<RegisterScreenContentProps> = ({ onClose }) => {
   const { currentStep, resetRegistration } = useRegister();
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
 
   const handleClose = () => {
     resetRegistration();
@@ -97,13 +103,13 @@ const RegisterScreenContent: React.FC<RegisterScreenContentProps> = ({ onClose }
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar barStyle={theme.isDark ? "light-content" : "dark-content"} backgroundColor={theme.colors.background} />
       
       {/* Header with close button and progress - hide on success screen */}
       {currentStep !== 5 && (
         <View style={styles.header}>
           <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-            <Ionicons name="close" size={24} color="#6B7280" />
+            <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
           </TouchableOpacity>
           
           <ProgressIndicator currentStep={currentStep} totalSteps={4} />
@@ -133,10 +139,10 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onClose }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -145,13 +151,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: theme.colors.border,
   },
   closeButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: theme.colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -176,20 +182,20 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: theme.colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   progressCircleActive: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: theme.colors.primary,
   },
   progressCircleCompleted: {
-    backgroundColor: '#10B981',
+    backgroundColor: theme.colors.success,
   },
   progressText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: theme.colors.textMuted,
   },
   progressTextActive: {
     color: 'white',
@@ -197,11 +203,11 @@ const styles = StyleSheet.create({
   progressLine: {
     width: 40,
     height: 2,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: theme.colors.border,
     marginHorizontal: 8,
   },
   progressLineCompleted: {
-    backgroundColor: '#10B981',
+    backgroundColor: theme.colors.success,
   },
 });
 

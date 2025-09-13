@@ -53,7 +53,7 @@ export const useVersionCheck = (): UseVersionCheckReturn => {
     try {
       await AsyncStorage.setItem(LAST_CHECK_KEY, Date.now().toString());
     } catch (error) {
-      console.error("Failed to save last check time:", error);
+      // console.error("Failed to save last check time:", error);
     }
   };
 
@@ -68,7 +68,7 @@ export const useVersionCheck = (): UseVersionCheckReturn => {
     try {
       // Always use real GitHub API
       const result = await VersionService.checkForUpdates();
-      console.log('Version check result:', result);
+      // console.log('Version check result:', result);
 
       setVersionInfo(result);
 
@@ -81,7 +81,7 @@ export const useVersionCheck = (): UseVersionCheckReturn => {
 
       await saveLastCheckTime();
     } catch (error) {
-      console.error('Version check failed:', error);
+      // console.error('Version check failed:', error);
     } finally {
       isCheckingRef.current = false;
       setIsChecking(false);
@@ -97,7 +97,7 @@ export const useVersionCheck = (): UseVersionCheckReturn => {
           versionInfo.storeVersion
         );
       } catch (error) {
-        console.error("Failed to dismiss update:", error);
+        // console.error("Failed to dismiss update:", error);
       }
     }
   }, [versionInfo]);
@@ -108,20 +108,20 @@ export const useVersionCheck = (): UseVersionCheckReturn => {
       if (hasCheckedRef.current) return;
       hasCheckedRef.current = true;
 
-      console.log('Initializing version check...');
+      // console.log('Initializing version check...');
       
       // Clear cache for testing - remove this in production
       await AsyncStorage.removeItem(LAST_CHECK_KEY);
       await AsyncStorage.removeItem(DISMISSED_VERSION_KEY);
       
       const shouldCheckNow = await shouldCheck();
-      console.log('Should check for updates:', shouldCheckNow);
+      // console.log('Should check for updates:', shouldCheckNow);
       
       if (shouldCheckNow) {
-        console.log('Starting version check...');
+        // console.log('Starting version check...');
         checkForUpdates();
       } else {
-        console.log('Skipping version check - checked recently');
+        // console.log('Skipping version check - checked recently');
       }
     };
 

@@ -3,10 +3,14 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../utils';
+import { useTheme } from '../../context/ThemeContext';
+import { Theme } from '../../types';
+import { SPACING, FONT_SIZES, BORDER_RADIUS } from '../../utils';
 
 export default function StatistikaScreen() {
   const navigation = useNavigation();
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
 
   const handleGoBack = () => {
     navigation.goBack();
@@ -15,9 +19,9 @@ export default function StatistikaScreen() {
   // Mock statistics data
   const overallProgress = 64;
   const courseStats = [
-    { name: 'Algebra', percentage: 62, color: '#3b82f6' },
-    { name: 'Geometriya', percentage: 74, color: '#10b981' },
-    { name: 'Milliy Sertifikat', percentage: 56, color: '#f59e0b' },
+    { name: 'Algebra', percentage: 62, color: theme.colors.primary },
+    { name: 'Geometriya', percentage: 74, color: theme.colors.success },
+    { name: 'Milliy Sertifikat', percentage: 56, color: theme.colors.warning },
   ];
 
   return (
@@ -66,9 +70,9 @@ export default function StatistikaScreen() {
               </View>
               <View style={styles.courseStatRight}>
                 <View style={styles.handPointer}>
-                  <Ionicons name="hand-left" size={20} color="#fbbf24" />
+                  <Ionicons name="hand-left" size={20} color={theme.colors.warning} />
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={COLORS.gray} />
+                <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
               </View>
             </TouchableOpacity>
           ))}
@@ -78,16 +82,16 @@ export default function StatistikaScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.secondary,
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: COLORS.primary,
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.base,
     minHeight: 60,
@@ -100,7 +104,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: FONT_SIZES.xl,
     fontWeight: 'bold',
-    color: COLORS.white,
+    color: 'white',
     flex: 1,
     textAlign: 'center',
   },
@@ -113,11 +117,11 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: COLORS.white,
+    backgroundColor: 'white',
   },
   content: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: theme.colors.card,
   },
   chartSection: {
     alignItems: 'center',
@@ -137,7 +141,7 @@ const styles = StyleSheet.create({
     height: 150,
     borderRadius: 75,
     position: 'relative',
-    backgroundColor: '#e5e7eb',
+    backgroundColor: theme.colors.divider,
     overflow: 'hidden',
   },
   pieSegment: {
@@ -147,14 +151,14 @@ const styles = StyleSheet.create({
     borderRadius: 75,
   },
   blueSegment: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: theme.colors.primary,
     left: 0,
     borderTopRightRadius: 0,
     borderBottomRightRadius: 0,
     transform: [{ rotate: '20deg' }],
   },
   lightBlueSegment: {
-    backgroundColor: '#60a5fa',
+    backgroundColor: theme.colors.primaryLight,
     left: '25%',
     width: '25%',
     height: '50%',
@@ -163,13 +167,13 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '45deg' }],
   },
   graySegment: {
-    backgroundColor: '#e5e7eb',
+    backgroundColor: theme.colors.divider,
     right: 0,
     borderTopLeftRadius: 0,
     borderBottomLeftRadius: 0,
   },
   darkSegment: {
-    backgroundColor: '#1f2937',
+    backgroundColor: theme.colors.text,
     bottom: -10,
     left: '25%',
     width: '50%',
@@ -180,14 +184,14 @@ const styles = StyleSheet.create({
   progressTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '600',
-    color: COLORS.text,
+    color: theme.colors.text,
     marginBottom: SPACING.xs,
     textAlign: 'center',
   },
   progressPercentage: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: theme.colors.text,
     textAlign: 'center',
   },
   courseStatsSection: {
@@ -198,7 +202,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.white,
+    backgroundColor: theme.colors.card,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.lg,
     marginBottom: SPACING.base,
@@ -209,7 +213,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
     borderWidth: 1,
-    borderColor: '#f3f4f6',
+    borderColor: theme.colors.border,
   },
   courseStatLeft: {
     flex: 1,
@@ -217,7 +221,7 @@ const styles = StyleSheet.create({
   courseStatName: {
     fontSize: FONT_SIZES.base,
     fontWeight: '500',
-    color: COLORS.text,
+    color: theme.colors.text,
   },
   courseStatRight: {
     flexDirection: 'row',

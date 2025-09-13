@@ -4,11 +4,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useBookmark } from '../../context/BookmarkContext';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../utils';
-import { BookmarkedLesson } from '../../types';
+import { useTheme } from '../../context/ThemeContext';
+import { SPACING, FONT_SIZES, BORDER_RADIUS } from '../../utils';
+import { BookmarkedLesson, Theme } from '../../types';
 
 export default function SaveScreen() {
   const navigation = useNavigation();
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const { bookmarkedLessons, getBookmarksByCategory, isLoading, removeBookmark } = useBookmark();
 
   const categorizedBookmarks = getBookmarksByCategory();
@@ -35,9 +38,9 @@ export default function SaveScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={styles.loadingText}>Yuklanmoqda...</Text>
         </View>
       </SafeAreaView>
@@ -46,9 +49,9 @@ export default function SaveScreen() {
 
   if (bookmarkedLessons.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.emptyContainer}>
-          <Ionicons name="bookmark-outline" size={64} color={COLORS.gray} />
+          <Ionicons name="bookmark-outline" size={64} color={theme.colors.textMuted} />
           <Text style={styles.emptyTitle}>Saqlangan darslar yo'q</Text>
           <Text style={styles.emptySubtitle}>Darslarni saqlash uchun bookmark tugmasini bosing</Text>
         </View>
@@ -57,7 +60,7 @@ export default function SaveScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.menuButton} onPress={handleStatisticsPress}>
@@ -85,7 +88,7 @@ export default function SaveScreen() {
                   activeOpacity={0.7}
                 >
                   <View style={styles.lessonIcon}>
-                    <Ionicons name="lock-closed" size={16} color={COLORS.success} />
+                    <Ionicons name="lock-closed" size={16} color={theme.colors.success} />
                   </View>
                   
                   <View style={styles.lessonContent}>
@@ -98,7 +101,7 @@ export default function SaveScreen() {
                     onPress={() => handleRemoveBookmark(lesson)}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
-                    <Ionicons name="close" size={16} color={COLORS.gray} />
+                    <Ionicons name="close" size={16} color={theme.colors.textMuted} />
                   </TouchableOpacity>
                 </TouchableOpacity>
               ))}
@@ -113,16 +116,16 @@ export default function SaveScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.secondary,
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: COLORS.primary,
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.base,
     minHeight: 60,
@@ -135,7 +138,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: FONT_SIZES.xl,
     fontWeight: 'bold',
-    color: COLORS.white,
+    color: 'white',
     flex: 1,
     textAlign: 'center',
   },
@@ -148,7 +151,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: COLORS.white,
+    backgroundColor: 'white',
   },
   loadingContainer: {
     flex: 1,
@@ -158,7 +161,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: SPACING.base,
     fontSize: FONT_SIZES.base,
-    color: COLORS.text,
+    color: theme.colors.text,
   },
   emptyContainer: {
     flex: 1,
@@ -169,20 +172,20 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: FONT_SIZES.xl,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: theme.colors.text,
     marginTop: SPACING.base,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.gray,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     marginTop: SPACING.xs,
     lineHeight: 22,
   },
   content: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: theme.colors.card,
   },
   categorySection: {
     marginTop: SPACING.lg,
@@ -190,27 +193,27 @@ const styles = StyleSheet.create({
   categoryTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: theme.colors.text,
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: "black",
+    borderBottomColor: theme.colors.border,
     marginBottom: SPACING.base,
   },
   lessonItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: theme.colors.card,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.base,
     borderBottomWidth: 0.5,
-    borderBottomColor: "gray",
+    borderBottomColor: theme.colors.border,
   },
   lessonIcon: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#e8f5e8',
+    backgroundColor: theme.colors.success + '20', // 20% opacity
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: SPACING.base,
@@ -221,12 +224,12 @@ const styles = StyleSheet.create({
   lessonTitle: {
     fontSize: FONT_SIZES.base,
     fontWeight: '600',
-    color: COLORS.text,
+    color: theme.colors.text,
     marginBottom: 2,
   },
   lessonSubtitle: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.gray,
+    color: theme.colors.textSecondary,
     lineHeight: 18,
   },
   removeButton: {

@@ -1,18 +1,22 @@
-import React, { useState, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  StyleSheet, 
-  Dimensions, 
-  StatusBar 
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import Video from 'react-native-video';
+import React, { useState, useRef, useEffect } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+  StatusBar,
+  ActivityIndicator,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import Video from "react-native-video";
+import { RootStackParamList } from "@/src/types";
+import Constants from "expo-constants";
+import * as SecureStore from "expo-secure-store";
 
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 
 export default function VideoPlayerScreen() {
   const navigation = useNavigation();
@@ -22,13 +26,33 @@ export default function VideoPlayerScreen() {
   const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
-  const videoRef = useRef<Video>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const videoRef = useRef<any>(null);
 
   // Get lesson data from route params
-  const { lessonTitle, mavzu } = (route.params as any) || {};
+  const { lessonTitle, mavzu, videoFileId } =
+    (route.params as RootStackParamList["VideoPlayer"]) || {};
 
-  // HLS test video URL
-  const videoUri = 'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8';
+  // Load authentication token from SecureStore
+  useEffect(() => {
+    async function loadAuthToken() {
+      try {
+        setIsLoading(true);
+        const sessionData = await SecureStore.getItemAsync("session");
+        if (sessionData) {
+          const { token } = JSON.parse(sessionData);
+          setAuthToken(token);
+        }
+      } catch (error) {
+        console.error("Error loading auth token:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadAuthToken();
+  }, []);
 
   const handleGoBack = () => {
     navigation.goBack();
@@ -69,14 +93,12 @@ export default function VideoPlayerScreen() {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
-      
-      {/* Back Button */}
       <View style={styles.topControls}>
         <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
           <Ionicons name="chevron-back" size={28} color="white" />
@@ -85,27 +107,48 @@ export default function VideoPlayerScreen() {
           </View>
         </TouchableOpacity>
       </View>
-
-      {/* Video Player */}
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.videoContainer}
         onPress={toggleControls}
         activeOpacity={1}
       >
-        <Video
-          ref={videoRef}
-          source={{ uri: videoUri }}
-          style={styles.video}
-          paused={paused}
-          onLoad={onLoad}
-          onProgress={onProgress}
-          resizeMode="contain"
-          repeat={false}
-          controls={false}
-        />
-        
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#3b82f6" />
+            <Text style={styles.loadingText}>Loading video...</Text>
+          </View>
+        ) : authToken ? (
+          <Video
+            ref={videoRef}
+            source={{
+              uri: `${Constants.expoConfig?.extra?.API_URL}/videos/${videoFileId}`,
+              type: "m3u8",
+              headers: {
+                Authorization: `Bearer ${authToken}`,
+              },
+            }}
+            style={styles.video}
+            paused={paused}
+            onLoad={onLoad}
+            onExternalPlaybackChange={(data)=>{
+              console.log(data);
+            }}
+            
+            onProgress={onProgress}
+          
+            resizeMode="contain"
+            repeat={false}
+            controls={false}
+          />
+        ) : (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>
+              Unable to load video - Authentication failed
+            </Text>
+          </View>
+        )}
         {/* Teacher Overlay - Demo content */}
-        <View style={styles.videoOverlay}>
+        {/* <View style={styles.videoOverlay}>
           <View style={styles.teacherSection}>
             <View style={styles.teacherPlaceholder}>
               <Text style={styles.teacherText}>👨‍🏫</Text>
@@ -113,16 +156,16 @@ export default function VideoPlayerScreen() {
               <Text style={styles.boardText}>Natural sonlar haqida</Text>
             </View>
           </View>
-        </View>
+        </View> */}
       </TouchableOpacity>
 
       {/* Bottom Controls */}
       <View style={styles.bottomSection}>
         {/* Lesson Title */}
         <Text style={styles.lessonTitle}>
-          {lessonTitle || 'Natural sonlar va ular ustida amallar'}
+          {lessonTitle || "Natural sonlar va ular ustida amallar"}
         </Text>
-        
+
         {/* Progress Bar */}
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
@@ -130,8 +173,9 @@ export default function VideoPlayerScreen() {
               style={[
                 styles.progress,
                 {
-                  width: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%',
-                }
+                  width:
+                    duration > 0 ? `${(currentTime / duration) * 100}%` : "0%",
+                },
               ]}
             />
           </View>
@@ -145,22 +189,28 @@ export default function VideoPlayerScreen() {
         {showControls && (
           <View style={styles.controlsContainer}>
             <TouchableOpacity onPress={handleLike} style={styles.controlButton}>
-              <Ionicons 
-                name={isLiked ? "heart" : "heart-outline"} 
-                size={28} 
-                color={isLiked ? "#ef4444" : "white"} 
+              <Ionicons
+                name={isLiked ? "heart" : "heart-outline"}
+                size={28}
+                color={isLiked ? "#ef4444" : "white"}
               />
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={handlePrevious} style={styles.controlButton}>
+            <TouchableOpacity
+              onPress={handlePrevious}
+              style={styles.controlButton}
+            >
               <Ionicons name="play-skip-back" size={28} color="white" />
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={handlePlayPause} style={styles.playButton}>
-              <Ionicons 
-                name={paused ? "play" : "pause"} 
-                size={32} 
-                color="white" 
+            <TouchableOpacity
+              onPress={handlePlayPause}
+              style={styles.playButton}
+            >
+              <Ionicons
+                name={paused ? "play" : "pause"}
+                size={32}
+                color="white"
               />
             </TouchableOpacity>
 
@@ -168,7 +218,10 @@ export default function VideoPlayerScreen() {
               <Ionicons name="play-skip-forward" size={28} color="white" />
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={handleGoBack} style={styles.controlButton}>
+            <TouchableOpacity
+              onPress={handleGoBack}
+              style={styles.controlButton}
+            >
               <Ionicons name="remove" size={28} color="white" />
             </TouchableOpacity>
           </View>
@@ -181,56 +234,81 @@ export default function VideoPlayerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: "#000",
+  },
+  loadingContainer: {
+    width: width,
+    height: height * 0.6,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#121212",
+  },
+  loadingText: {
+    color: "white",
+    marginTop: 10,
+    fontSize: 16,
+  },
+  errorContainer: {
+    width: width,
+    height: height * 0.6,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#121212",
+    padding: 20,
+  },
+  errorText: {
+    color: "#ef4444",
+    textAlign: "center",
+    fontSize: 16,
   },
   topControls: {
-    position: 'absolute',
+    position: "absolute",
     top: 50,
     left: 20,
     zIndex: 10,
   },
   backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 8,
-    position: 'relative',
+    position: "relative",
   },
   handPointer: {
-    position: 'absolute',
+    position: "absolute",
     top: -5,
     right: -15,
   },
   videoContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#000',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#000",
   },
   video: {
     width: width,
     height: height * 0.6,
   },
   videoOverlay: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
   },
   teacherSection: {
     width: width * 0.8,
     height: height * 0.4,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    backgroundColor: "rgba(59, 130, 246, 0.1)",
     borderRadius: 12,
     padding: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 2,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
+    borderColor: "rgba(59, 130, 246, 0.3)",
   },
   teacherPlaceholder: {
-    alignItems: 'center',
+    alignItems: "center",
   },
   teacherText: {
     fontSize: 60,
@@ -238,14 +316,14 @@ const styles = StyleSheet.create({
   },
   lessonIndicator: {
     fontSize: 16,
-    color: 'white',
-    fontWeight: 'bold',
+    color: "white",
+    fontWeight: "bold",
     marginBottom: 8,
   },
   boardText: {
     fontSize: 14,
-    color: '#e5e7eb',
-    textAlign: 'center',
+    color: "#e5e7eb",
+    textAlign: "center",
   },
   bottomSection: {
     paddingHorizontal: 20,
@@ -253,9 +331,9 @@ const styles = StyleSheet.create({
   },
   lessonTitle: {
     fontSize: 18,
-    color: 'white',
-    fontWeight: '600',
-    textAlign: 'center',
+    color: "white",
+    fontWeight: "600",
+    textAlign: "center",
     marginBottom: 20,
   },
   progressContainer: {
@@ -263,42 +341,42 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
     borderRadius: 2,
     marginBottom: 8,
   },
   progress: {
-    height: '100%',
-    backgroundColor: '#3b82f6',
+    height: "100%",
+    backgroundColor: "#3b82f6",
     borderRadius: 2,
   },
   timeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   timeText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
   },
   controlsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
     paddingHorizontal: 10,
   },
   controlButton: {
     padding: 12,
     borderRadius: 25,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
   playButton: {
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 2,
-    borderColor: 'white',
+    borderColor: "white",
   },
 });

@@ -1,10 +1,15 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '../../context/ThemeContext';
+import { Theme } from '../../types';
 
 export default function NewsScreen() {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+  
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.content}>
         <Text style={styles.title}>News</Text>
         <Text style={styles.subtitle}>Yangiliklar bu yerda ko'rsatiladi</Text>
@@ -13,10 +18,10 @@ export default function NewsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: theme.colors.background,
   },
   content: {
     flex: 1,
@@ -27,12 +32,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: theme.colors.text,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6b7280',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
   },
 });

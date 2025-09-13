@@ -1,14 +1,34 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Alert, ActivityIndicator, Modal, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import Pdf from 'react-native-pdf';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../utils';
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+  Alert,
+  ActivityIndicator,
+  ScrollView,
+  TextInput,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import Pdf from "react-native-pdf";
+import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from "../../utils";
+import { RootStackParamList, QuizAnswer } from "@/src/types";
+import {
+  useThemeTest,
+  useTestPdf,
+  useSubmitTestResults,
+  useCurrentUserId,
+} from "../../hooks/useQuiz";
+import Constants from "expo-constants";
+import * as SecureStore from "expo-secure-store";
+import MathKeyboard from "../../components/MathKeyboard";
 
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 
-interface QuizAnswer {
+interface LocalQuizAnswer {
   questionId: number;
   selectedOption: string | null;
   isConfirmed: boolean;
@@ -17,59 +37,140 @@ interface QuizAnswer {
 export default function QuizScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  
+
+  // Get params from route
+  const { title, testId, mavzu } =
+    (route.params as RootStackParamList["QuizScreen"]) || {};
+
+  // API hooks
+  const {
+    data: testData,
+    isLoading: testLoading,
+    error: testError,
+  } = useThemeTest(testId);
+  const { data: pdfBlob, isLoading: pdfLoading } = useTestPdf(testId);
+  const submitResults = useSubmitTestResults();
+  const currentUserId = useCurrentUserId();
+
   // Quiz state
   const [currentQuestion, setCurrentQuestion] = useState(1);
-  const [totalQuestions] = useState(11); // Based on the image showing "11"
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [answers, setAnswers] = useState<QuizAnswer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [answers, setAnswers] = useState<LocalQuizAnswer[]>([]);
   const [showTestModal, setShowTestModal] = useState(false);
+  const [textInputValue, setTextInputValue] = useState(""); // For text input questions
+  const [authToken, setAuthToken] = useState<string | null>(null);
 
-  // Get PDF data from route params
-  const { pdfPath, title, mavzu } = (route.params as any) || {};
-  
+  // Derived values
+  const totalQuestions = testData?.questionCount || 0;
+  const currentAnswerKey = testData?.answerKeys?.find(
+    (ak) => ak.questionNumber === currentQuestion
+  );
+  const isMultipleChoice = currentAnswerKey?.answerType === 1;
+  const questionOptions = currentAnswerKey?.options
+    ? JSON.parse(currentAnswerKey.options)
+    : [];
+
   const handleGoBack = () => {
     Alert.alert(
-      'Testni tark etish',
-      'Haqiqatan ham testni tark etmoqchimisiz?',
+      "Testni tark etish",
+      "Haqiqatan ham testni tark etmoqchimisiz?",
       [
-        { text: 'Bekor qilish', style: 'cancel' },
-        { text: 'Chiqish', onPress: () => navigation.goBack() }
+        { text: "Bekor qilish", style: "cancel" },
+        { text: "Chiqish", onPress: () => navigation.goBack() },
       ]
     );
   };
 
+  // load token
+
+  useEffect(() => {
+    async function loadAuthToken() {
+      try {
+        // setIsLoading(true);
+        const sessionData = await SecureStore.getItemAsync("session");
+        if (sessionData) {
+          const { token } = JSON.parse(sessionData);
+          setAuthToken(token);
+        }
+      } catch (error) {
+        console.error("Error loading auth token:", error);
+      } finally {
+        // setIsLoading(false);
+      }
+    }
+
+    loadAuthToken();
+  }, []);
+
+  // Load saved answer when question changes
+
+  useEffect(() => {
+    const savedAnswer = answers.find((a) => a.questionId === currentQuestion);
+    if (savedAnswer) {
+      setSelectedOption(savedAnswer.selectedOption);
+      if (isMultipleChoice) {
+        setTextInputValue("");
+      } else {
+        setTextInputValue(savedAnswer.selectedOption || "");
+      }
+    } else {
+      setSelectedOption(null);
+      setTextInputValue("");
+    }
+  }, [currentQuestion, answers, isMultipleChoice]);
+
   const handleLoadComplete = (numberOfPages: number) => {
-    setLoading(false);
+    console.log("PDF loaded with", numberOfPages, "pages");
   };
 
   const handleError = (error: any) => {
-    setLoading(false);
     Alert.alert(
-      'Xatolik',
-      'PDF faylni ochishda xatolik yuz berdi. Fayl mavjudligini tekshiring.',
-      [{ text: 'OK', onPress: handleGoBack }]
+      "Xatolik",
+      "PDF faylni ochishda xatolik yuz berdi. Fayl mavjudligini tekshiring.",
+      [{ text: "OK", onPress: handleGoBack }]
     );
-    console.error('PDF Error:', error);
+    console.error("PDF Error:", error);
   };
 
   const handleOptionSelect = (option: string) => {
     setSelectedOption(option);
+    setTextInputValue(""); // Clear text input when selecting option
+  };
+
+  const handleTextInputChange = (text: string) => {
+    setTextInputValue(text);
+    setSelectedOption(null); // Clear option selection when typing
+  };
+
+  // Math keyboard handlers
+  const handleMathKeyPress = (key: string) => {
+    setTextInputValue(prev => prev + key);
+    setSelectedOption(null); // Clear option selection when using math keyboard
+  };
+
+  const handleMathBackspace = () => {
+    setTextInputValue(prev => prev.slice(0, -1));
+  };
+
+  const handleMathClear = () => {
+    setTextInputValue("");
   };
 
   const handleConfirm = () => {
-    if (!selectedOption) return;
+    const answerValue = isMultipleChoice
+      ? selectedOption
+      : textInputValue.trim();
+    if (!answerValue) return;
 
     // Save the answer
-    const newAnswer: QuizAnswer = {
+    const newAnswer: LocalQuizAnswer = {
       questionId: currentQuestion,
-      selectedOption,
-      isConfirmed: true
+      selectedOption: answerValue,
+      isConfirmed: true,
     };
 
-    setAnswers(prev => {
-      const filtered = prev.filter(a => a.questionId !== currentQuestion);
+    setAnswers((prev) => {
+      const filtered = prev.filter((a) => a.questionId !== currentQuestion);
       return [...filtered, newAnswer];
     });
 
@@ -78,11 +179,16 @@ export default function QuizScreen() {
       if (currentQuestion < totalQuestions) {
         handleNext();
       } else {
-        // Quiz completed
+        // Quiz completed - suggest finishing
         Alert.alert(
-          'Test tugadi!',
-          `Siz ${totalQuestions} ta savoldan ${answers.length + 1} tasini javobladingiz.`,
-          [{ text: 'Yakunlash', onPress: handleGoBack }]
+          "Test tugadi!",
+          `Siz ${totalQuestions} ta savoldan ${
+            answers.length + 1
+          } tasini javobladingiz. Testni yakunlamoqchimisiz?`,
+          [
+            { text: "Davom etish", style: "cancel" },
+            { text: "Yakunlash", onPress: handleFinishTest },
+          ]
         );
       }
     }, 500);
@@ -90,54 +196,91 @@ export default function QuizScreen() {
 
   const handleEditAnswer = () => {
     // Allow editing confirmed answer
-    setAnswers(prev => prev.filter(a => a.questionId !== currentQuestion));
+    setAnswers((prev) => prev.filter((a) => a.questionId !== currentQuestion));
   };
 
   const handleNext = () => {
     if (currentQuestion < totalQuestions) {
-      setCurrentQuestion(prev => prev + 1);
+      setCurrentQuestion((prev) => prev + 1);
       // Load saved answer for next question
-      const savedAnswer = answers.find(a => a.questionId === currentQuestion + 1);
+      const savedAnswer = answers.find(
+        (a) => a.questionId === currentQuestion + 1
+      );
       setSelectedOption(savedAnswer?.selectedOption || null);
     }
   };
 
   const handlePrevious = () => {
     if (currentQuestion > 1) {
-      setCurrentQuestion(prev => prev - 1);
+      setCurrentQuestion((prev) => prev - 1);
       // Load saved answer for previous question
-      const savedAnswer = answers.find(a => a.questionId === currentQuestion - 1);
+      const savedAnswer = answers.find(
+        (a) => a.questionId === currentQuestion - 1
+      );
       setSelectedOption(savedAnswer?.selectedOption || null);
     }
   };
 
-  const handleFinishTest = () => {
-    const answeredQuestions = answers.filter(a => a.isConfirmed).length;
-    const wrongQuestionNumbers = Array.from({ length: totalQuestions }, (_, i) => i + 1)
-      .filter(q => !answers.find(a => a.questionId === q)?.isConfirmed);
-    const correctAnswers = totalQuestions - wrongQuestionNumbers.length;
-    const wrongAnswers = wrongQuestionNumbers.length;
-    const percentage = Math.round((correctAnswers / totalQuestions) * 100);
+  const handleFinishTest = async () => {
+    if (!currentUserId || !testId) {
+      Alert.alert("Xatolik", "Foydalanuvchi ma'lumotlari topilmadi");
+      return;
+    }
+
+    const answeredQuestions = answers.filter((a) => a.isConfirmed).length;
+    const unansweredCount = totalQuestions - answeredQuestions;
 
     Alert.alert(
-      'Testni yakunlash',
-      `Siz ${totalQuestions} ta savoldan ${answeredQuestions} tasiga javob berdingiz.\n\nTestni yakunlamoqchimisiz?`,
+      "Testni yakunlash",
+      `Siz ${totalQuestions} ta savoldan ${answeredQuestions} tasiga javob berdingiz.${
+        unansweredCount > 0
+          ? `\n${unansweredCount} ta savol javobsiz qoldi.`
+          : ""
+      }\n\nTestni yakunlamoqchimisiz?`,
       [
-        { text: 'Bekor qilish', style: 'cancel' },
-        { 
-          text: 'Ha, yakunlash', 
-          style: 'destructive',
-          onPress: () => {
-            (navigation as any).navigate('QuizResults', {
-              totalQuestions,
-              correctAnswers,
-              wrongAnswers,
-              percentage,
-              wrongQuestionNumbers,
-              mavzu: mavzu || '1-mavzu',
-            });
-          }
-        }
+        { text: "Bekor qilish", style: "cancel" },
+        {
+          text: "Ha, yakunlash",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // Prepare answers for submission
+              const submissionAnswers: QuizAnswer[] = answers.map((answer) => ({
+                questionNumber: answer.questionId,
+                partIndex:
+                  testData?.answerKeys?.find(
+                    (ak) => ak.questionNumber === answer.questionId
+                  )?.partIndex || 0,
+                answer: answer.selectedOption || "",
+              }));
+
+              // Submit to API
+              await submitResults.mutateAsync({
+                testId,
+                userId: currentUserId,
+                answers: submissionAnswers,
+              });
+
+              // Navigate to QuizResults screen
+              (navigation as any).navigate("QuizResults", {
+                testId,
+                userId: currentUserId,
+                themeId: testData?.themeId,
+                mavzu: mavzu || "1-mavzu",
+              });
+            } catch (error) {
+              console.error("Error submitting quiz:", error);
+              Alert.alert(
+                "Xatolik",
+                "Test natijalarini yuborishda xatolik yuz berdi. Qaytadan urinib ko'ring.",
+                [
+                  { text: "Bekor qilish", style: "cancel" },
+                  { text: "Qayta urinish", onPress: () => handleFinishTest() },
+                ]
+              );
+            }
+          },
+        },
       ]
     );
   };
@@ -148,14 +291,52 @@ export default function QuizScreen() {
 
   const handleTestSelect = (testNumber: number) => {
     setCurrentQuestion(testNumber);
-    const savedAnswer = answers.find(a => a.questionId === testNumber);
+    const savedAnswer = answers.find((a) => a.questionId === testNumber);
     setSelectedOption(savedAnswer?.selectedOption || null);
     setShowTestModal(false);
   };
 
-  const source = pdfPath ? { uri: `https://www.uscis.gov/sites/default/files/document/forms/i-9.pdf` } : undefined;
-  const isAnswerSelected = selectedOption !== null;
-  const currentAnswer = answers.find(a => a.questionId === currentQuestion);
+  // PDF source from API data
+  // Check if answer is selected (either option selected or text input has value)
+  const isAnswerSelected = isMultipleChoice
+    ? selectedOption !== null
+    : textInputValue.trim() !== "";
+
+  const currentAnswer = answers.find((a) => a.questionId === currentQuestion);
+  console.log(
+    `${Constants.expoConfig?.extra?.API_URL}/theme-test/${testData?.themeId}/pdf`
+  );
+
+  // Show loading state
+  if (testLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Test yuklanmoqda...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show error if test data failed to load
+  if (testError || !testData) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Ionicons
+            name="alert-circle-outline"
+            size={64}
+            color={COLORS.error}
+          />
+          <Text style={styles.errorTitle}>Test ma'lumotlari yuklanmadi</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={handleGoBack}>
+            <Text style={styles.retryButtonText}>Orqaga qaytish</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -164,12 +345,12 @@ export default function QuizScreen() {
         <TouchableOpacity onPress={handleGoBack} style={styles.headerButton}>
           <Ionicons name="chevron-back" size={24} color="white" />
         </TouchableOpacity>
-        
+
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>{mavzu || '1-mavzu'}</Text>
+          <Text style={styles.headerTitle}>{mavzu || "1-mavzu"}</Text>
           <Text style={styles.headerSubtitle}>Mashqlar</Text>
         </View>
-        
+
         <View style={styles.pageIndicator}>
           <Text style={styles.pageText}>
             {currentQuestion}/{totalQuestions}
@@ -179,16 +360,22 @@ export default function QuizScreen() {
 
       {/* PDF Content */}
       <View style={styles.pdfContainer}>
-        {loading && (
+        {/* {loading && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={COLORS.primary} />
             <Text style={styles.loadingText}>Test yuklanmoqda...</Text>
           </View>
-        )}
-        
-        {source ? (
+        )} */}
+        {pdfBlob && authToken ? (
           <Pdf
-            source={source}
+            source={{
+              uri: `${Constants.expoConfig?.extra?.API_URL}/theme-test/${testData.themeId}/pdf`,
+              headers: {
+                Authorization: `Bearer ${authToken}`,
+              },
+              cache: true,
+              method: "get",
+            }}
             onLoadComplete={handleLoadComplete}
             onError={handleError}
             style={styles.pdf}
@@ -197,10 +384,10 @@ export default function QuizScreen() {
             horizontal={false}
             spacing={0}
             password=""
-            scale={1.2}
-            minScale={1.0}
-            maxScale={3.0}
-            page={currentQuestion}
+            scale={1}
+            minScale={1}
+            maxScale={1}
+            // page={currentQuestion}
             renderActivityIndicator={() => (
               <ActivityIndicator size="large" color={COLORS.primary} />
             )}
@@ -220,94 +407,170 @@ export default function QuizScreen() {
       <View style={styles.quizControls}>
         {/* Navigation and Answer Options Row */}
         <View style={styles.topControlsRow}>
-          <TouchableOpacity 
-            style={[styles.navButton, currentQuestion === 1 && styles.navButtonDisabled]}
+          <TouchableOpacity
+            style={[
+              styles.navButton,
+              currentQuestion === 1 && styles.navButtonDisabled,
+            ]}
             onPress={handlePrevious}
             disabled={currentQuestion === 1}
           >
-            <Ionicons name="chevron-back" size={20} color={currentQuestion === 1 ? COLORS.gray : COLORS.primary} />
-            <Text style={[styles.navButtonText, currentQuestion === 1 && styles.navButtonTextDisabled]}>Back</Text>
+            <Ionicons
+              name="chevron-back"
+              size={20}
+              color={currentQuestion === 1 ? COLORS.textMuted : COLORS.primary}
+            />
+            {questionOptions.length !== 6 && (
+              <Text
+                style={[
+                  styles.navButtonText,
+                ]}
+              >
+                Back
+              </Text>
+            )}
           </TouchableOpacity>
-          
+
           <TouchableOpacity onPress={handleQuestionNumberPress}>
             <Text style={styles.questionNumber}>{currentQuestion}</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.navButton, currentQuestion === totalQuestions && styles.navButtonDisabled]}
+
+          <TouchableOpacity
+            style={[
+              styles.navButton,
+              currentQuestion === totalQuestions && styles.navButtonDisabled,
+            ]}
             onPress={handleNext}
             disabled={currentQuestion === totalQuestions}
           >
-            <Text style={[styles.navButtonText, currentQuestion === totalQuestions && styles.navButtonTextDisabled]}>Next</Text>
-            <Ionicons name="chevron-forward" size={20} color={currentQuestion === totalQuestions ? COLORS.gray : COLORS.primary} />
-          </TouchableOpacity>
-          
-          {/* Answer Options */}
-          {['A', 'B', 'C', 'D'].map((option) => (
-            <TouchableOpacity
-              key={option}
-              style={[
-                styles.optionButton,
-                selectedOption === option && styles.optionButtonSelected
-              ]}
-              onPress={() => {
-                handleOptionSelect(option);
-                // If this was a confirmed answer, allow editing by removing confirmation
-                if (currentAnswer?.isConfirmed) {
-                  handleEditAnswer();
-                }
-              }}
-            >
-              <Text style={[
-                styles.optionButtonText,
-                selectedOption === option && styles.optionButtonTextSelected
-              ]}>
-                {option}
+            {questionOptions.length !== 6 && (
+              <Text
+                style={[
+                  styles.navButtonText,
+                 
+                ]}
+              >
+                Next
               </Text>
-            </TouchableOpacity>
-          ))}
+            )}
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={
+                currentQuestion === totalQuestions
+                  ? COLORS.textMuted
+                  : COLORS.primary
+              }
+            />
+          </TouchableOpacity>
+
+          {/* Answer Options - Dynamic based on API */}
+          {isMultipleChoice &&
+            questionOptions.map((option: string) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.optionButton,
+                  selectedOption === option && styles.optionButtonSelected,
+                ]}
+                onPress={() => {
+                  handleOptionSelect(option);
+                  // If this was a confirmed answer, allow editing by removing confirmation
+                  if (currentAnswer?.isConfirmed) {
+                    handleEditAnswer();
+                  }
+                }}
+              >
+                <Text
+                  style={[
+                    styles.optionButtonText,
+                    selectedOption === option &&
+                      styles.optionButtonTextSelected,
+                  ]}
+                >
+                  {option}
+                </Text>
+              </TouchableOpacity>
+            ))}
         </View>
+
+        {/* Text Input for Non-Multiple Choice Questions */}
+        {!isMultipleChoice && (
+          <View style={styles.textInputContainer}>
+            <Text style={styles.textInputLabel}>Javobingizni kiriting:</Text>
+            <TextInput
+              style={styles.textInput}
+              value={textInputValue}
+              onChangeText={handleTextInputChange}
+              placeholder="Matematik klaviaturadan foydalaning..."
+              placeholderTextColor={COLORS.gray}
+              multiline={true}
+              numberOfLines={3}
+              textAlignVertical="top"
+              showSoftInputOnFocus={false}
+              caretHidden={false}
+              editable={true}
+            />
+          </View>
+        )}
 
         {/* Action Buttons */}
         <View style={styles.actionContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.actionButton, styles.choiceButton]}
-            onPress={() => setSelectedOption(null)}
+            onPress={() => {
+              setSelectedOption(null);
+              setTextInputValue("");
+            }}
           >
             <Text style={styles.choiceButtonText}>Yechim</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.confirmButton, !isAnswerSelected && styles.confirmButtonDisabled]}
+
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              styles.confirmButton,
+              !isAnswerSelected && styles.confirmButtonDisabled,
+            ]}
             onPress={handleConfirm}
             disabled={!isAnswerSelected}
           >
-            <Text style={[styles.confirmButtonText, !isAnswerSelected && styles.confirmButtonTextDisabled]}>
+            <Text
+              style={[
+                styles.confirmButtonText,
+                !isAnswerSelected && styles.confirmButtonTextDisabled,
+              ]}
+            >
               Tasdiqlash
             </Text>
-            <Ionicons 
-              name="hand-right" 
-              size={20} 
-              color={!isAnswerSelected ? COLORS.gray : "white"} 
-              style={styles.handIcon} 
+            <Ionicons
+              name="hand-right"
+              size={20}
+              color={!isAnswerSelected ? COLORS.gray : "white"}
+              style={styles.handIcon}
             />
           </TouchableOpacity>
         </View>
 
         {/* Finish Test Button */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.finishButton}
           onPress={handleFinishTest}
         >
           <Text style={styles.finishButtonText}>Testni yakunlash</Text>
-          <Ionicons name="checkmark-circle" size={20} color="white" style={styles.finishIcon} />
+          <Ionicons
+            name="checkmark-circle"
+            size={20}
+            color="white"
+            style={styles.finishIcon}
+          />
         </TouchableOpacity>
       </View>
 
       {/* Test Navigation Popover */}
       {showTestModal && (
         <View style={styles.popoverOverlay} pointerEvents="box-none">
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.popoverBackground}
             activeOpacity={1}
             onPress={() => setShowTestModal(false)}
@@ -316,28 +579,36 @@ export default function QuizScreen() {
             <View style={styles.popoverHeader}>
               <Text style={styles.popoverTitle}>Testni tanlang</Text>
             </View>
-            
-            <ScrollView style={styles.popoverContent} showsVerticalScrollIndicator={false}>
+
+            <ScrollView
+              style={styles.popoverContent}
+              showsVerticalScrollIndicator={false}
+            >
               <View style={styles.testGrid}>
                 {Array.from({ length: totalQuestions }, (_, index) => {
                   const testNumber = index + 1;
-                  const isAnswered = answers.find(a => a.questionId === testNumber)?.isConfirmed;
+                  const isAnswered = answers.find(
+                    (a) => a.questionId === testNumber
+                  )?.isConfirmed;
                   const isCurrent = testNumber === currentQuestion;
-                  
+
                   return (
                     <TouchableOpacity
                       key={testNumber}
                       style={[
                         styles.testGridItem,
                         isAnswered && styles.testGridItemAnswered,
-                        isCurrent && styles.testGridItemCurrent
+                        isCurrent && styles.testGridItemCurrent,
                       ]}
                       onPress={() => handleTestSelect(testNumber)}
                     >
-                      <Text style={[
-                        styles.testGridItemText,
-                        (isAnswered || isCurrent) && styles.testGridItemTextActive
-                      ]}>
+                      <Text
+                        style={[
+                          styles.testGridItemText,
+                          (isAnswered || isCurrent) &&
+                            styles.testGridItemTextActive,
+                        ]}
+                      >
                         {testNumber}
                       </Text>
                     </TouchableOpacity>
@@ -345,10 +616,20 @@ export default function QuizScreen() {
                 })}
               </View>
             </ScrollView>
-            
+
             <View style={styles.popoverArrow} />
           </View>
         </View>
+      )}
+      
+      {/* Math Keyboard for Non-Multiple Choice Questions */}
+      {!isMultipleChoice && (
+        <MathKeyboard
+          onKeyPress={handleMathKeyPress}
+          onBackspace={handleMathBackspace}
+          onClear={handleMathClear}
+          visible={true}
+        />
       )}
     </SafeAreaView>
   );
@@ -360,9 +641,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.secondary,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     backgroundColor: COLORS.primary,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.base,
@@ -374,12 +655,12 @@ const styles = StyleSheet.create({
   },
   headerTitleContainer: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
     paddingHorizontal: SPACING.base,
   },
   headerTitle: {
     fontSize: FONT_SIZES.lg,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.white,
   },
   headerSubtitle: {
@@ -388,17 +669,17 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   pageIndicator: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.sm,
     minWidth: 50,
-    alignItems: 'center',
+    alignItems: "center",
   },
   pageText: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.white,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   pdfContainer: {
     flex: 1,
@@ -406,8 +687,8 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: COLORS.white,
   },
   loadingText: {
@@ -421,16 +702,16 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: SPACING.xl,
   },
   errorTitle: {
     fontSize: FONT_SIZES.xl,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.text,
     marginTop: SPACING.base,
-    textAlign: 'center',
+    textAlign: "center",
   },
   retryButton: {
     backgroundColor: COLORS.primary,
@@ -442,36 +723,33 @@ const styles = StyleSheet.create({
   retryButtonText: {
     fontSize: FONT_SIZES.base,
     color: COLORS.white,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   quizControls: {
     backgroundColor: COLORS.white,
     paddingTop: SPACING.base,
     paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.xl,
+    paddingBottom: SPACING.lg,
     borderTopWidth: 1,
-    borderTopColor: "black",
+    borderTopColor: "#dededeff",
   },
   topControlsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    flexDirection: "row",
+
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
     paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.lg,
+    paddingHorizontal: SPACING.sm,
     marginHorizontal: -SPACING.lg,
     marginTop: -SPACING.base,
-    marginBottom: SPACING.base,
-    borderRadius: BORDER_RADIUS.base,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    marginBottom: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: "#dededeff",
   },
   navButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: SPACING.xs,
     paddingHorizontal: SPACING.sm,
   },
@@ -481,14 +759,13 @@ const styles = StyleSheet.create({
   navButtonText: {
     fontSize: FONT_SIZES.base,
     color: COLORS.primary,
-    marginHorizontal: SPACING.xs,
   },
   navButtonTextDisabled: {
     color: COLORS.gray,
   },
   questionNumber: {
     fontSize: FONT_SIZES.xl,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.text,
     marginHorizontal: SPACING.sm,
   },
@@ -499,8 +776,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderWidth: 2,
     borderColor: COLORS.gray,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginHorizontal: SPACING.xs,
   },
   optionButtonSelected: {
@@ -512,38 +789,38 @@ const styles = StyleSheet.create({
   },
   optionButtonText: {
     fontSize: FONT_SIZES.base,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.text,
   },
   optionButtonTextSelected: {
     color: COLORS.white,
   },
   actionContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     gap: SPACING.base,
   },
   actionButton: {
     flex: 1,
-    paddingVertical: SPACING.base,
-    borderRadius: BORDER_RADIUS.base,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.sm,
+    alignItems: "center",
+    justifyContent: "center",
   },
   choiceButton: {
     backgroundColor: COLORS.white,
     borderWidth: 1,
-    borderColor: COLORS.gray,
+    borderColor: COLORS.secondary,
   },
   choiceButtonText: {
     fontSize: FONT_SIZES.base,
     color: COLORS.text,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   confirmButton: {
     backgroundColor: COLORS.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   confirmButtonDisabled: {
     backgroundColor: COLORS.gray,
@@ -552,7 +829,7 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     fontSize: FONT_SIZES.base,
     color: COLORS.white,
-    fontWeight: '500',
+    fontWeight: "500",
     marginRight: SPACING.xs,
   },
   confirmButtonTextDisabled: {
@@ -562,14 +839,14 @@ const styles = StyleSheet.create({
     marginLeft: SPACING.xs,
   },
   finishButton: {
-    backgroundColor: '#e74c3c',
-    paddingVertical: SPACING.base,
-    borderRadius: BORDER_RADIUS.base,
-    marginTop: SPACING.base,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
+    backgroundColor: "#e74c3c",
+    paddingVertical: SPACING.sm + 3,
+    borderRadius: BORDER_RADIUS.sm,
+    marginTop: SPACING.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -578,7 +855,7 @@ const styles = StyleSheet.create({
   finishButtonText: {
     fontSize: FONT_SIZES.base,
     color: COLORS.white,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginRight: SPACING.xs,
   },
   finishIcon: {
@@ -586,7 +863,7 @@ const styles = StyleSheet.create({
   },
   // Popover styles
   popoverOverlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
@@ -594,22 +871,22 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   popoverBackground: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   popoverContainer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 180, // Above the quiz controls
     left: SPACING.lg,
     right: SPACING.lg,
     backgroundColor: COLORS.white,
     borderRadius: BORDER_RADIUS.lg,
     maxHeight: 300,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -620,11 +897,11 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     borderBottomWidth: 1,
     borderBottomColor: "black",
-    alignItems: 'center',
+    alignItems: "center",
   },
   popoverTitle: {
     fontSize: FONT_SIZES.base,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.text,
   },
   popoverContent: {
@@ -633,34 +910,34 @@ const styles = StyleSheet.create({
     maxHeight: 220,
   },
   popoverArrow: {
-    position: 'absolute',
+    position: "absolute",
     bottom: -8,
-    left: '50%',
+    left: "50%",
     marginLeft: -8,
     width: 0,
     height: 0,
     borderLeftWidth: 8,
     borderRightWidth: 8,
     borderTopWidth: 8,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
     borderTopColor: COLORS.white,
   },
   testGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
     gap: SPACING.sm,
   },
   testGridItem: {
     width: 45,
     height: 45,
     borderRadius: 8,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
     borderWidth: 1,
     borderColor: "black",
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: SPACING.sm,
   },
   testGridItemAnswered: {
@@ -668,15 +945,36 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
   },
   testGridItemCurrent: {
-    backgroundColor: '#ffd700',
-    borderColor: '#ffd700',
+    backgroundColor: "#ffd700",
+    borderColor: "#ffd700",
   },
   testGridItemText: {
     fontSize: FONT_SIZES.base,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.text,
   },
   testGridItemTextActive: {
     color: COLORS.white,
+  },
+  // Text Input styles
+  textInputContainer: {
+    marginBottom: SPACING.base,
+  },
+  textInputLabel: {
+    fontSize: FONT_SIZES.base,
+    fontWeight: "500",
+    color: COLORS.text,
+    marginBottom: SPACING.xs,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: COLORS.gray,
+    borderRadius: BORDER_RADIUS.sm,
+    padding: SPACING.sm,
+    fontSize: FONT_SIZES.base,
+    color: COLORS.text,
+    backgroundColor: COLORS.white,
+    minHeight: 80,
+    textAlignVertical: "top",
   },
 });

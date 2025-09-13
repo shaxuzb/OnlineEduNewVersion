@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import { useAuth } from '../../../context/AuthContext';
 import { useRegister } from '../../../context/RegisterContext';
+import { useTheme } from '../../../context/ThemeContext';
+import { Theme } from '../../../types';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
@@ -16,6 +18,8 @@ const { width } = Dimensions.get('window');
 const SuccessScreen: React.FC = () => {
   const { login } = useAuth();
   const { registerData, resetRegistration } = useRegister();
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const scaleValue = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
@@ -43,7 +47,7 @@ const SuccessScreen: React.FC = () => {
       >
         {/* Success Icon */}
         <View style={styles.iconContainer}>
-          <Ionicons name="checkmark-circle" size={80} color="#10B981" />
+          <Ionicons name="checkmark-circle" size={80} color={theme.colors.success} />
         </View>
 
         {/* Congratulation Message */}
@@ -91,10 +95,10 @@ const SuccessScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
@@ -106,26 +110,26 @@ const styles = StyleSheet.create({
   iconContainer: {
     marginBottom: 30,
     padding: 20,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: theme.colors.success + '20',
     borderRadius: 100,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: theme.colors.text,
     textAlign: 'center',
     marginBottom: 12,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     marginBottom: 40,
     lineHeight: 24,
   },
   infoContainer: {
     width: '100%',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 20,
     marginBottom: 40,
@@ -136,23 +140,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: theme.colors.border,
   },
   infoLabel: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     fontWeight: '500',
     flex: 1,
   },
   infoValue: {
     fontSize: 14,
-    color: '#1F2937',
+    color: theme.colors.text,
     fontWeight: '600',
     flex: 2,
     textAlign: 'right',
   },
   loginButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: theme.colors.primary,
     paddingVertical: 16,
     paddingHorizontal: 40,
     borderRadius: 12,

@@ -2,7 +2,7 @@
   "expo": {
     "name": "online-edu",
     "slug": "online-edu",
-    "version": "1.0.3",
+    "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "onlineedu",
@@ -28,8 +28,10 @@
       "checkAutomatically": "ON_ERROR_RECOVERY",
       "fallbackToCacheTimeout": 0
     },
-    "plugins": [
-      "expo-dev-client"
-    ]
+    "plugins": ["expo-dev-client", "expo-secure-store"],
+    "extra": {
+      "API_URL": "https://edu-api.crmuz.uz/api",
+      "router": {}
+    }
   }
 }

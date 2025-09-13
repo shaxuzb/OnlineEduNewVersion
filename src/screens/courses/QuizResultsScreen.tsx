@@ -1,34 +1,94 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../utils';
+import { useTheme } from '../../context/ThemeContext';
+import { Theme, RootStackParamList } from '../../types';
+import { SPACING, FONT_SIZES, BORDER_RADIUS } from '../../utils';
+import { useQuizResults, useThemeTest } from '../../hooks/useQuiz';
 
 const { width } = Dimensions.get('window');
-
-interface QuizResultsData {
-  totalQuestions: number;
-  correctAnswers: number;
-  wrongAnswers: number;
-  percentage: number;
-  wrongQuestionNumbers: number[];
-  mavzu: string;
-}
 
 export default function QuizResultsScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   
-  // Get results data from route params
-  const resultsData = (route.params as QuizResultsData) || {
-    totalQuestions: 11,
-    correctAnswers: 9,
-    wrongAnswers: 2,
-    percentage: 85,
-    wrongQuestionNumbers: [2, 12, 15, 23, 31, 42, 43, 51],
-    mavzu: '1-mavzu'
+  // Get route params
+  const { testId, userId, themeId, mavzu } = (route.params as RootStackParamList["QuizResults"]) || {};
+  
+  // API hooks
+  const { data: quizResults, isLoading: resultsLoading, error: resultsError } = useQuizResults(userId, themeId);
+  const { data: testData, isLoading: testLoading } = useThemeTest(testId);
+  
+  // Get the latest (first) result from API - index 0
+  const latestResult = quizResults?.[0];
+  const totalQuestions = testData?.questionCount || 0;
+  
+  // Calculate statistics
+  const score = latestResult?.score || 0;
+  const percentage = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
+  const correctAnswers = score;
+  const wrongAnswers = totalQuestions - score;
+  
+  // Find wrong question numbers by comparing user answers with correct answers
+  const wrongQuestionNumbers: number[] = [];
+  if (latestResult && testData) {
+    // Get all question numbers
+    const allQuestions = Array.from({ length: totalQuestions }, (_, i) => i + 1);
+    
+    // Find answered questions
+    const answeredQuestions = latestResult.answers.map(a => a.questionNumber);
+    
+    // Find unanswered questions
+    const unansweredQuestions = allQuestions.filter(q => !answeredQuestions.includes(q));
+    
+    // Find incorrect answers by comparing with correct answers
+    const incorrectAnswers = latestResult.answers.filter(userAnswer => {
+      const correctAnswerKey = testData.answerKeys.find(ak => ak.questionNumber === userAnswer.questionNumber);
+      return correctAnswerKey && correctAnswerKey.correctAnswer !== userAnswer.answer;
+    }).map(a => a.questionNumber);
+    
+    wrongQuestionNumbers.push(...incorrectAnswers, ...unansweredQuestions);
+  }
+  
+  const resultsData = {
+    totalQuestions,
+    correctAnswers,
+    wrongAnswers,
+    percentage,
+    wrongQuestionNumbers: wrongQuestionNumbers.sort((a, b) => a - b),
+    mavzu: mavzu || "Test"
   };
+  
+  // Show loading state
+  if (resultsLoading || testLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.loadingText}>Natijalar yuklanmoqda...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  
+  // Show error state
+  if (resultsError || !latestResult) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={64} color={theme.colors.error} />
+          <Text style={styles.errorTitle}>Natijalar topilmadi</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.retryButtonText}>Orqaga qaytish</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const handleGoBack = () => {
     // Navigate back to lesson detail or home
@@ -104,7 +164,7 @@ export default function QuizResultsScreen() {
             style={[styles.actionButton, styles.retryButton]}
             onPress={handleRetry}
           >
-            <Ionicons name="refresh" size={20} color={COLORS.primary} />
+            <Ionicons name="refresh" size={20} color={theme.colors.primary} />
             <Text style={styles.retryButtonText}>Qayta urinish</Text>
           </TouchableOpacity>
           
@@ -121,16 +181,16 @@ export default function QuizResultsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.secondary,
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: COLORS.primary,
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.base,
     minHeight: 60,
@@ -147,11 +207,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
-    color: COLORS.white,
+    color: 'white',
   },
   headerSubtitle: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.white,
+    color: 'white',
     opacity: 0.8,
   },
   content: {
@@ -167,7 +227,7 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     borderRadius: 75,
-    backgroundColor: COLORS.white,
+    backgroundColor: theme.colors.card,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -176,15 +236,15 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
     borderWidth: 4,
-    borderColor: COLORS.primary,
+    borderColor: theme.colors.primary,
   },
   percentageText: {
     fontSize: 48,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: theme.colors.primary,
   },
   statsContainer: {
-    backgroundColor: COLORS.white,
+    backgroundColor: theme.colors.card,
     borderRadius: BORDER_RADIUS.base,
     padding: SPACING.lg,
     marginBottom: SPACING.xl,
@@ -203,16 +263,16 @@ const styles = StyleSheet.create({
   },
   statsLabel: {
     fontSize: FONT_SIZES.lg,
-    color: COLORS.text,
+    color: theme.colors.text,
     fontWeight: '500',
   },
   statsValue: {
     fontSize: FONT_SIZES.lg,
-    color: COLORS.text,
+    color: theme.colors.text,
     fontWeight: 'bold',
   },
   wrongAnswersSection: {
-    backgroundColor: COLORS.white,
+    backgroundColor: theme.colors.card,
     borderRadius: BORDER_RADIUS.base,
     padding: SPACING.lg,
     marginBottom: SPACING.xl,
@@ -225,7 +285,7 @@ const styles = StyleSheet.create({
   },
   wrongAnswersTitle: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.text,
+    color: theme.colors.text,
     fontWeight: '600',
     marginBottom: SPACING.base,
     lineHeight: 22,
@@ -237,8 +297,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.base,
   },
   wrongNumberBadge: {
-    backgroundColor: '#ffebee',
-    borderColor: '#ef5350',
+    backgroundColor: theme.colors.error + '20',
+    borderColor: theme.colors.error,
     borderWidth: 1,
     borderRadius: BORDER_RADIUS.sm,
     paddingHorizontal: SPACING.sm,
@@ -247,12 +307,12 @@ const styles = StyleSheet.create({
   },
   wrongNumberText: {
     fontSize: FONT_SIZES.sm,
-    color: '#ef5350',
+    color: theme.colors.error,
     fontWeight: '600',
   },
   encouragementText: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.text,
+    color: theme.colors.text,
     fontWeight: '500',
     textAlign: 'center',
     marginTop: SPACING.sm,
@@ -275,21 +335,47 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
   },
   retryButton: {
-    backgroundColor: COLORS.white,
+    backgroundColor: theme.colors.card,
     borderWidth: 2,
-    borderColor: COLORS.primary,
+    borderColor: theme.colors.primary,
   },
   retryButtonText: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.primary,
+    color: theme.colors.primary,
     fontWeight: '600',
   },
   finishButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: theme.colors.primary,
   },
   finishButtonText: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.white,
+    color: 'white',
     fontWeight: '600',
+  },
+  // Loading and error states
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+  },
+  loadingText: {
+    marginTop: SPACING.base,
+    fontSize: FONT_SIZES.base,
+    color: theme.colors.text,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xl,
+    backgroundColor: theme.colors.background,
+  },
+  errorTitle: {
+    fontSize: FONT_SIZES.xl,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginTop: SPACING.base,
+    textAlign: 'center',
   },
 });
