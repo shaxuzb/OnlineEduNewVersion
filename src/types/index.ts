@@ -36,7 +36,11 @@ export interface BookmarkedLesson {
   id: number;
   title: string;
   mavzu: string;
-  courseType: 'algebra' | 'geometriya' | 'milliy-sertifikat' | 'olimpiadaga-kirish';
+  courseType:
+    | "algebra"
+    | "geometriya"
+    | "milliy-sertifikat"
+    | "olimpiadaga-kirish";
   courseName: string;
   sectionTitle: string;
   duration?: string;
@@ -58,7 +62,7 @@ export type RootStackParamList = {
   VideoPlayer: { lessonTitle: string; mavzu: string };
   PDFViewer: { pdfPath: string; title?: string; mavzu: string };
   QuizScreen: { pdfPath: string; title?: string; mavzu: string };
-  QuizResults: { 
+  QuizResults: {
     totalQuestions: number;
     correctAnswers: number;
     wrongAnswers: number;
@@ -75,3 +79,21 @@ export type TabParamList = {
   Save: undefined;
   Profile: undefined;
 };
+
+// News types
+export interface NewsItem {
+  id: number;
+  title: string;
+  body: string;
+  newsType: number;
+  scopeType: number;
+  isPinned: boolean;
+  isPublished: boolean;
+  createdAt: string;
+  publishedAt: string | null;
+}
+
+export interface NewsResponse {
+  items: NewsItem[];
+  total: number;
+}
