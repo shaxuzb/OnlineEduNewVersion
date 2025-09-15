@@ -59,6 +59,7 @@ export default function QuizScreen() {
   const [showTestModal, setShowTestModal] = useState(false);
   const [textInputValue, setTextInputValue] = useState(""); // For text input questions
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [isTextInputFocused, setIsTextInputFocused] = useState(false);
 
   // Derived values
   const totalQuestions = testData?.questionCount || 0;
@@ -303,9 +304,6 @@ export default function QuizScreen() {
     : textInputValue.trim() !== "";
 
   const currentAnswer = answers.find((a) => a.questionId === currentQuestion);
-  console.log(
-    `${Constants.expoConfig?.extra?.API_URL}/theme-test/${testData?.themeId}/pdf`
-  );
 
   // Show loading state
   if (testLoading) {
@@ -369,7 +367,7 @@ export default function QuizScreen() {
         {pdfBlob && authToken ? (
           <Pdf
             source={{
-              uri: `${Constants.expoConfig?.extra?.API_URL}/theme-test/${testData.themeId}/pdf`,
+              uri: `${Constants.expoConfig?.extra?.API_URL}/theme-test/${testId}/pdf`,
               headers: {
                 Authorization: `Bearer ${authToken}`,
               },
@@ -502,6 +500,8 @@ export default function QuizScreen() {
               style={styles.textInput}
               value={textInputValue}
               onChangeText={handleTextInputChange}
+              onFocus={() => setIsTextInputFocused(true)}
+              onBlur={() => setIsTextInputFocused(false)}
               placeholder="Matematik klaviaturadan foydalaning..."
               placeholderTextColor={COLORS.gray}
               multiline={true}
@@ -623,7 +623,7 @@ export default function QuizScreen() {
       )}
       
       {/* Math Keyboard for Non-Multiple Choice Questions */}
-      {!isMultipleChoice && (
+      {!isMultipleChoice && isTextInputFocused && (
         <MathKeyboard
           onKeyPress={handleMathKeyPress}
           onBackspace={handleMathBackspace}

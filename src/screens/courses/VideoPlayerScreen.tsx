@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import Video from "react-native-video";
+import Video, { DRMType } from "react-native-video";
 import { RootStackParamList } from "@/src/types";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
@@ -121,8 +121,22 @@ export default function VideoPlayerScreen() {
           <Video
             ref={videoRef}
             source={{
+              bufferConfig: {
+                minBufferMs: 15000,
+                maxBufferMs: 50000,
+                bufferForPlaybackMs: 2500,
+                bufferForPlaybackAfterRebufferMs: 5000,
+
+              },
               uri: `${Constants.expoConfig?.extra?.API_URL}/videos/${videoFileId}`,
               type: "m3u8",
+              drm: {
+                type: DRMType.WIDEVINE,
+                licenseServer: "",
+                headers: {
+                  Authorization: "Bearer <dynamic_token_from_server>",
+                },
+              },
               headers: {
                 Authorization: `Bearer ${authToken}`,
               },
@@ -130,15 +144,17 @@ export default function VideoPlayerScreen() {
             style={styles.video}
             paused={paused}
             onLoad={onLoad}
-            onExternalPlaybackChange={(data)=>{
+            onExternalPlaybackChange={(data) => {
               console.log(data);
             }}
-            
             onProgress={onProgress}
-          
+            fullscreenAutorotate={true}
+            fullscreenOrientation="landscape"
+            hideShutterView={true}
+            playInBackground={true}
             resizeMode="contain"
             repeat={false}
-            controls={false}
+            controls={true}
           />
         ) : (
           <View style={styles.errorContainer}>
