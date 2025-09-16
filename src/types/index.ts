@@ -155,9 +155,9 @@ export type RootStackParamList = {
     testId: number;
     userId: number;
     themeId: number;
-    mavzu: string;
+
+    Statistika: undefined;
   };
-  Statistika: undefined;
 };
 
 export type TabParamList = {
@@ -310,3 +310,20 @@ export interface QuizResultData {
 }
 
 export interface QuizResultsResponse extends Array<QuizResultData> {}
+// News types
+export interface NewsItem {
+  id: number;
+  title: string;
+  body: string;
+  newsType: number;
+  scopeType: number;
+  isPinned: boolean;
+  isPublished: boolean;
+  createdAt: string;
+  publishedAt: string | null;
+}
+
+export interface NewsResponse {
+  items: NewsItem[];
+  total: number;
+}
