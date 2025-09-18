@@ -1,0 +1,68 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+android/app/build/
+android/build/
+android/.gradle/
+android/app/src/main/assets/
+android/app/src/main/res/drawable-*/
+android/app/src/main/res/raw/
+android/keystores/
+android/local.properties
+
+# iOS build artifacts
+ios/build/
+ios/DerivedData/
+ios/*.xcworkspace/xcuserdata/
+ios/*.xcodeproj/xcuserdata/
+ios/Pods/
+
+# Development files
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# Logs and temp files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment and config files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Documentation and development files
+README.md
+CHANGELOG.md
+FOLDER_STRUCTURE.md
+*.md
+
+# Git files
+.git/
+.gitignore
+
+# Testing
+coverage/
+__tests__/
+*.test.js
+*.test.ts
+*.test.tsx
+*.spec.js
+*.spec.ts
+*.spec.tsx
+
+# Temporary files
+tmp/
+temp/
