@@ -68,7 +68,10 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.profileBtn}>
+        <TouchableOpacity
+          style={styles.profileBtn}
+          onPress={() => (navigation as any).navigate("Statistika")}
+        >
           <Ionicons name="bar-chart" size={24} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Kurslar</Text>

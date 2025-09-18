@@ -323,3 +323,14 @@ export interface NewsResponse {
   items: NewsItem[];
   total: number;
 }
+
+// Statistics types
+export interface SubjectStatistic {
+  subjectId: number;
+  subjectName: string;
+  correctSum: number;
+  totalSum: number;
+  percent: number;
+}
+
+export interface StatisticsResponse extends Array<SubjectStatistic> {}

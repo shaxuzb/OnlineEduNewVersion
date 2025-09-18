@@ -67,10 +67,7 @@ export default function MilliySertifikatScreen() {
           {tests.map((test) => (
             <TouchableOpacity
               key={test.id}
-              style={[
-                styles.testItem,
-                test.isLocked && styles.testItemLocked,
-              ]}
+              style={[styles.testItem, test.isLocked && styles.testItemLocked]}
               onPress={() => handleTestPress(test)}
               activeOpacity={test.isLocked ? 1 : 0.7}
             >
@@ -79,7 +76,11 @@ export default function MilliySertifikatScreen() {
                   <Ionicons
                     name={test.isLocked ? "lock-closed" : "lock-open"}
                     size={20}
-                    color={test.isLocked ? theme.colors.textMuted : theme.colors.primary}
+                    color={
+                      test.isLocked
+                        ? theme.colors.textMuted
+                        : theme.colors.primary
+                    }
                   />
                 </View>
                 <Text
@@ -100,105 +101,105 @@ export default function MilliySertifikatScreen() {
           ))}
         </View>
       </ScrollView>
-    
     </SafeAreaView>
   );
 }
 
-const createStyles = (theme: Theme) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: theme.colors.primary,
-    padding: 20,
-    paddingTop: 16,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "white",
-    flex: 1,
-    textAlign: "center",
-  },
-  headerRight: {
-    width: 40,
-    height: 40,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 20,
-  },
-  testsContainer: {
-    gap: 12,
-  },
-  testItem: {
-    backgroundColor: theme.colors.card,
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: theme.colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  testItemLocked: {
-    opacity: 0.6,
-  },
-  testContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  lockIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: theme.colors.surface,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  testTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: theme.colors.text,
-    flex: 1,
-    textAlign: "center",
-  },
-  testTitleLocked: {
-    color: theme.colors.textMuted,
-  },
-  pointingHand: {
-    width: 32,
-    height: 32,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  pointingHandEmoji: {
-    fontSize: 18,
-  },
-  bottomNavigation: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    backgroundColor: theme.colors.card,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-  },
-  bottomNavItem: {
-    padding: 8,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      backgroundColor: theme.colors.primary,
+      padding: 20,
+      paddingTop: 16,
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    headerTitle: {
+      fontSize: 20,
+      fontWeight: "bold",
+      color: "white",
+      flex: 1,
+      textAlign: "center",
+    },
+    headerRight: {
+      width: 40,
+      height: 40,
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: 16,
+      paddingTop: 20,
+    },
+    testsContainer: {
+      gap: 12,
+    },
+    testItem: {
+      backgroundColor: theme.colors.card,
+      borderRadius: 12,
+      padding: 16,
+      shadowColor: theme.colors.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    testItemLocked: {
+      opacity: 0.6,
+    },
+    testContent: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    lockIconContainer: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: theme.colors.surface,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    testTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: theme.colors.text,
+      flex: 1,
+      textAlign: "center",
+    },
+    testTitleLocked: {
+      color: theme.colors.textMuted,
+    },
+    pointingHand: {
+      width: 32,
+      height: 32,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    pointingHandEmoji: {
+      fontSize: 18,
+    },
+    bottomNavigation: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+      alignItems: "center",
+      backgroundColor: theme.colors.card,
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.border,
+    },
+    bottomNavItem: {
+      padding: 8,
+    },
+  });
