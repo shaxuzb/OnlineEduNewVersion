@@ -46,14 +46,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const data = JSON.parse(
         String(await SecureStore.getItemAsync("session"))
       ) as AuthToken | null;
-      await $axiosPrivate.get("/subjects")
+
+      // Debug: saqlangan session ma'lumotlarini ko'rish (development uchun)
+      // console.log("Stored session data:", data);
+      // console.log("Stored user data:", data?.user);
+
+      await $axiosPrivate.get("/subjects");
       setUser(data?.user ?? null);
       setIsLoading(false);
 
       setIsLoading(false);
     } catch (error) {
-      if((error as any).status === 401){
-        logout()
+      if ((error as any).status === 401) {
+        logout();
       }
       setIsLoading(false);
     }
@@ -71,8 +76,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (data) {
         setIsLoginLoading(false);
 
+        // Debug: login qilganda qanday ma'lumotlar kelayotganini ko'rish (development uchun)
+        // console.log("Login response data:", data);
+        // console.log("Login user data:", data.user);
+
         SecureStore.setItem("session", JSON.stringify(data));
-        setUser(data.user); // faqat agar `data.user` mavjud bo‘lsa
+        setUser(data.user); // faqat agar `data.user` mavjud bo'lsa
       }
       return true;
     } catch (error) {

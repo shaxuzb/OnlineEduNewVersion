@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { Theme } from "../../types";
@@ -55,6 +56,7 @@ const menuItems = [
 ];
 
 export default function ProfileScreen() {
+  const navigation = useNavigation();
   const { theme, themeMode, setThemeMode } = useTheme();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const { user, logout } = useAuth();
@@ -72,6 +74,25 @@ export default function ProfileScreen() {
         onPress: logout,
       },
     ]);
+  };
+
+  const handleMenuItemPress = (item: (typeof menuItems)[0]) => {
+    if (item.id === 1) {
+      // Shaxsiy ma'lumotlar
+      (navigation as any).navigate("PersonalInfo");
+    } else if (item.id === 2) {
+      // Xavfsizlik
+      Alert.alert("Ma'lumot", "Xavfsizlik bo'limi hali tayyor emas");
+    } else if (item.id === 4) {
+      // A'loqa
+      Alert.alert("Ma'lumot", "A'loqa bo'limi hali tayyor emas");
+    } else if (item.id === 5) {
+      // Dastur haqida
+      Alert.alert("Ma'lumot", "Dastur haqida bo'limi hali tayyor emas");
+    } else if (item.id === 6) {
+      // Kurs to'lovlari
+      Alert.alert("Ma'lumot", "Kurs to'lovlari bo'limi hali tayyor emas");
+    }
   };
 
   return (
@@ -112,8 +133,18 @@ export default function ProfileScreen() {
                 styles.menuItem,
                 index < menuItems.length - 1 && styles.menuItemBorder,
               ]}
+              onPress={() => handleMenuItemPress(item)}
+              disabled={item.hasToggle}
             >
-              <Text style={styles.menuItemText}>{item.title}</Text>
+              <View style={styles.menuItemLeft}>
+                <Ionicons
+                  name={item.icon as any}
+                  size={20}
+                  color={theme.colors.primary}
+                  style={styles.menuItemIcon}
+                />
+                <Text style={styles.menuItemText}>{item.title}</Text>
+              </View>
               {item.hasToggle ? (
                 <Switch
                   value={themeMode === "dark"}
@@ -124,12 +155,19 @@ export default function ProfileScreen() {
                       setThemeMode("light");
                     }
                   }}
-                  trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-                  thumbColor={themeMode === 'dark' ? "#ffffff" : "#f4f3f4"}
+                  trackColor={{
+                    false: theme.colors.border,
+                    true: theme.colors.primary,
+                  }}
+                  thumbColor={themeMode === "dark" ? "#ffffff" : "#f4f3f4"}
                 />
               ) : (
                 item.hasArrow && (
-                  <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
+                  <Ionicons
+                    name="chevron-forward"
+                    size={20}
+                    color={theme.colors.textMuted}
+                  />
                 )
               )}
             </TouchableOpacity>
@@ -153,99 +191,107 @@ export default function ProfileScreen() {
   );
 }
 
-const createStyles = (theme: Theme) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  headerTitle: {
-    color: "white",
-    fontSize: 20,
-    fontWeight: "600",
-  },
-  content: {
-    flex: 1,
-  },
-  profileSection: {
-    backgroundColor: theme.colors.card,
-    paddingVertical: 32,
-    alignItems: "center",
-    marginBottom: 1,
-  },
-  profileHeader: {
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  avatarContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: theme.colors.primaryDark,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-  },
-  userName: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: theme.colors.text,
-    textAlign: "center",
-  },
-  menuContainer: {
-    backgroundColor: theme.colors.card,
-  },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-  },
-  menuItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  menuItemText: {
-    fontSize: 16,
-    color: theme.colors.text,
-    fontWeight: "500",
-  },
-  userEmail: {
-    fontSize: 16,
-    color: theme.colors.textSecondary,
-    marginTop: 4,
-    textAlign: "center",
-  },
-  logoutContainer: {
-    backgroundColor: theme.colors.card,
-    marginTop: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  logoutButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-  },
-  logoutIcon: {
-    marginRight: 8,
-  },
-  logoutText: {
-    fontSize: 16,
-    color: theme.colors.error,
-    fontWeight: "500",
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    header: {
+      backgroundColor: theme.colors.primary,
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    headerTitle: {
+      color: "white",
+      fontSize: 20,
+      fontWeight: "600",
+    },
+    content: {
+      flex: 1,
+    },
+    profileSection: {
+      backgroundColor: theme.colors.card,
+      paddingVertical: 32,
+      alignItems: "center",
+      marginBottom: 1,
+    },
+    profileHeader: {
+      alignItems: "center",
+      marginBottom: 16,
+    },
+    avatarContainer: {
+      width: 100,
+      height: 100,
+      borderRadius: 50,
+      backgroundColor: theme.colors.primaryDark,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    avatar: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+    },
+    userName: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: theme.colors.text,
+      textAlign: "center",
+    },
+    menuContainer: {
+      backgroundColor: theme.colors.card,
+    },
+    menuItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingVertical: 20,
+    },
+    menuItemLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    menuItemIcon: {
+      marginRight: 12,
+    },
+    menuItemBorder: {
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    menuItemText: {
+      fontSize: 16,
+      color: theme.colors.text,
+      fontWeight: "500",
+    },
+    userEmail: {
+      fontSize: 16,
+      color: theme.colors.textSecondary,
+      marginTop: 4,
+      textAlign: "center",
+    },
+    logoutContainer: {
+      backgroundColor: theme.colors.card,
+      marginTop: 20,
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+    },
+    logoutButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 12,
+    },
+    logoutIcon: {
+      marginRight: 8,
+    },
+    logoutText: {
+      fontSize: 16,
+      color: theme.colors.error,
+      fontWeight: "500",
+    },
+  });

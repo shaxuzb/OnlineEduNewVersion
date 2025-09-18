@@ -10,6 +10,7 @@ import { CoursesStackNavigator } from "./CoursesStackNavigator";
 import NewsScreen from "../screens/news/NewsScreen";
 import SaveScreen from "../screens/save/SaveScreen";
 import ProfileScreen from "../screens/profile/ProfileScreen";
+import PersonalInfoScreen from "../screens/profile/PersonalInfoScreen";
 import LoginScreen from "../screens/auth/LoginScreen";
 import LoadingScreen from "../components/LoadingScreen";
 import StatistikaScreen from "../screens/courses/StatistikaScreen";
@@ -26,11 +27,11 @@ const Stack = createNativeStackNavigator();
 
 const MainTabNavigator = () => {
   const { theme } = useTheme();
-  
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        animation:"none",
+        animation: "none",
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: any;
 
@@ -56,26 +57,26 @@ const MainTabNavigator = () => {
         headerShown: false,
       })}
     >
-    <Tab.Screen
-      name="Courses"
-      component={CoursesStackNavigator}
-      options={{ tabBarLabel: "Courses" }}
-    />
-    <Tab.Screen
-      name="News"
-      component={NewsScreen}
-      options={{ tabBarLabel: "News" }}
-    />
-    <Tab.Screen
-      name="Save"
-      component={SaveScreen}
-      options={{ tabBarLabel: "Save" }}
-    />
-    <Tab.Screen
-      name="Profile"
-      component={ProfileScreen}
-      options={{ tabBarLabel: "Profil" }}
-    />
+      <Tab.Screen
+        name="Courses"
+        component={CoursesStackNavigator}
+        options={{ tabBarLabel: "Courses" }}
+      />
+      <Tab.Screen
+        name="News"
+        component={NewsScreen}
+        options={{ tabBarLabel: "News" }}
+      />
+      <Tab.Screen
+        name="Save"
+        component={SaveScreen}
+        options={{ tabBarLabel: "Save" }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ tabBarLabel: "Profil" }}
+      />
     </Tab.Navigator>
   );
 };
@@ -124,6 +125,11 @@ const MainStackNavigator = () => (
     <Stack.Screen
       name="Chat"
       component={ChatScreen}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen
+      name="PersonalInfo"
+      component={PersonalInfoScreen}
       options={{ headerShown: false }}
     />
   </Stack.Navigator>

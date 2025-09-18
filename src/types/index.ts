@@ -2,12 +2,14 @@ export interface AuthUserData {
   id: number;
   userName: string;
   phoneNumber: string;
+  organizationId: number;
+  organizationName: string;
   fullName: string;
   role: string;
   roleId: number;
   state: string;
   stateId: number;
-  isParent: false;
+  isParent: boolean;
   modules: number[];
   permissions: string[];
 }
@@ -42,13 +44,7 @@ export interface Course {
   thumbnail?: string;
 }
 
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-  completedLessons: number[];
-}
+// User interface removed - using AuthUserData instead
 
 export interface BookmarkedLesson {
   id: number;
@@ -155,9 +151,9 @@ export type RootStackParamList = {
     testId: number;
     userId: number;
     themeId: number;
-
-    Statistika: undefined;
   };
+  PersonalInfo: undefined;
+  Statistika: undefined;
 };
 
 export type TabParamList = {
