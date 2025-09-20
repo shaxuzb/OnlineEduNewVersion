@@ -92,11 +92,10 @@ android {
         applicationId 'com.anonymous.onlineedu'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        missingDimensionStrategy 'react-native-video', 'exoplayer'
-        versionCode 6
-        versionName "1.0.6"
+        versionCode 1
+        versionName "1.0.5"
     }
-   signingConfigs {
+    signingConfigs {
         debug {
             storeFile file('debug.keystore')
             storePassword 'android'
