@@ -334,3 +334,26 @@ export interface SubjectStatistic {
 }
 
 export interface StatisticsResponse extends Array<SubjectStatistic> {}
+
+// Chapter Statistics types for detailed subject statistics
+export interface ThemeStatistic {
+  id: number;
+  name: string;
+  ordinalNumber: number;
+  stateId: number;
+  state: string;
+  percent: number;
+}
+
+export interface ChapterStatistic {
+  id: number;
+  name: string;
+  ordinalNumber: number;
+  subjectId: number;
+  subject: string;
+  stateId: number;
+  state: string;
+  themes: ThemeStatistic[];
+}
+
+export interface ChapterStatisticsResponse extends Array<ChapterStatistic> {}

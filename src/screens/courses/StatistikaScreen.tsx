@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -12,9 +12,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../context/ThemeContext";
-import { Theme, SubjectStatistic } from "../../types";
+import {
+  Theme,
+  SubjectStatistic,
+  ChapterStatistic,
+  ThemeStatistic,
+} from "../../types";
 import { SPACING, FONT_SIZES, BORDER_RADIUS } from "../../utils";
-import { useStatistics } from "../../hooks/useStatistics";
+import { useStatistics, useChapterStatistics } from "../../hooks/useStatistics";
 import { Skeleton } from "../../components/Skeleton";
 
 export default function StatistikaScreen() {
@@ -22,11 +27,36 @@ export default function StatistikaScreen() {
   const { theme } = useTheme();
   const styles = createStyles(theme);
 
+  // State management
+  const [selectedSubject, setSelectedSubject] =
+    useState<SubjectStatistic | null>(null);
+  const [currentView, setCurrentView] = useState<"subjects" | "chapters">(
+    "subjects"
+  );
+
   // Fetch statistics data
   const { data: statistics, isLoading, error, refetch } = useStatistics();
+  const {
+    data: chapterStatistics,
+    isLoading: chapterLoading,
+    error: chapterError,
+    refetch: refetchChapters,
+  } = useChapterStatistics(selectedSubject?.subjectId || 0);
 
   const handleGoBack = () => {
-    navigation.goBack();
+    if (currentView === "chapters") {
+      // Go back to subjects view
+      setCurrentView("subjects");
+      setSelectedSubject(null);
+    } else {
+      // Go back to previous screen
+      navigation.goBack();
+    }
+  };
+
+  const handleSubjectPress = (subject: SubjectStatistic) => {
+    setSelectedSubject(subject);
+    setCurrentView("chapters");
   };
 
   // Calculate overall progress
@@ -68,7 +98,11 @@ export default function StatistikaScreen() {
         <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Statistika</Text>
+        <Text style={styles.headerTitle}>
+          {currentView === "subjects"
+            ? "Statistika"
+            : selectedSubject?.subjectName || "Statistika"}
+        </Text>
         <View style={styles.headerIndicator}>
           <View style={styles.dotIndicator} />
         </View>
@@ -161,141 +195,257 @@ export default function StatistikaScreen() {
           </View>
         </View>
 
-        {/* Course Statistics */}
-        <View style={styles.courseStatsSection}>
-          <Text style={styles.sectionTitle}>Fanlar bo'yicha natijalar</Text>
+        {/* Conditional Content Based on Current View */}
+        {currentView === "subjects" ? (
+          /* Subject Statistics */
+          <View style={styles.courseStatsSection}>
+            <Text style={styles.sectionTitle}>Fanlar bo'yicha natijalar</Text>
 
-          {isLoading ? (
-            // Loading skeletons
-            Array.from({ length: 3 }).map((_, index) => (
-              <View key={index} style={styles.skeletonContainer}>
-                <Skeleton height={80} radius={16} />
-              </View>
-            ))
-          ) : statistics &&
-            Array.isArray(statistics) &&
-            statistics.length > 0 ? (
-            statistics.map((stat: SubjectStatistic, index: number) => (
-              <TouchableOpacity
-                key={stat.subjectId}
-                style={[
-                  styles.courseStatItem,
-                  {
-                    backgroundColor: theme.colors.card,
-                    borderColor:
-                      theme.colors.border + (theme.isDark ? "30" : "50"),
-                  },
-                ]}
-                activeOpacity={0.7}
-              >
-                {/* Subject Icon */}
-                <View
+            {isLoading ? (
+              // Loading skeletons
+              Array.from({ length: 3 }).map((_, index) => (
+                <View key={index} style={styles.skeletonContainer}>
+                  <Skeleton height={80} radius={16} />
+                </View>
+              ))
+            ) : statistics &&
+              Array.isArray(statistics) &&
+              statistics.length > 0 ? (
+              statistics.map((stat: SubjectStatistic, index: number) => (
+                <TouchableOpacity
+                  key={stat.subjectId}
                   style={[
-                    styles.subjectIcon,
-                    { backgroundColor: getSubjectColor(stat.percent) + "20" },
+                    styles.courseStatItem,
+                    {
+                      backgroundColor: theme.colors.card,
+                      borderColor:
+                        theme.colors.border + (theme.isDark ? "30" : "50"),
+                    },
                   ]}
+                  activeOpacity={0.7}
+                  onPress={() => handleSubjectPress(stat)}
                 >
+                  {/* Subject Icon */}
                   <View
                     style={[
-                      styles.subjectIconInner,
-                      { backgroundColor: getSubjectColor(stat.percent) },
+                      styles.subjectIcon,
+                      { backgroundColor: getSubjectColor(stat.percent) + "20" },
                     ]}
                   >
-                    <Text style={styles.subjectIconText}>
-                      {stat.subjectName.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.courseStatContent}>
-                  <View style={styles.courseStatHeader}>
-                    <Text style={styles.courseStatName}>
-                      {stat.subjectName}
-                    </Text>
                     <View
                       style={[
-                        styles.percentageBadge,
-                        {
-                          backgroundColor: getSubjectColor(stat.percent) + "20",
-                        },
+                        styles.subjectIconInner,
+                        { backgroundColor: getSubjectColor(stat.percent) },
                       ]}
                     >
-                      <Text
-                        style={[
-                          styles.percentageText,
-                          { color: getSubjectColor(stat.percent) },
-                        ]}
-                      >
-                        {stat.percent}%
+                      <Text style={styles.subjectIconText}>
+                        {stat.subjectName.charAt(0).toUpperCase()}
                       </Text>
                     </View>
                   </View>
 
-                  <View style={styles.courseStatDetails}>
-                    <Text style={styles.courseStatSubtext}>
-                      {stat.correctSum}/{stat.totalSum} to'g'ri javob
-                    </Text>
-
-                    {/* Enhanced Progress Bar */}
-                    <View
-                      style={[
-                        styles.progressBarContainer,
-                        {
-                          backgroundColor:
-                            theme.colors.divider + (theme.isDark ? "30" : "50"),
-                        },
-                      ]}
-                    >
+                  <View style={styles.courseStatContent}>
+                    <View style={styles.courseStatHeader}>
+                      <Text style={styles.courseStatName}>
+                        {stat.subjectName}
+                      </Text>
                       <View
                         style={[
-                          styles.progressBarFill,
+                          styles.percentageBadge,
                           {
-                            width: `${stat.percent}%`,
-                            backgroundColor: getSubjectColor(stat.percent),
+                            backgroundColor:
+                              getSubjectColor(stat.percent) + "20",
                           },
                         ]}
-                      />
-                      {/* Shine effect */}
+                      >
+                        <Text
+                          style={[
+                            styles.percentageText,
+                            { color: getSubjectColor(stat.percent) },
+                          ]}
+                        >
+                          {stat.percent}%
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.courseStatDetails}>
+                      <Text style={styles.courseStatSubtext}>
+                        {stat.correctSum}/{stat.totalSum} to'g'ri javob
+                      </Text>
+
+                      {/* Enhanced Progress Bar */}
                       <View
                         style={[
-                          styles.progressBarShine,
-                          { width: `${stat.percent}%` },
+                          styles.progressBarContainer,
+                          {
+                            backgroundColor:
+                              theme.colors.divider +
+                              (theme.isDark ? "30" : "50"),
+                          },
                         ]}
-                      />
+                      >
+                        <View
+                          style={[
+                            styles.progressBarFill,
+                            {
+                              width: `${stat.percent}%`,
+                              backgroundColor: getSubjectColor(stat.percent),
+                            },
+                          ]}
+                        />
+                        {/* Shine effect */}
+                        <View
+                          style={[
+                            styles.progressBarShine,
+                            { width: `${stat.percent}%` },
+                          ]}
+                        />
+                      </View>
                     </View>
                   </View>
-                </View>
 
-                <View style={styles.courseStatArrow}>
+                  <View style={styles.courseStatArrow}>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color={theme.colors.textMuted}
+                    />
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <View
+                  style={[
+                    styles.emptyStateIcon,
+                    { backgroundColor: theme.colors.divider + "30" },
+                  ]}
+                >
                   <Ionicons
-                    name="chevron-forward"
-                    size={20}
+                    name="bar-chart-outline"
+                    size={32}
                     color={theme.colors.textMuted}
                   />
                 </View>
-              </TouchableOpacity>
-            ))
-          ) : (
-            <View style={styles.emptyState}>
-              <View
-                style={[
-                  styles.emptyStateIcon,
-                  { backgroundColor: theme.colors.divider + "30" },
-                ]}
-              >
-                <Ionicons
-                  name="bar-chart-outline"
-                  size={32}
-                  color={theme.colors.textMuted}
-                />
+                <Text style={styles.emptyStateTitle}>
+                  Statistika mavjud emas
+                </Text>
+                <Text style={styles.emptyStateText}>
+                  Hozircha statistika ma'lumotlari yo'q. Testlarni yechib
+                  ko'ring.
+                </Text>
               </View>
-              <Text style={styles.emptyStateTitle}>Statistika mavjud emas</Text>
-              <Text style={styles.emptyStateText}>
-                Hozircha statistika ma'lumotlari yo'q. Testlarni yechib ko'ring.
-              </Text>
-            </View>
-          )}
-        </View>
+            )}
+          </View>
+        ) : (
+          /* Chapter Statistics */
+          <View style={styles.courseStatsSection}>
+            <Text style={styles.sectionTitle}>Boblar bo'yicha natijalar</Text>
+
+            {chapterLoading ? (
+              // Loading skeletons
+              Array.from({ length: 3 }).map((_, index) => (
+                <View key={index} style={styles.skeletonContainer}>
+                  <Skeleton height={120} radius={16} />
+                </View>
+              ))
+            ) : chapterStatistics &&
+              Array.isArray(chapterStatistics) &&
+              chapterStatistics.length > 0 ? (
+              chapterStatistics.map((chapter: ChapterStatistic) => (
+                <View
+                  key={chapter.id}
+                  style={[
+                    styles.chapterStatItem,
+                    {
+                      backgroundColor: theme.colors.card,
+                      borderColor:
+                        theme.colors.border + (theme.isDark ? "30" : "50"),
+                    },
+                  ]}
+                >
+                  {/* Chapter Header */}
+                  <View style={styles.chapterHeader}>
+                    <View style={styles.chapterTitleContainer}>
+                      <Text style={styles.chapterTitle}>{chapter.name}</Text>
+                      <Text style={styles.chapterSubtitle}>
+                        {chapter.themes.length} ta mavzu
+                      </Text>
+                    </View>
+                    <View style={styles.chapterBadge}>
+                      <Text style={styles.chapterNumber}>
+                        {chapter.ordinalNumber}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Themes List */}
+                  <View style={styles.themesContainer}>
+                    {chapter.themes.map((themeData: ThemeStatistic) => (
+                      <View key={themeData.id} style={styles.themeItem}>
+                        <View style={styles.themeInfo}>
+                          <Text style={styles.themeName}>{themeData.name}</Text>
+                          <View
+                            style={[
+                              styles.themeProgressBar,
+                              {
+                                backgroundColor:
+                                  theme.colors.divider +
+                                  (theme.isDark ? "30" : "50"),
+                              },
+                            ]}
+                          >
+                            <View
+                              style={[
+                                styles.themeProgressFill,
+                                {
+                                  width: `${themeData.percent}%`,
+                                  backgroundColor: getSubjectColor(
+                                    themeData.percent
+                                  ),
+                                },
+                              ]}
+                            />
+                          </View>
+                        </View>
+                        <Text
+                          style={[
+                            styles.themePercent,
+                            { color: getSubjectColor(themeData.percent) },
+                          ]}
+                        >
+                          {themeData.percent}%
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <View
+                  style={[
+                    styles.emptyStateIcon,
+                    { backgroundColor: theme.colors.divider + "30" },
+                  ]}
+                >
+                  <Ionicons
+                    name="library-outline"
+                    size={32}
+                    color={theme.colors.textMuted}
+                  />
+                </View>
+                <Text style={styles.emptyStateTitle}>
+                  Bob statistikalari mavjud emas
+                </Text>
+                <Text style={styles.emptyStateText}>
+                  Ushbu fan bo'yicha hozircha bob statistikalari mavjud emas.
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Refresh Button */}
         {error && (
@@ -619,5 +769,87 @@ const createStyles = (theme: Theme) =>
       color: "white",
       fontSize: FONT_SIZES.base,
       fontWeight: "600",
+    },
+
+    // Chapter Statistics Styles
+    chapterStatItem: {
+      backgroundColor: theme.colors.card,
+      borderRadius: BORDER_RADIUS.lg,
+      padding: SPACING.lg,
+      marginBottom: SPACING.base,
+      shadowColor: theme.colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: theme.isDark ? 0.2 : 0.08,
+      shadowRadius: 8,
+      elevation: 4,
+      borderWidth: 1,
+    },
+    chapterHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      marginBottom: SPACING.base,
+    },
+    chapterTitleContainer: {
+      flex: 1,
+      marginRight: SPACING.base,
+    },
+    chapterTitle: {
+      fontSize: FONT_SIZES.lg,
+      fontWeight: "700",
+      color: theme.colors.text,
+      marginBottom: SPACING.xs,
+    },
+    chapterSubtitle: {
+      fontSize: FONT_SIZES.sm,
+      color: theme.colors.textMuted,
+    },
+    chapterBadge: {
+      backgroundColor: theme.colors.primary + "20",
+      borderRadius: BORDER_RADIUS.sm,
+      paddingHorizontal: SPACING.sm,
+      paddingVertical: SPACING.xs,
+      minWidth: 32,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    chapterNumber: {
+      fontSize: FONT_SIZES.sm,
+      fontWeight: "700",
+      color: theme.colors.primary,
+    },
+    themesContainer: {
+      gap: SPACING.sm,
+    },
+    themeItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: SPACING.xs,
+    },
+    themeInfo: {
+      flex: 1,
+      marginRight: SPACING.base,
+    },
+    themeName: {
+      fontSize: FONT_SIZES.base,
+      color: theme.colors.text,
+      marginBottom: SPACING.xs,
+      lineHeight: FONT_SIZES.base * 1.3,
+    },
+    themeProgressBar: {
+      height: 6,
+      borderRadius: 3,
+      overflow: "hidden",
+    },
+    themeProgressFill: {
+      height: "100%",
+      borderRadius: 3,
+      minWidth: 2,
+    },
+    themePercent: {
+      fontSize: FONT_SIZES.sm,
+      fontWeight: "600",
+      minWidth: 40,
+      textAlign: "right",
     },
   });
