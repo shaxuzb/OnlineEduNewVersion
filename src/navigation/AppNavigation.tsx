@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -22,6 +22,7 @@ import QuizResultsScreen from "../screens/courses/QuizResultsScreen";
 import ChatScreen from "../screens/chat/ChatScreen";
 import { useAuth } from "../context/AuthContext";
 
+import SystemNavigationBar from "react-native-system-navigation-bar";
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
@@ -31,7 +32,6 @@ const MainTabNavigator = () => {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        animation: "none",
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: any;
 
@@ -47,7 +47,6 @@ const MainTabNavigator = () => {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-
         tabBarActiveTintColor: theme.colors.tabBarActive,
         tabBarInactiveTintColor: theme.colors.tabBarInactive,
         tabBarStyle: {
@@ -140,6 +139,11 @@ export default function AppNavigation() {
   const { theme } = useTheme();
 
   // Show loading screen (splash screen) while checking authentication
+  useEffect(() => {
+    SystemNavigationBar.setBarMode(theme.isDark ? "light" : "dark");
+    SystemNavigationBar.setNavigationColor(theme.colors.tabBarBackground);
+    
+  }, [theme]);
   if (isLoading) {
     return <LoadingScreen />;
   }

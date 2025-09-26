@@ -7,7 +7,6 @@ import { QueryProvider } from "./src/providers/QueryProvider";
 import * as SplashScreen from "expo-splash-screen";
 import { UpdateNotificationSheet } from "./src/components";
 import { useVersionCheck } from "./src/hooks/useVersionCheck";
-
 // Prevent the splash screen from auto-hiding before App is ready
 SplashScreen.preventAutoHideAsync();
 

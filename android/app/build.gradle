@@ -92,15 +92,15 @@ android {
         applicationId 'com.anonymous.onlineedu'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0.5"
+        versionCode 7
+        versionName "1.0.7"
     }
-    signingConfigs {
+   signingConfigs {
         debug {
-            storeFile file('debug.keystore')
-            storePassword 'android'
-            keyAlias 'androiddebugkey'
-            keyPassword 'android'
+            storeFile file('keystore.jks')
+            storePassword '151df5274316d7da65438329e3db25f3'
+            keyAlias '9ba9bb3157f23f07ed1bd731f3b86d59'
+            keyPassword '6feb14c06ff53edf95dcfb831af636e6'
         }
     }
     buildTypes {

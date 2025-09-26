@@ -7,34 +7,81 @@ import {
   Dimensions,
   StatusBar,
   ActivityIndicator,
+  BackHandler,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import Video, { DRMType } from "react-native-video";
 import { RootStackParamList } from "@/src/types";
+import * as ScreenCapture from "expo-screen-capture";
+import * as ScreenOrientation from "expo-screen-orientation";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
+import SystemNavigationBar from "react-native-system-navigation-bar";
 
 const { width, height } = Dimensions.get("window");
 
 export default function VideoPlayerScreen() {
+  const lastTap = useRef<number | null>(null);
+  const hideControlsTimeout = useRef<any>(null);
+  const tapTimeout = useRef<NodeJS.Timeout | null>(null);
   const navigation = useNavigation();
   const route = useRoute();
   const [paused, setPaused] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [buffered, setBuffered] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLandscape, setIsLandscape] = useState(false);
   const videoRef = useRef<any>(null);
+ const leftAnim = useRef(new Animated.Value(0)).current;
+const rightAnim = useRef(new Animated.Value(0)).current;
 
   // Get lesson data from route params
   const { lessonTitle, mavzu, videoFileId } =
     (route.params as RootStackParamList["VideoPlayer"]) || {};
 
+  const animateRipple = (side: "left" | "right") => {
+  const anim = side === "left" ? leftAnim : rightAnim;
+
+  // agar oldingi anim davom etsa to'xtatish
+  anim.stopAnimation();
+  anim.setValue(0);
+
+  Animated.timing(anim, {
+    toValue: 1,
+    duration: 450,           // xohlagancha o'zgartiring
+    useNativeDriver: true,   // opacity va transform uchun ok
+  }).start(() => {
+    // oxirida qayta 0 ga o'rnatamiz
+    anim.setValue(0);
+  });
+};
+  const resetControlsTimer = () => {
+    if (hideControlsTimeout.current) {
+      clearTimeout(hideControlsTimeout.current);
+    }
+    if (!paused) {
+      hideControlsTimeout.current = setTimeout(() => {
+        setShowControls(false);
+      }, 3000); // 3s
+    }
+  };
   // Load authentication token from SecureStore
+  useEffect(() => {
+    if (showControls) {
+      resetControlsTimer();
+    } else {
+      if (hideControlsTimeout.current) {
+        clearTimeout(hideControlsTimeout.current);
+      }
+    }
+  }, [showControls, !paused]);
   useEffect(() => {
     async function loadAuthToken() {
       try {
@@ -53,11 +100,41 @@ export default function VideoPlayerScreen() {
 
     loadAuthToken();
   }, []);
+  useEffect(() => {
+    ScreenCapture.preventScreenCaptureAsync().catch(console.warn);
 
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        handleGoBack();
+        return true;
+      }
+    );
+
+    return () => {
+      ScreenCapture.allowScreenCaptureAsync().catch(console.warn);
+      ScreenOrientation.lockAsync(
+        ScreenOrientation.OrientationLock.PORTRAIT_UP
+      );
+      backHandler.remove();
+    };
+  }, []);
   const handleGoBack = () => {
     navigation.goBack();
   };
-
+  const toggleOrientation = async () => {
+    if (isLandscape) {
+      await ScreenOrientation.lockAsync(
+        ScreenOrientation.OrientationLock.PORTRAIT_UP
+      );
+      setIsLandscape(false);
+    } else {
+      await ScreenOrientation.lockAsync(
+        ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT
+      );
+      setIsLandscape(true);
+    }
+  };
   const handlePlayPause = () => {
     setPaused(!paused);
   };
@@ -73,7 +150,33 @@ export default function VideoPlayerScreen() {
       videoRef.current.seek(Math.min(duration, currentTime + 10));
     }
   };
+  const handleDoubleTap = (side: "left" | "right") => {
+    const now = Date.now();
 
+    if (lastTap.current && now - lastTap.current < 300) {
+      // 🔹 Double tap bo‘ldi → single tap timeoutni tozalaymiz
+      if (tapTimeout.current) {
+        clearTimeout(tapTimeout.current);
+        tapTimeout.current = null;
+      }
+
+      if (side === "left") {
+        handlePrevious();
+        animateRipple("left");
+      } else {
+        handleNext();
+        animateRipple("right");
+      }
+      lastTap.current = null;
+    } else {
+      // 🔹 Single tap → biroz kutib ko‘ramiz, agar 300ms ichida yana bosilmasa, controlsni ko‘rsatamiz
+      lastTap.current = now;
+      tapTimeout.current = setTimeout(() => {
+        setShowControls(true);
+        tapTimeout.current = null;
+      }, 200);
+    }
+  };
   const handleLike = () => {
     setIsLiked(!isLiked);
   };
@@ -83,6 +186,7 @@ export default function VideoPlayerScreen() {
   };
 
   const onProgress = (data: any) => {
+    setBuffered(data.playableDuration);
     setCurrentTime(data.currentTime);
   };
 
@@ -95,18 +199,16 @@ export default function VideoPlayerScreen() {
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
-
+  useEffect(() => {
+    SystemNavigationBar.stickyImmersive();
+    return () => {
+      SystemNavigationBar.navigationShow();
+    };
+  }, []);
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
-      <View style={styles.topControls}>
-        <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={28} color="white" />
-          <View style={styles.handPointer}>
-            <Ionicons name="hand-left" size={20} color="#fbbf24" />
-          </View>
-        </TouchableOpacity>
-      </View>
+
       <TouchableOpacity
         style={styles.videoContainer}
         onPress={toggleControls}
@@ -126,7 +228,6 @@ export default function VideoPlayerScreen() {
                 maxBufferMs: 50000,
                 bufferForPlaybackMs: 2500,
                 bufferForPlaybackAfterRebufferMs: 5000,
-
               },
               uri: `${Constants.expoConfig?.extra?.API_URL}/videos/${videoFileId}`,
               type: "m3u8",
@@ -153,8 +254,11 @@ export default function VideoPlayerScreen() {
             hideShutterView={true}
             playInBackground={true}
             resizeMode="contain"
+            onBuffer={({ isBuffering }) => {
+              console.log("Buffering: ", isBuffering);
+            }}
             repeat={false}
-            controls={true}
+            controls={false}
           />
         ) : (
           <View style={styles.errorContainer}>
@@ -163,47 +267,141 @@ export default function VideoPlayerScreen() {
             </Text>
           </View>
         )}
-        {/* Teacher Overlay - Demo content */}
-        {/* <View style={styles.videoOverlay}>
-          <View style={styles.teacherSection}>
-            <View style={styles.teacherPlaceholder}>
-              <Text style={styles.teacherText}>👨‍🏫</Text>
-              <Text style={styles.lessonIndicator}>{mavzu || '1. Mavzu'}</Text>
-              <Text style={styles.boardText}>Natural sonlar haqida</Text>
+      </TouchableOpacity>
+      <View style={styles.tapZones}>
+        <TouchableOpacity
+          style={styles.leftZone}
+          activeOpacity={1}
+          onPress={() => handleDoubleTap("left")}
+        />
+        <TouchableOpacity
+          style={styles.rightZone}
+          activeOpacity={1}
+          onPress={() => handleDoubleTap("right")}
+        />
+      </View>
+
+      {/* Ripple left */}
+     <Animated.View
+  pointerEvents="none"
+  style={[
+    styles.ripple,
+    {
+      left: 30,
+      opacity: leftAnim.interpolate({
+        inputRange: [0, 0.6, 1],
+        outputRange: [0, 1, 0],   // fade in → visible → fade out
+      }),
+      transform: [
+        {
+          scale: leftAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.9, 1.9], // kichik -> katta (zoom effect)
+          }),
+        },
+      ],
+    },
+  ]}
+>
+  <View style={styles.rippleInner}>
+    <Text style={styles.rippleText}>
+      <Ionicons name="play-back" size={20} color="white" /> 10
+    </Text>
+  </View>
+</Animated.View>
+
+{/* Ripple right */}
+<Animated.View
+  pointerEvents="none"
+  style={[
+    styles.ripple,
+    {
+      right: 30,
+      opacity: rightAnim.interpolate({
+        inputRange: [0, 0.6, 1],
+        outputRange: [0, 1, 0],
+      }),
+      transform: [
+        {
+          scale: rightAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.9, 1.9],
+          }),
+        },
+      ],
+    },
+  ]}
+>
+  <View style={styles.rippleInner}>
+    <Text style={styles.rippleText}>
+      <Ionicons name="play-forward" size={20} color="white" /> 10
+    </Text>
+  </View>
+</Animated.View>
+
+      {/* Controls overlay */}
+
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={toggleControls}
+        style={{
+          position: "absolute",
+          width: "100%",
+          display: showControls ? "flex" : "none",
+          height: "100%",
+          justifyContent: "space-between",
+          backgroundColor: showControls ? "rgba(0, 0, 0, 0.4)" : "transparent",
+        }}
+      >
+        <View style={styles.topControls}>
+          <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={28} color="white" />
+          </TouchableOpacity>
+        </View>
+        {/* Bottom Controls */}
+        <View style={styles.bottomSection}>
+          {/* Lesson Title */}
+          <Text style={styles.lessonTitle}>
+            {lessonTitle || "Natural sonlar va ular ustida amallar"}
+          </Text>
+
+          {/* Progress Bar */}
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progress,
+                  {
+                    width:
+                      duration > 0
+                        ? `${(currentTime / duration) * 100}%`
+                        : "0%",
+                  },
+                ]}
+              />
+              <View
+                style={[
+                  styles.progressBuffered,
+                  {
+                    width:
+                      duration > 0 ? `${(buffered / duration) * 100}%` : "0%",
+                  },
+                ]}
+              />
+            </View>
+            <View style={styles.timeContainer}>
+              <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+              <Text style={styles.timeText}>{formatTime(duration)}</Text>
             </View>
           </View>
-        </View> */}
-      </TouchableOpacity>
 
-      {/* Bottom Controls */}
-      <View style={styles.bottomSection}>
-        {/* Lesson Title */}
-        <Text style={styles.lessonTitle}>
-          {lessonTitle || "Natural sonlar va ular ustida amallar"}
-        </Text>
-
-        {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <View
-              style={[
-                styles.progress,
-                {
-                  width:
-                    duration > 0 ? `${(currentTime / duration) * 100}%` : "0%",
-                },
-              ]}
-            />
-          </View>
-          <View style={styles.timeContainer}>
-            <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
-            <Text style={styles.timeText}>{formatTime(duration)}</Text>
-          </View>
-        </View>
-
-        {/* Control Buttons */}
-        {showControls && (
-          <View style={styles.controlsContainer}>
+          {/* Control Buttons */}
+          <View
+            style={{
+              ...styles.controlsContainer,
+              ...(isLandscape && { paddingBottom: 6 }),
+            }}
+          >
             <TouchableOpacity onPress={handleLike} style={styles.controlButton}>
               <Ionicons
                 name={isLiked ? "heart" : "heart-outline"}
@@ -235,14 +433,18 @@ export default function VideoPlayerScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={handleGoBack}
+              onPress={toggleOrientation}
               style={styles.controlButton}
             >
-              <Ionicons name="remove" size={28} color="white" />
+              {isLandscape ? (
+                <Ionicons name="phone-portrait" size={24} color={"white"} />
+              ) : (
+                <Ionicons name="phone-landscape" size={24} color={"white"} />
+              )}
             </TouchableOpacity>
           </View>
-        )}
-      </View>
+        </View>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -277,22 +479,45 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 16,
   },
+  tapZones: {
+    ...StyleSheet.absoluteFillObject,
+    height: "100%",
+    flexDirection: "row",
+  },
+  leftZone: { flex: 1 },
+  rightZone: { flex: 1 },
+ ripple: {
+  position: "absolute",
+  top: "42%",            // vertikal joylashuvni moslashtiring
+  width: 120,
+  height: 120,
+  borderRadius: 60,
+  justifyContent: "center",
+  alignItems: "center",
+  // pointerEvents none uchun Animated.View ga ham qo'yildi
+},
+rippleInner: {
+  width: 100,
+  height: 100,
+  borderRadius: 50,
+  backgroundColor: "rgba(255,255,255,0.12)", // ko‘rinadigan fon
+  justifyContent: "center",
+  alignItems: "center",
+},
+rippleText: {
+  color: "#fff",
+  fontWeight: "700",
+  fontSize: 16,
+},
   topControls: {
-    position: "absolute",
-    top: 50,
-    left: 20,
-    zIndex: 10,
+    width: "100%",
+    paddingVertical: 15,
   },
   backButton: {
     flexDirection: "row",
     alignItems: "center",
     padding: 8,
     position: "relative",
-  },
-  handPointer: {
-    position: "absolute",
-    top: -5,
-    right: -15,
   },
   videoContainer: {
     flex: 1,
@@ -301,8 +526,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#000",
   },
   video: {
-    width: width,
-    height: height * 0.6,
+    width: "100%",
+    height: "100%",
   },
   videoOverlay: {
     position: "absolute",
@@ -343,7 +568,6 @@ const styles = StyleSheet.create({
   },
   bottomSection: {
     paddingHorizontal: 20,
-    paddingBottom: 30,
   },
   lessonTitle: {
     fontSize: 18,
@@ -353,7 +577,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   progressContainer: {
-    marginBottom: 25,
+    marginBottom: 10,
   },
   progressBar: {
     height: 4,
@@ -363,7 +587,15 @@ const styles = StyleSheet.create({
   },
   progress: {
     height: "100%",
+    zIndex: 2,
     backgroundColor: "#3b82f6",
+    borderRadius: 2,
+  },
+  progressBuffered: {
+    height: "100%",
+    position: "absolute",
+    zIndex: 1,
+    backgroundColor: "#bbbbbbff",
     borderRadius: 2,
   },
   timeContainer: {
@@ -378,7 +610,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    paddingHorizontal: 10,
   },
   controlButton: {
     padding: 12,
@@ -386,8 +617,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
   playButton: {
-    width: 70,
-    height: 70,
+    width: 60,
+    height: 60,
     borderRadius: 35,
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     justifyContent: "center",

@@ -31,7 +31,7 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
 }
 expoAutolinking.useExpoModules()
 
-rootProject.name = 'online-edu'
+rootProject.name = 'MATH ME'
 
 expoAutolinking.useExpoVersionCatalog()
 
