@@ -75,24 +75,27 @@ export default function LessonDetailScreen() {
 
   const handlePlayVideo = () => {
     // Navigate to video player screen
-    (navigation as any).navigate("VideoPlayer", {
-      lessonTitle: data?.name,
-      videoFileId: data?.video.fileId,
-      mavzu: `${data?.ordinalNumber}-mavzu`,
-    });
+    if (!data?.video?.fileId) {
+      Alert.alert("Warning", "Video yuklanmagan");
+    } else {
+      (navigation as any).navigate("VideoPlayer", {
+        lessonTitle: data?.name,
+        videoFileId: data?.video.fileId,
+        mavzu: `${data?.ordinalNumber}-mavzu`,
+      });
+    }
   };
 
   const handleMashqlar = () => {
-   if(data?.testId){
-     (navigation as any).navigate("QuizScreen", {
-      testId: data?.testId,
-      title: "Mashqlar",
-      mavzu: `${data?.ordinalNumber}-mavzu`,
-    });
-   }
-   else{
-    Alert.alert("Warning", "Test biriktirilmagan");
-   }
+    if (data?.testId) {
+      (navigation as any).navigate("QuizScreen", {
+        testId: data?.testId,
+        title: "Mashqlar",
+        mavzu: `${data?.ordinalNumber}-mavzu`,
+      });
+    } else {
+      Alert.alert("Warning", "Test biriktirilmagan");
+    }
   };
 
   const handleOralQuestions = () => {
@@ -189,22 +192,12 @@ export default function LessonDetailScreen() {
         <View style={styles.videoContainer}>
           <TouchableOpacity
             style={[styles.videoPlayer]}
-            disabled={!data?.video?.fileId}
             onPress={handlePlayVideo}
             activeOpacity={0.8}
           >
             <View style={styles.playButtonContainer}>
               <View style={styles.playButton}>
                 <Ionicons name="play" size={32} color="white" />
-              </View>
-              <View style={styles.handPointer}>
-                {!data?.video?.fileId && (
-                  <Ionicons
-                    name="hand-left"
-                    size={24}
-                    color={theme.colors.warning}
-                  />
-                )}
               </View>
             </View>
           </TouchableOpacity>

@@ -159,13 +159,7 @@ export default function SubjectScreen() {
                     </Text>
                   </View>
                 </View>
-                {!chapterTheme.isLocked && (
-                  <Ionicons
-                    name="hand-left"
-                    size={20}
-                    color={theme.colors.warning}
-                  />
-                )}
+                
               </TouchableOpacity>
             ))}
           </View>

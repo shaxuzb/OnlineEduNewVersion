@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "onlineedu",
+    "platforms": ["ios", "android"],
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/splash-icon.png",
@@ -32,10 +33,7 @@
       "checkAutomatically": "ON_ERROR_RECOVERY",
       "fallbackToCacheTimeout": 0
     },
-    "plugins": [
-      "expo-dev-client",
-      "expo-secure-store"
-    ],
+    "plugins": ["expo-dev-client", "expo-secure-store"],
     "extra": {
       "API_URL": "https://edu-api.crmuz.uz/api",
       "router": {},
