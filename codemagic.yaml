@@ -1,1 +1,27 @@
-
+workflows:
+  react-native-ios-dev:
+    name: React Native iOS Development Build
+    environment:
+      node: 18
+      npm: 9
+      xcode: 15.4
+      cocoapods: default
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm install
+          cd ios && pod install && cd ..
+      - name: Build Development IPA
+        script: |
+          xcodebuild -workspace ios/YourApp.xcworkspace \
+            -scheme YourApp \
+            -sdk iphoneos \
+            -configuration Debug \
+            archive -archivePath $CM_BUILD_DIR/YourApp.xcarchive \
+            DEVELOPMENT_TEAM="YOUR_TEAM_ID"
+          xcodebuild -exportArchive \
+            -archivePath $CM_BUILD_DIR/YourApp.xcarchive \
+            -exportOptionsPlist ios/ExportOptions-dev.plist \
+            -exportPath $CM_BUILD_DIR/ipa
+    artifacts:
+      - $CM_BUILD_DIR/ipa/*.ipa
