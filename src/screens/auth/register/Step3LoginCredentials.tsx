@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -9,49 +9,77 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-} from 'react-native';
-import { Formik } from 'formik';
-import * as Yup from 'yup';
-import { useRegister } from '../../../context/RegisterContext';
-import { useTheme } from '../../../context/ThemeContext';
-import { Theme } from '../../../types';
-import { Ionicons } from '@expo/vector-icons';
+  Alert,
+} from "react-native";
+import { Formik } from "formik";
+import * as Yup from "yup";
+import { useRegister } from "../../../context/RegisterContext";
+import { useTheme } from "../../../context/ThemeContext";
+import { Theme } from "../../../types";
+import { Ionicons } from "@expo/vector-icons";
+import Toast from "react-native-toast-message";
 
 const Step3Schema = Yup.object().shape({
-  login: Yup.string()
-    .min(3, 'Login kamida 3 ta belgidan iborat bo\'lishi kerak')
-    .max(20, 'Login 20 ta belgidan oshmasligi kerak')
-    .matches(/^[a-zA-Z0-9_]+$/, 'Login faqat harflar, raqamlar va _ belgilaridan iborat bo\'lishi kerak')
-    .required('Login majburiy'),
+  userName: Yup.string()
+    .min(3, "Login kamida 3 ta belgidan iborat bo'lishi kerak")
+    .max(20, "Login 20 ta belgidan oshmasligi kerak")
+    .matches(
+      /^[a-zA-Z0-9_]+$/,
+      "Login faqat harflar, raqamlar va _ belgilaridan iborat bo'lishi kerak"
+    )
+    .required("Login majburiy"),
   password: Yup.string()
-    .min(6, 'Parol kamida 6 ta belgidan iborat bo\'lishi kerak')
+    .min(6, "Parol kamida 6 ta belgidan iborat bo'lishi kerak")
     // .matches(/[A-Z]/, 'Parol kamida bitta katta harf bo\'lishi kerak')
     // .matches(/[a-z]/, 'Parol kamida bitta kichik harf bo\'lishi kerak')
     // .matches(/[0-9]/, 'Parol kamida bitta raqam bo\'lishi kerak')
-    .required('Parol majburiy'),
+    .required("Parol majburiy"),
   confirmPassword: Yup.string()
-    .oneOf([Yup.ref('password')], 'Parollar bir xil emas')
-    .required('Parolni takrorlash majburiy'),
+    .oneOf([Yup.ref("password")], "Parollar bir xil emas")
+    .required("Parolni takrorlash majburiy"),
 });
-
-const Step3LoginCredentials: React.FC = () => {
-  const { registerData, updateRegisterData, prevStep, submitRegistration, isLoading } = useRegister();
+interface Step3LoginCredentialsProps {
+  onClose: () => void;
+}
+const Step3LoginCredentials: React.FC<Step3LoginCredentialsProps> = ({
+  onClose,
+}) => {
+  const { registerData, prevStep, submitRegistration, isLoading } =
+    useRegister();
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const handleSubmit = async (values: { login: string; password: string; confirmPassword: string }) => {
-    updateRegisterData(values);
-    await submitRegistration();
+  const handleSubmit = async (values: {
+    userName: string;
+    password: string;
+    confirmPassword: string;
+  }) => {
+    try {
+      await submitRegistration(values);
+    } catch (error: any) {
+      console.log(JSON.stringify(error.response));
+
+      if (error.status === 409) {
+        onClose();
+        Toast.show({
+          type: "error",
+          text1: "Warning",
+          text2: "Avval qurilma yoki aloqa nomeridan ro'yhatdan o'tilgan",
+        });
+      } else {
+        console.error("Registration error:", error);
+      }
+    }
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
       >
@@ -63,32 +91,40 @@ const Step3LoginCredentials: React.FC = () => {
 
           <Formik
             initialValues={{
-              login: registerData.login,
+              userName: registerData.userName,
               password: registerData.password,
               confirmPassword: registerData.confirmPassword,
             }}
             validationSchema={Step3Schema}
             onSubmit={handleSubmit}
           >
-            {({ handleChange, handleBlur, handleSubmit, values, errors, touched, isValid }) => (
+            {({
+              handleChange,
+              handleBlur,
+              handleSubmit,
+              values,
+              errors,
+              touched,
+              isValid,
+            }) => (
               <View style={styles.formContainer}>
                 {/* Login */}
                 <View style={styles.inputContainer}>
                   <TextInput
                     style={[
                       styles.input,
-                      touched.login && errors.login && styles.inputError
+                      touched.userName && errors.userName && styles.inputError,
                     ]}
                     placeholder="Login"
                     placeholderTextColor={theme.colors.textMuted}
-                    value={values.login}
-                    onChangeText={handleChange('login')}
-                    onBlur={handleBlur('login')}
+                    value={values.userName}
+                    onChangeText={handleChange("userName")}
+                    onBlur={handleBlur("userName")}
                     autoCapitalize="none"
                     autoCorrect={false}
                   />
-                  {touched.login && errors.login && (
-                    <Text style={styles.errorText}>{errors.login}</Text>
+                  {touched.userName && errors.userName && (
+                    <Text style={styles.errorText}>{errors.userName}</Text>
                   )}
                 </View>
 
@@ -98,14 +134,16 @@ const Step3LoginCredentials: React.FC = () => {
                     <TextInput
                       style={[
                         styles.passwordInput,
-                        touched.password && errors.password && styles.inputError
+                        touched.password &&
+                          errors.password &&
+                          styles.inputError,
                       ]}
                       placeholder="Parol"
                       placeholderTextColor={theme.colors.textMuted}
                       secureTextEntry={!showPassword}
                       value={values.password}
-                      onChangeText={handleChange('password')}
-                      onBlur={handleBlur('password')}
+                      onChangeText={handleChange("password")}
+                      onBlur={handleBlur("password")}
                       autoCapitalize="none"
                       autoCorrect={false}
                     />
@@ -113,9 +151,9 @@ const Step3LoginCredentials: React.FC = () => {
                       style={styles.eyeButton}
                       onPress={() => setShowPassword(!showPassword)}
                     >
-                      <Ionicons 
-                        name={showPassword ? 'eye' : 'eye-off'} 
-                        size={22} 
+                      <Ionicons
+                        name={showPassword ? "eye" : "eye-off"}
+                        size={22}
                         color={theme.colors.textMuted}
                       />
                     </TouchableOpacity>
@@ -131,49 +169,59 @@ const Step3LoginCredentials: React.FC = () => {
                     <TextInput
                       style={[
                         styles.passwordInput,
-                        touched.confirmPassword && errors.confirmPassword && styles.inputError
+                        touched.confirmPassword &&
+                          errors.confirmPassword &&
+                          styles.inputError,
                       ]}
                       placeholder="Parolni takrorlang"
                       placeholderTextColor={theme.colors.textMuted}
                       secureTextEntry={!showConfirmPassword}
                       value={values.confirmPassword}
-                      onChangeText={handleChange('confirmPassword')}
-                      onBlur={handleBlur('confirmPassword')}
+                      onChangeText={handleChange("confirmPassword")}
+                      onBlur={handleBlur("confirmPassword")}
                       autoCapitalize="none"
                       autoCorrect={false}
                     />
                     <TouchableOpacity
                       style={styles.eyeButton}
-                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                      onPress={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
                     >
-                      <Ionicons 
-                        name={showConfirmPassword ? 'eye' : 'eye-off'} 
-                        size={22} 
+                      <Ionicons
+                        name={showConfirmPassword ? "eye" : "eye-off"}
+                        size={22}
                         color={theme.colors.textMuted}
                       />
                     </TouchableOpacity>
                   </View>
                   {touched.confirmPassword && errors.confirmPassword && (
-                    <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+                    <Text style={styles.errorText}>
+                      {errors.confirmPassword}
+                    </Text>
                   )}
                 </View>
 
                 {/* Buttons */}
                 <View style={styles.buttonsRow}>
-                  <TouchableOpacity 
-                    style={[styles.navButton, styles.backButton]} 
+                  <TouchableOpacity
+                    style={[styles.navButton, styles.backButton]}
                     onPress={prevStep}
                     disabled={isLoading}
                   >
-                    <Ionicons name="chevron-back" size={20} color={theme.colors.primary} />
+                    <Ionicons
+                      name="chevron-back"
+                      size={20}
+                      color={theme.colors.primary}
+                    />
                     <Text style={styles.backButtonText}>Orqaga</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={[
-                      styles.navButton, 
-                      styles.submitButton, 
-                      (!isValid || isLoading) && styles.submitButtonDisabled
+                      styles.navButton,
+                      styles.submitButton,
+                      (!isValid || isLoading) && styles.submitButtonDisabled,
                     ]}
                     onPress={() => handleSubmit()}
                     disabled={!isValid || isLoading}
@@ -197,28 +245,94 @@ const Step3LoginCredentials: React.FC = () => {
   );
 };
 
-const createStyles = (theme: Theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
-  scrollContainer: { flexGrow: 1, justifyContent: 'center' },
-  content: { flex: 1, paddingHorizontal: 24, justifyContent: 'center' },
-  header: { alignItems: 'center', marginBottom: 40 },
-  title: { fontSize: 28, fontWeight: 'bold', color: theme.colors.text, marginBottom: 8, textAlign: 'center' },
-  subtitle: { fontSize: 16, color: theme.colors.textSecondary, textAlign: 'center', lineHeight: 22 },
-  formContainer: { width: '100%' },
-  inputContainer: { marginBottom: 20 },
-  input: { borderWidth: 1, borderColor: theme.colors.inputBorder, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, backgroundColor: theme.colors.inputBackground, color: theme.colors.text },
-  passwordContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: theme.colors.inputBorder, borderRadius: 12, backgroundColor: theme.colors.inputBackground },
-  passwordInput: { flex: 1, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: theme.colors.text },
-  eyeButton: { paddingHorizontal: 12, paddingVertical: 14 },
-  inputError: { borderColor: theme.colors.error, backgroundColor: theme.colors.error + '15' },
-  errorText: { color: theme.colors.error, fontSize: 14, marginTop: 6, marginLeft: 4 },
-  buttonsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  navButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, borderRadius: 12 },
-  backButton: { backgroundColor: theme.colors.primary + '15', borderColor: theme.colors.primary + '50', borderWidth: 1 },
-  backButtonText: { color: theme.colors.primary, fontSize: 16, fontWeight: '600', marginLeft: 4 },
-  submitButton: { backgroundColor: theme.colors.success },
-  submitButtonDisabled: { backgroundColor: theme.colors.border },
-  submitButtonText: { color: 'white', fontSize: 16, fontWeight: '600', marginRight: 8 },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.colors.background },
+    scrollContainer: { flexGrow: 1, justifyContent: "center" },
+    content: { flex: 1, paddingHorizontal: 24, justifyContent: "center" },
+    header: { alignItems: "center", marginBottom: 40 },
+    title: {
+      fontSize: 28,
+      fontWeight: "bold",
+      color: theme.colors.text,
+      marginBottom: 8,
+      textAlign: "center",
+    },
+    subtitle: {
+      fontSize: 16,
+      color: theme.colors.textSecondary,
+      textAlign: "center",
+      lineHeight: 22,
+    },
+    formContainer: { width: "100%" },
+    inputContainer: { marginBottom: 20 },
+    input: {
+      borderWidth: 1,
+      borderColor: theme.colors.inputBorder,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      fontSize: 16,
+      backgroundColor: theme.colors.inputBackground,
+      color: theme.colors.text,
+    },
+    passwordContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: theme.colors.inputBorder,
+      borderRadius: 12,
+      backgroundColor: theme.colors.inputBackground,
+    },
+    passwordInput: {
+      flex: 1,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      fontSize: 16,
+      color: theme.colors.text,
+    },
+    eyeButton: { paddingHorizontal: 12, paddingVertical: 14 },
+    inputError: {
+      borderColor: theme.colors.error,
+      backgroundColor: theme.colors.error + "15",
+    },
+    errorText: {
+      color: theme.colors.error,
+      fontSize: 14,
+      marginTop: 6,
+      marginLeft: 4,
+    },
+    buttonsRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: 10,
+    },
+    navButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+    },
+    backButton: {
+      backgroundColor: theme.colors.primary + "15",
+      borderColor: theme.colors.primary + "50",
+      borderWidth: 1,
+    },
+    backButtonText: {
+      color: theme.colors.primary,
+      fontSize: 16,
+      fontWeight: "600",
+      marginLeft: 4,
+    },
+    submitButton: { backgroundColor: theme.colors.success },
+    submitButtonDisabled: { backgroundColor: theme.colors.border },
+    submitButtonText: {
+      color: "white",
+      fontSize: 16,
+      fontWeight: "600",
+      marginRight: 8,
+    },
+  });
 
 export default Step3LoginCredentials;

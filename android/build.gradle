@@ -4,13 +4,9 @@ buildscript {
   repositories {
     google()
     mavenCentral()
-  }
+  }  
   ext {
-    buildToolsVersion = "35.0.0"
-    minSdkVersion = 24
-    compileSdkVersion = 35
-    targetSdkVersion = 35
-    ndkVersion = "26.1.10909125"   // ✅ shu yerdan o‘qiladi
+    ndkVersion = "26.3.11579264"   // ✅ shu yerdan o‘qiladi
   }
   dependencies {
     classpath('com.android.tools.build:gradle')

@@ -16,11 +16,16 @@ import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { Theme } from "../../types";
 import RegisterScreen from "./RegisterScreen";
-
+import ResetPasswordScreen from "./ResetPasswordScreen";
+import { Ionicons } from "@expo/vector-icons";
+import SupportModal from "./SupportModal";
 const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
+  const [supportModal, setSupportModal] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
   const { login, isLoginLoading } = useAuth();
   const { theme } = useTheme();
   const styles = createStyles(theme);
@@ -30,9 +35,14 @@ const LoginScreen: React.FC = () => {
       Alert.alert("Xatolik", "Iltimos, barcha maydonlarni to'ldiring");
       return;
     }
-    const success = await login(email, password);
-    if (!success) {
-      Alert.alert("Xatolik", "Login yoki parol noto'g'ri");
+    const success = (await login(email, password)) as any;
+
+    if (typeof success === "object") {
+      if (success.status === 403) {
+        setSupportModal(true);
+      } else {
+        Alert.alert("Xatolik", "Login yoki parol noto'g'ri");
+      }
     }
   };
 
@@ -51,7 +61,6 @@ const LoginScreen: React.FC = () => {
             <Text style={styles.logoText}>MATH</Text>
             <Text style={styles.logoSubtext}>me</Text>
           </View>
-
           {/* Login Form */}
           <View style={styles.formContainer}>
             <View style={styles.inputContainer}>
@@ -60,7 +69,7 @@ const LoginScreen: React.FC = () => {
                 style={styles.input}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="Email kiriting"
+                placeholder="Telefon yoki foydalanuvchi nomini kiriting"
                 placeholderTextColor={theme.colors.placeholder}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -77,11 +86,21 @@ const LoginScreen: React.FC = () => {
                 onChangeText={setPassword}
                 placeholder="Parol kiriting"
                 placeholderTextColor={theme.colors.placeholder}
-                secureTextEntry
+                secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!isLoginLoading}
               />
+              <TouchableOpacity
+                style={styles.eyeButton}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <Ionicons
+                  name={showPassword ? "eye" : "eye-off"}
+                  size={22}
+                  color={theme.colors.textMuted}
+                />
+              </TouchableOpacity>
             </View>
 
             <TouchableOpacity
@@ -100,7 +119,10 @@ const LoginScreen: React.FC = () => {
             </TouchableOpacity>
 
             {/* Forgot Password Link */}
-            <TouchableOpacity style={styles.forgotPasswordContainer}>
+            <TouchableOpacity
+              style={styles.forgotPasswordContainer}
+              onPress={() => setShowResetPassword(true)}
+            >
               <Text style={styles.forgotPasswordText}>
                 Parolni unutdingizmi?
               </Text>
@@ -118,6 +140,18 @@ const LoginScreen: React.FC = () => {
       </ScrollView>
 
       {/* Register Modal */}
+      <SupportModal
+        visible={supportModal}
+        onClose={() => setSupportModal(false)}
+      />
+      <Modal
+        visible={showResetPassword}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setShowResetPassword(false)}
+      >
+        <ResetPasswordScreen onClose={() => setShowResetPassword(false)} />
+      </Modal>
       <Modal
         visible={showRegister}
         animationType="slide"
@@ -166,6 +200,7 @@ const createStyles = (theme: Theme) =>
       width: "100%",
     },
     inputContainer: {
+      position: "relative",
       marginBottom: 20,
     },
     inputLabel: {
@@ -212,6 +247,13 @@ const createStyles = (theme: Theme) =>
     registerContainer: {
       alignItems: "center",
       marginTop: 10,
+    },
+    eyeButton: {
+      paddingHorizontal: 12,
+      paddingVertical: 14,
+      position: "absolute",
+      right: 0,
+      top: "36%",
     },
     registerText: {
       color: theme.colors.primary,

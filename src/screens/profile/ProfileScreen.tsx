@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { memo } from "react";
 import {
   ScrollView,
   View,
@@ -15,6 +15,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { Theme } from "../../types";
+import useDoubleBackExit from "@/src/hooks/useDoubleBackExit";
 
 const menuItems = [
   {
@@ -55,10 +56,10 @@ const menuItems = [
   },
 ];
 
-export default function ProfileScreen() {
+function ProfileScreen() {
+  useDoubleBackExit();
   const navigation = useNavigation();
   const { theme, themeMode, setThemeMode } = useTheme();
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const { user, logout } = useAuth();
   const styles = createStyles(theme);
 
@@ -91,7 +92,7 @@ export default function ProfileScreen() {
       Alert.alert("Ma'lumot", "Dastur haqida bo'limi hali tayyor emas");
     } else if (item.id === 6) {
       // Kurs to'lovlari
-      Alert.alert("Ma'lumot", "Kurs to'lovlari bo'limi hali tayyor emas");
+      (navigation as any).navigate("PaymentOrders");
     }
   };
 
@@ -190,7 +191,7 @@ export default function ProfileScreen() {
     </SafeAreaView>
   );
 }
-
+export default memo(ProfileScreen);
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {

@@ -13,8 +13,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { NewsItem, Theme } from "../../types";
 import { useNews } from "@/src/hooks/useNews";
 import { useTheme } from "../../context/ThemeContext";
+import useDoubleBackExit from "@/src/hooks/useDoubleBackExit";
 
 export default function NewsScreen() {
+  useDoubleBackExit();
   const { theme } = useTheme();
   const styles = createStyles(theme);
 

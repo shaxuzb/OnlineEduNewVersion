@@ -33,7 +33,7 @@ const SuccessScreen: React.FC = () => {
 
   const handleLogin = async () => {
     // Auto-login with registered credentials
-    await login(registerData.login || registerData.email, registerData.password);
+    await login(registerData.userName || registerData.email, registerData.password);
     resetRegistration();
   };
 
@@ -60,32 +60,7 @@ const SuccessScreen: React.FC = () => {
         </Text>
 
         {/* User Info Summary */}
-        <View style={styles.infoContainer}>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Ism:</Text>
-            <Text style={styles.infoValue}>
-              {registerData.firstName} {registerData.lastName} {registerData.middleName}
-            </Text>
-          </View>
-          
-          {registerData.email && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Email:</Text>
-              <Text style={styles.infoValue}>{registerData.email}</Text>
-            </View>
-          )}
-          
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Telefon:</Text>
-            <Text style={styles.infoValue}>{registerData.phone}</Text>
-          </View>
-          
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Login:</Text>
-            <Text style={styles.infoValue}>{registerData.login}</Text>
-          </View>
-        </View>
-
+       
         {/* Login Button */}
         <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
           <Text style={styles.loginButtonText}>Kirish</Text>

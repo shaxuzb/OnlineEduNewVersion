@@ -15,6 +15,7 @@ export interface AuthUserData {
 }
 export interface AuthToken {
   token: string;
+  refreshToken: string;
   user: AuthUserData;
 }
 
@@ -67,9 +68,10 @@ export interface NavigationProps {
 }
 
 export interface ChatMessage {
-  id: string;
+  id: number;
   text: string;
-  timestamp: Date;
+  senderType: 0 | 1;
+  createdAt: Date;
   isRead: boolean;
   isSent: boolean; // true if sent by user, false if received
 }
@@ -92,6 +94,7 @@ export interface ThemeColors {
 
   // Primary colors
   primary: string;
+  primarySecondary: string;
   primaryLight: string;
   primaryDark: string;
 
@@ -133,6 +136,11 @@ export type RootStackParamList = {
   Algebra: undefined;
   Geometriya: undefined;
   MilliySertifikat: undefined;
+  PurchaseSubject: undefined;
+  PurchaseSubjectTheme: undefined;
+  Checkout: undefined;
+  CreditCardScreen: undefined;
+  OTPCardVerification: { orderId: string; phoneNumber: string };
   Chat: undefined;
   CourseDetail: { courseId: string };
   LessonDetail: {
@@ -153,6 +161,7 @@ export type RootStackParamList = {
     themeId: number;
   };
   PersonalInfo: undefined;
+  PurchaseGroup: undefined;
   Statistika: undefined;
 };
 
@@ -170,6 +179,8 @@ export interface Subject {
   descritpion: string | null; // Note: API has typo 'descritpion'
   stateId: number;
   state: string;
+  paidThemesCount: number;
+  price: number;
 }
 
 export interface SubjectsResponse {
@@ -203,6 +214,8 @@ export interface ChapterTheme {
   descritpion: string | null; // API typo kept as-is
   content: string | null;
   stateId: number;
+  hasAccess: boolean;
+  price: number;
   state: string;
   isLocked?: boolean; // Custom property for locked state
 }
@@ -215,6 +228,7 @@ export interface ChapterWithThemes {
   subject: string;
   stateId: number;
   state: string;
+  hasAccess: boolean;
   themes: ChapterTheme[];
 }
 
@@ -249,6 +263,7 @@ export interface AnswerKey {
   id: number;
   questionNumber: number;
   partIndex: number;
+  subTestNo: number;
   partLabel: string | null;
   correctAnswer: string;
   answerType: number; // 0 for text, 1 for multiple choice
@@ -295,6 +310,9 @@ export interface QuizResultAnswer {
   questionNumber: number;
   partIndex: number;
   answer: string;
+  subTestNo: number;
+  correctAnswer: string;
+  isCorrect: boolean;
 }
 
 export interface QuizResultData {
@@ -334,3 +352,60 @@ export interface SubjectStatistic {
 }
 
 export interface StatisticsResponse extends Array<SubjectStatistic> {}
+
+//theme statistics
+export interface ChapterThemeStatistic {
+  id: number;
+  name: string;
+  chapterId: number;
+  ordinalNumber: number;
+  stateId: number;
+  state: string;
+  percent: number;
+  isLocked: boolean;
+}
+
+export interface ChapterWithThemesStatistic {
+  id: number;
+  name: string;
+  ordinalNumber: number;
+  subjectId: number;
+  subject: string;
+  stateId: number;
+  state: string;
+  themes: ChapterThemeStatistic[];
+}
+
+//theme test statistics
+
+export interface ThemeTestStatistic {
+  testId: number;
+  name: string;
+  score: number;
+  percent: number;
+  correct: number;
+  wrong: number;
+  total: number;
+  wrongOrUnsolvedNumbers: number[];
+}
+//orders
+export interface OrderItem {
+  id: number;
+  userId: number;
+  scopeTypeId: number;
+  scopeId: number;
+  periodDays: number;
+  price: number;
+  currency: string;
+  statusId: number;
+  createdAt: string;
+  paidAt: null;
+  scopeType: string;
+  status: string;
+  user: string;
+}
+
+export interface OrderResponse {
+  results: OrderItem[];
+  count: number;
+}

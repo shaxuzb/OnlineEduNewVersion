@@ -92,10 +92,11 @@ android {
         applicationId 'com.anonymous.onlineedu'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 7
-        versionName "1.0.7"
+        versionCode 10
+        versionName "1.0.10"
+
     }
-   signingConfigs {
+    signingConfigs {
         debug {
             storeFile file('keystore.jks')
             storePassword '151df5274316d7da65438329e3db25f3'

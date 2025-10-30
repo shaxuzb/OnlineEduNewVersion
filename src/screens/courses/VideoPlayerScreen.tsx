@@ -1,4 +1,10 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, {
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   View,
   Text,
@@ -9,429 +15,448 @@ import {
   BackHandler,
   Animated,
   Alert,
-  Pressable,
 } from "react-native";
+import Slider from "@react-native-community/slider";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Video, { VideoRef } from "react-native-video";
 import * as ScreenCapture from "expo-screen-capture";
 import * as ScreenOrientation from "expo-screen-orientation";
-import { Slider } from "@rneui/base";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
-import SystemNavigationBar from "react-native-system-navigation-bar";
-import { RootStackParamList } from "@/src/types";
 
-const VideoPlayerScreen: React.FC<{ route: any; navigation: any }> = ({
-  route,
-  navigation,
-}) => {
-  const videoRef = useRef<VideoRef>(null);
-  const lastTap = useRef<number | null>(null);
-  const hideControlsTimeout = useRef<any>(null);
-  const tapTimeout = useRef<NodeJS.Timeout | null>(null);
-  const [videoUrl, setVideoUrl] = useState<string>("");
-  const [videoHeaders, setVideoHeaders] = useState<any>({});
-  const [error, setError] = useState<string>("");
-  const { lessonTitle, mavzu, videoFileId } =
-    (route.params as RootStackParamList["VideoPlayer"]) || {};
+const HIDE_CONTROLS_MS = 3000;
+const DOUBLE_TAP_MS = 300;
+const PROGRESS_THROTTLE_MS = 500;
+const SEEK_AMOUNT = 10;
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isSeeking, setIsSeeking] = useState(false);
-  const [seekTime, setSeekTime] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [bufferedTime, setBufferedTime] = useState(0);
-  const [sliderWidth, setSliderWidth] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [showControls, setShowControls] = useState(true);
-  const [isLandscape, setIsLandscape] = useState(false);
+// Alohida Ripple komponenti
+const Ripple: React.FC<{
+  side: "left" | "right";
+  isVisible: boolean;
+  anim: Animated.Value;
+}> = ({ side, isVisible, anim }) => {
+  if (!isVisible) return null;
 
-  // animation refs
-  const leftAnim = useRef(new Animated.Value(0)).current;
-  const rightAnim = useRef(new Animated.Value(0)).current;
-
-  const animateRipple = (side: "left" | "right") => {
-    const anim = side === "left" ? leftAnim : rightAnim;
-    anim.setValue(0);
-    Animated.timing(anim, {
-      toValue: 1,
-      duration: 600,
-      useNativeDriver: true,
-    }).start(() => {
-      anim.setValue(0); // tugaganda yo‘qoladi
-    });
-  };
-  const resetControlsTimer = () => {
-    if (hideControlsTimeout.current) {
-      clearTimeout(hideControlsTimeout.current);
-    }
-    if (isPlaying) {
-      hideControlsTimeout.current = setTimeout(() => {
-        setShowControls(false);
-      }, 3000); // 3s
-    }
-  };
-  useEffect(() => {
-    SystemNavigationBar.stickyImmersive();
-    return () => {
-      SystemNavigationBar.navigationShow();
-    };
-  }, [isLandscape]);
-  useEffect(() => {
-    if (isLoading) {
-      setShowControls(true);
-      setIsPlaying(false);
-    } else {
-      setIsPlaying(true);
-    }
-  }, [isLoading]);
-  useEffect(() => {
-    if (showControls) {
-      resetControlsTimer();
-    } else {
-      if (hideControlsTimeout.current) {
-        clearTimeout(hideControlsTimeout.current);
-      }
-    }
-  }, [showControls, isPlaying]);
-  useEffect(() => {
-    ScreenCapture.preventScreenCaptureAsync().catch(console.warn);
-
-    const backHandler = BackHandler.addEventListener(
-      "hardwareBackPress",
-      () => {
-        handleBack();
-        return true;
-      }
-    );
-
-    return () => {
-      ScreenCapture.allowScreenCaptureAsync().catch(console.warn);
-      ScreenOrientation.lockAsync(
-        ScreenOrientation.OrientationLock.PORTRAIT_UP
-      );
-      backHandler.remove();
-    };
-  }, []);
-
-  useEffect(() => {
-    const loadVideoUrl = async () => {
-      try {
-        const sessionData = await SecureStore.getItemAsync("session");
-        if (sessionData && videoFileId) {
-          const { token } = JSON.parse(sessionData);
-          const url = `${Constants.expoConfig?.extra?.API_URL}/videos/${videoFileId}`;
-          setVideoUrl(url);
-          setVideoHeaders({ Authorization: `Bearer ${token}` });
-        }
-      } catch {
-        setError("Failed to load video");
-        Alert.alert("Error", "Failed to load video");
-      }
-    };
-    loadVideoUrl();
-  }, [videoFileId]);
-
-  const handleBack = async () => {
-    await ScreenCapture.allowScreenCaptureAsync();
-    await ScreenOrientation.lockAsync(
-      ScreenOrientation.OrientationLock.PORTRAIT_UP
-    );
-    navigation.goBack();
-  };
-
-  const toggleOrientation = async () => {
-    if (isLandscape) {
-      await ScreenOrientation.lockAsync(
-        ScreenOrientation.OrientationLock.PORTRAIT_UP
-      );
-      setIsLandscape(false);
-    } else {
-      await ScreenOrientation.lockAsync(
-        ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT
-      );
-      setIsLandscape(true);
-    }
-  };
-
-  const handleVideoLoad = (data: any) => {
-    setDuration(data?.duration);
-    setIsLoading(false);
-  };
-
-  const handleVideoProgress = (data: any) => {
-    setCurrentTime(data.currentTime);
-    setBufferedTime(data.playableDuration);
-  };
-
-  const handlePlayPause = () => {
-    setIsPlaying((prev) => !prev);
-    setShowControls(true);
-  };
-
-  const handleSeek = (seconds: number) => {
-    let newTime = currentTime + seconds;
-    if (newTime < 0) newTime = 0;
-    if (newTime > duration) newTime = duration;
-    setCurrentTime(newTime);
-    videoRef.current?.seek(newTime);
-  };
-
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins.toString().padStart(2, "0")}:${secs
-      .toString()
-      .padStart(2, "0")}`;
-  };
-
-  // DOUBLE TAP HANDLER
-  const handleDoubleTap = (side: "left" | "right") => {
-    const now = Date.now();
-
-    if (lastTap.current && now - lastTap.current < 300) {
-      // 🔹 Double tap bo‘ldi → single tap timeoutni tozalaymiz
-      if (tapTimeout.current) {
-        clearTimeout(tapTimeout.current);
-        tapTimeout.current = null;
-      }
-
-      if (side === "left") {
-        handleSeek(-10);
-        animateRipple("left");
-      } else {
-        handleSeek(10);
-        animateRipple("right");
-      }
-      lastTap.current = null;
-    } else {
-      // 🔹 Single tap → biroz kutib ko‘ramiz, agar 300ms ichida yana bosilmasa, controlsni ko‘rsatamiz
-      lastTap.current = now;
-      tapTimeout.current = setTimeout(() => {
-        setShowControls(true);
-        tapTimeout.current = null;
-      }, 200);
-    }
-  };
-  
   return (
-    <SafeAreaView
-      edges={["bottom", "left", "right", "top"]}
-      style={styles.container}
+    <Animated.View
+      style={[
+        styles.ripple,
+        {
+          [side]: 30,
+          opacity: anim,
+          transform: [
+            {
+              scale: anim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.8, 1.4],
+              }),
+            },
+          ],
+        },
+      ]}
+      pointerEvents="none"
     >
-      <StatusBar hidden />
-      <TouchableOpacity
-        style={{
-          flex: 1,
-        }}
-        activeOpacity={1}
-        onPress={() => {
-          setShowControls(!showControls);
-        }}
-      >
-        <View style={styles.videoContainer}>
-          <Video
-            ref={videoRef}
-            source={{ uri: videoUrl, type: "m3u8", headers: videoHeaders }}
-            onError={() => {
-              setError("Video playback failed");
-              setIsLoading(false);
-            }}
-            style={styles.video}
-            onLoad={handleVideoLoad}
-            onProgress={handleVideoProgress}
-            paused={!isPlaying}
-            resizeMode="contain"
-          />
-          {/* Loading indicator */}
-          {isLoading && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator
-                size="large"
-                style={{ transform: [{ scale: 2.5 }], zIndex: 10 }}
-                color="#FFF"
-              />
-            </View>
-          )}
-
-          {/* Double tap zones */}
-          <View style={styles.tapZones}>
-            <TouchableOpacity
-              style={styles.leftZone}
-              activeOpacity={1}
-              onPress={() => handleDoubleTap("left")}
-            />
-            <TouchableOpacity
-              style={styles.rightZone}
-              activeOpacity={1}
-              onPress={() => handleDoubleTap("right")}
-            />
-          </View>
-
-          {/* Ripple left */}
-          <Animated.View
-            style={[
-              styles.ripple,
-              {
-                left: 30,
-                opacity: leftAnim,
-                transform: [
-                  {
-                    scale: leftAnim.interpolate({
-                      inputRange: [1, 1],
-                      outputRange: [1, 1],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <Text style={styles.rippleText}>
-              <Ionicons name="play-back" size={24} /> 10
-            </Text>
-          </Animated.View>
-
-          {/* Ripple right */}
-          <Animated.View
-            style={[
-              styles.ripple,
-              {
-                right: 30,
-                opacity: rightAnim,
-                transform: [
-                  {
-                    scale: rightAnim.interpolate({
-                      inputRange: [1, 1],
-                      outputRange: [1, 1],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <Text style={styles.rippleText}>
-              <Ionicons name="play-forward" size={24} /> 10
-            </Text>
-          </Animated.View>
-
-          {/* Controls overlay */}
-
-          <View
-            style={{
-              ...StyleSheet.absoluteFillObject,
-              display: showControls ? "flex" : "none",
-              backgroundColor: showControls
-                ? "rgba(0, 0, 0, 0.4)"
-                : "transparent",
-            }}
-          >
-            {/* TOP BAR */}
-            <View style={styles.topControls}>
-              <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-                <Text style={styles.controlText}>
-                  <Ionicons name="arrow-back" size={24} />
-                </Text>
-              </TouchableOpacity>
-              <Text style={styles.videoTitle}>{lessonTitle}</Text>
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={toggleOrientation}
-              >
-                <Text style={styles.controlText}>
-                  {isLandscape ? (
-                    <Ionicons name="phone-portrait" size={24} />
-                  ) : (
-                    <Ionicons name="phone-landscape" size={24} />
-                  )}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* CENTER PLAY/PAUSE */}
-            <View style={styles.centerControls}>
-              <TouchableOpacity
-                style={styles.playButton}
-                onPress={handlePlayPause}
-              >
-                <Text style={styles.playButtonText}>
-                  {isPlaying ? (
-                    <FontAwesome6 name="pause" size={80} />
-                  ) : (
-                    <FontAwesome6 name="play" size={80} />
-                  )}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* BOTTOM BAR */}
-            <View style={styles.bottomControls}>
-              <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
-              <View
-                style={styles.container}
-                onLayout={(e) => setSliderWidth(e.nativeEvent.layout.width)}
-              >
-                {/* Orqa fon */}
-                <View style={styles.backgroundBar} />
-
-                {/* Buffer progress (kulrang/oqish) */}
-                <View
-                  style={[
-                    styles.bufferBar,
-                    { width: `${((bufferedTime) / duration) * 100}%` },
-                  ]}
-                />
-
-                {/* Played progress (qizil/oq) */}
-                <View
-                  style={[
-                    styles.playedBar,
-                    { width: `${(currentTime / duration) * 100}%` },
-                  ]}
-                />
-
-                {/* Bosganda seek qilish */}
-
-                {/* Slider thumb (faqat boshqarish uchun) */}
-                <Slider
-                  minimumValue={0}
-                  maximumValue={Math.floor(duration)}
-                  value={isSeeking ? Math.floor(seekTime) : Math.floor(currentTime)}
-                  onValueChange={(v) => {
-                    setIsSeeking(true);
-                    setSeekTime(v);
-                  }}
-                  onSlidingComplete={(v) => {
-                    setIsSeeking(false);
-                    videoRef.current?.seek(v);
-                  }}
-                  minimumTrackTintColor="transparent" // chizig‘ini yashiramiz
-                  maximumTrackTintColor="transparent" // faqat thumb ko‘rinadi
-                  thumbTintColor="#FFF"
-                  thumbStyle={{ width: 15, height: 15 }}
-                  style={{ ...StyleSheet.absoluteFillObject, height: 4 }}
-                />
-              </View>
-              <Text style={styles.timeText}>{formatTime(duration)}</Text>
-            </View>
-          </View>
-        </View>
-      </TouchableOpacity>
-    </SafeAreaView>
+      <Text style={styles.rippleText}>
+        <Ionicons
+          name={side === "left" ? "play-back" : "play-forward"}
+          size={24}
+        />
+        {SEEK_AMOUNT}
+      </Text>
+    </Animated.View>
   );
 };
 
+const VideoPlayerScreen: React.FC<{ route: any; navigation: any }> = React.memo(
+  ({ route, navigation }) => {
+    const videoRef = useRef<VideoRef | null>(null);
+    const { lessonTitle, videoFileId } = route.params || {};
+
+    // Refs
+    const lastTap = useRef<number | null>(null);
+    const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
+    const singleTapTimeout = useRef<NodeJS.Timeout | null>(null);
+    const lastProgressUpdate = useRef<number>(0);
+
+    // Animations
+    const leftAnim = useRef(new Animated.Value(0)).current;
+    const rightAnim = useRef(new Animated.Value(0)).current;
+
+    // State
+    const [videoUrl, setVideoUrl] = useState("");
+    const [videoHeaders, setVideoHeaders] = useState({});
+    const [isLoading, setIsLoading] = useState(true);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [duration, setDuration] = useState(0);
+    const [showControls, setShowControls] = useState(true);
+    const [isLandscape, setIsLandscape] = useState(false);
+    const [leftRippleVisible, setLeftRippleVisible] = useState(false);
+    const [rightRippleVisible, setRightRippleVisible] = useState(false);
+    const sliderValue = useRef(currentTime); // local ref
+    const [isSeeking, setIsSeeking] = useState(false);
+    // Memoized values
+    const videoSource = useMemo(
+      () => ({
+        uri: videoUrl,
+        type: "m3u8" as const,
+        headers: videoHeaders,
+      }),
+      [videoUrl, videoHeaders]
+    );
+
+    const formatTime = useCallback((seconds: number): string => {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins.toString().padStart(2, "0")}:${secs
+        .toString()
+        .padStart(2, "0")}`;
+    }, []);
+
+    // Animation functions
+    const animateRipple = useCallback(
+      (side: "left" | "right") => {
+        const anim = side === "left" ? leftAnim : rightAnim;
+        const setVisible =
+          side === "left" ? setLeftRippleVisible : setRightRippleVisible;
+
+        setVisible(true);
+        anim.setValue(0);
+
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }).start(() => {
+          setVisible(false);
+        });
+      },
+      [leftAnim, rightAnim]
+    );
+    const handleSlidingStart = useCallback(() => {
+      setIsSeeking(true);
+    }, []);
+    const handleSlidingComplete = useCallback((value: number) => {
+      videoRef.current?.seek(value);
+      setCurrentTime(value);
+      sliderValue.current = value;
+      setIsSeeking(false);
+    }, []);
+    // Controls management
+    const resetControlsTimer = useCallback(() => {
+      if (hideControlsTimeout.current) {
+        clearTimeout(hideControlsTimeout.current);
+      }
+
+      if (isPlaying && showControls) {
+        hideControlsTimeout.current = setTimeout(() => {
+          setShowControls(false);
+        }, HIDE_CONTROLS_MS);
+      }
+    }, [isPlaying, showControls]);
+
+    const handleShowControls = useCallback(() => {
+      setShowControls((prev) => !prev);
+    }, []);
+
+    // Video controls
+    const handlePlayPause = useCallback(() => {
+      setIsPlaying((prev) => !prev);
+      setShowControls(true);
+    }, []);
+
+    const handleSeek = useCallback(
+      (seconds: number) => {
+        const newTime = Math.max(0, Math.min(currentTime + seconds, duration));
+        setCurrentTime(newTime);
+        videoRef.current?.seek(newTime);
+      },
+      [currentTime, duration]
+    );
+
+    // Double tap handler
+    const handleDoubleTap = useCallback(
+      (side: "left" | "right") => {
+        const now = Date.now();
+        const isDoubleTap =
+          lastTap.current && now - lastTap.current < DOUBLE_TAP_MS;
+
+        if (isDoubleTap) {
+          if (singleTapTimeout.current) {
+            clearTimeout(singleTapTimeout.current);
+          }
+          handleSeek(side === "left" ? -SEEK_AMOUNT : SEEK_AMOUNT);
+          animateRipple(side);
+          lastTap.current = null;
+        } else {
+          lastTap.current = now;
+          singleTapTimeout.current = setTimeout(() => {
+            setShowControls(true);
+          }, DOUBLE_TAP_MS);
+        }
+      },
+      [handleSeek, animateRipple]
+    );
+
+    // Video event handlers
+    const handleVideoLoad = useCallback((data: any) => {
+      setDuration(data?.duration ?? 0);
+      setIsLoading(false);
+    }, []);
+
+    const handleVideoProgress = useCallback(
+      (data: any) => {
+        const now = Date.now();
+        if (!isSeeking && now - lastProgressUpdate.current >= 1000) {
+          // har 1 sek
+          lastProgressUpdate.current = now;
+          setCurrentTime(data.currentTime ?? 0);
+        }
+      },
+      [isSeeking]
+    );
+
+    const onBuffer = useCallback((data: any) => {
+      setIsLoading(data.isBuffering);
+    }, []);
+
+    // Orientation
+    const toggleOrientation = useCallback(async () => {
+      const newOrientation = !isLandscape;
+      await ScreenOrientation.lockAsync(
+        newOrientation
+          ? ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT
+          : ScreenOrientation.OrientationLock.PORTRAIT_UP
+      );
+      setIsLandscape(newOrientation);
+    }, [isLandscape]);
+
+    // Navigation
+    const handleBack = useCallback(async () => {
+      await ScreenCapture.allowScreenCaptureAsync();
+      await ScreenOrientation.lockAsync(
+        ScreenOrientation.OrientationLock.PORTRAIT_UP
+      );
+      navigation.goBack();
+    }, [navigation]);
+
+    // Effects
+    useEffect(() => {
+      resetControlsTimer();
+      return () => {
+        if (hideControlsTimeout.current) {
+          clearTimeout(hideControlsTimeout.current);
+        }
+      };
+    }, [showControls, resetControlsTimer]);
+
+    useEffect(() => {
+      ScreenCapture.preventScreenCaptureAsync().catch(console.warn);
+      const backHandler = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => {
+          handleBack();
+          return true;
+        }
+      );
+      return () => {
+        ScreenCapture.allowScreenCaptureAsync().catch(console.warn);
+        ScreenOrientation.lockAsync(
+          ScreenOrientation.OrientationLock.PORTRAIT_UP
+        );
+        backHandler.remove();
+        leftAnim.stopAnimation();
+        rightAnim.stopAnimation();
+
+        // Cleanup timeouts
+        if (hideControlsTimeout.current) {
+          clearTimeout(hideControlsTimeout.current);
+        }
+        if (singleTapTimeout.current) {
+          clearTimeout(singleTapTimeout.current);
+        }
+      };
+    }, [handleBack]);
+
+    useEffect(() => {
+      let mounted = true;
+
+      (async () => {
+        try {
+          const sessionData = await SecureStore.getItemAsync("session");
+          if (!mounted) return;
+
+          if (sessionData && videoFileId) {
+            const { token } = JSON.parse(sessionData);
+            const url = `${Constants.expoConfig?.extra?.API_URL}/videos/${videoFileId}`;
+            setVideoUrl(url);
+            setVideoHeaders({ Authorization: `Bearer ${token}` });
+          } else {
+            setIsLoading(false);
+          }
+        } catch (e) {
+          if (!mounted) return;
+          Alert.alert("Error", "Failed to load video");
+          setIsLoading(false);
+        }
+      })();
+
+      return () => {
+        mounted = false;
+      };
+    }, [videoFileId]);
+
+    // Optimized subcomponents - useCallback bilan
+    const TopBar = useCallback(
+      () => (
+        <View style={styles.topControls}>
+          <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
+
+          <Text style={styles.videoTitle} numberOfLines={1}>
+            {lessonTitle}
+          </Text>
+
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={toggleOrientation}
+          >
+            <Ionicons
+              name={isLandscape ? "phone-portrait" : "phone-landscape"}
+              size={24}
+              color="#FFF"
+            />
+          </TouchableOpacity>
+        </View>
+      ),
+      [handleBack, lessonTitle, toggleOrientation, isLandscape]
+    );
+
+    const CenterPlay = useCallback(
+      () => (
+        <View style={styles.centerControls}>
+          <TouchableOpacity style={styles.playButton} onPress={handlePlayPause}>
+            <FontAwesome6
+              name={isPlaying ? "pause" : "play"}
+              size={80}
+              color="#FFF"
+            />
+          </TouchableOpacity>
+        </View>
+      ),
+      [handlePlayPause, isPlaying]
+    );
+
+    const BottomBar = useCallback(
+      () => (
+        <View style={styles.bottomControls}>
+          <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+
+          <View style={styles.sliderContainer}>
+            <Slider
+              value={isSeeking ? sliderValue.current : currentTime}
+              maximumValue={Math.max(duration, 1)}
+              onValueChange={(value) => {
+                sliderValue.current = value;
+              }}
+              onSlidingStart={handleSlidingStart}
+              onSlidingComplete={handleSlidingComplete}
+              thumbTintColor="#FFF"
+              minimumTrackTintColor="#FFF"
+              maximumTrackTintColor="#888"
+            />
+          </View>
+
+          <Text style={styles.timeText}>{formatTime(duration)}</Text>
+        </View>
+      ),
+      [currentTime, duration, formatTime]
+    );
+
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar hidden />
+        <TouchableOpacity
+          style={styles.flex1}
+          activeOpacity={1}
+          onPress={handleShowControls}
+        >
+          <View style={styles.videoContainer}>
+            <Video
+              ref={videoRef}
+              source={videoSource}
+              style={styles.video}
+              onLoad={handleVideoLoad}
+              onProgress={handleVideoProgress}
+              onBuffer={onBuffer}
+              onError={() => {
+                Alert.alert("Error", "Video playback failed");
+                setIsLoading(false);
+              }}
+              paused={!isPlaying}
+              resizeMode="contain"
+              controls={true}
+            />
+
+            {isLoading && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#FFF" />
+              </View>
+            )}
+
+            <View style={styles.tapZones}>
+              <TouchableOpacity
+                style={styles.tapZone}
+                activeOpacity={1}
+                onPress={() => handleDoubleTap("left")}
+              />
+              <TouchableOpacity
+                style={styles.tapZone}
+                activeOpacity={1}
+                onPress={() => handleDoubleTap("right")}
+              />
+            </View>
+
+            <Ripple side="left" isVisible={leftRippleVisible} anim={leftAnim} />
+            <Ripple
+              side="right"
+              isVisible={rightRippleVisible}
+              anim={rightAnim}
+            />
+
+            {showControls && (
+              <View style={[StyleSheet.absoluteFill, styles.controlsOverlay]}>
+                <TopBar />
+                <CenterPlay />
+                <BottomBar />
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+);
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000000" },
+  container: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  flex1: {
+    flex: 1,
+  },
   videoContainer: {
     flex: 1,
-    height: "100%",
-    width: "100%",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: "#000",
   },
-  video: { width: "100%", height: "100%" },
+  video: {
+    width: "100%",
+    height: "100%",
+  },
   loadingContainer: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
@@ -439,23 +464,28 @@ const styles = StyleSheet.create({
   },
   tapZones: {
     ...StyleSheet.absoluteFillObject,
-    height: "100%",
     flexDirection: "row",
   },
-  leftZone: { flex: 1 },
-  rightZone: { flex: 1 },
+  tapZone: {
+    flex: 1,
+  },
   ripple: {
     position: "absolute",
-    pointerEvents: "none",
+    top: "50%",
+    marginTop: -30,
     padding: 16,
     borderRadius: 50,
-  },
-  rippleText: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#FFF",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  rippleText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#FFF",
+  },
+  controlsOverlay: {
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
   },
   topControls: {
     position: "absolute",
@@ -477,64 +507,51 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: "center",
   },
-  controlText: { color: "#FFF", fontSize: 16, fontWeight: "bold" },
   videoTitle: {
     color: "#FFF",
     fontSize: 16,
     fontWeight: "600",
     flex: 1,
     textAlign: "center",
+    paddingHorizontal: 8,
   },
   centerControls: {
-    position: "absolute",
-    top: "45%",
-    left: 0,
-    right: 0,
-    alignItems: "center",
-  },
-  playButton: {
-    backgroundColor: "rgba(255, 255, 255, 0)",
-    width: 80,
-    height: 80,
-    borderRadius: 35,
+    ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
     alignItems: "center",
   },
-  playButtonText: { fontWeight: "bold", color: "#ffffffff" },
+  playButton: {
+    padding: 20,
+  },
   bottomControls: {
     position: "absolute",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
     bottom: 0,
-    height: 70,
     left: 0,
     right: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    height: 70,
     flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: 12,
   },
-  backgroundBar: {
-    position: "absolute",
-    height: 4,
-    width: "100%",
-    backgroundColor: "#444", // orqa fon
-    borderRadius: 2,
-  },
-  bufferBar: {
-    position: "absolute",
-    height: 4,
-    backgroundColor: "#888", // buffer rang
-    borderRadius: 2,
-  },
-  playedBar: {
-    position: "absolute",
-    height: 4,
-    backgroundColor: "white", // o‘ynalgan joy
-    borderRadius: 2,
+  sliderContainer: {
+    flex: 1,
+    marginHorizontal: 12,
   },
   timeText: {
     color: "#FFF",
     fontSize: 12,
-    width: 45,
+    minWidth: 45,
     textAlign: "center",
+  },
+  track: {
+    height: 4,
+    borderRadius: 2,
+  },
+  thumb: {
+    width: 15,
+    height: 15,
+    borderRadius: 7.5,
   },
 });
 

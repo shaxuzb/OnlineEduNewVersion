@@ -92,3 +92,31 @@ export const truncateText = (text: string, maxLength: number): string => {
   if (text.length <= maxLength) return text;
   return text.substr(0, maxLength) + "...";
 };
+
+export function numberSpacing(item: number) {
+  return item
+    ? item.toString().includes(".")
+      ? item
+          .toFixed(2)
+          .toString()
+          .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+      : item.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+    : 0;
+}
+
+export const formatDateTime = (isoString: string) => {
+  if (!isoString) return "";
+
+  const date = new Date(isoString);
+
+  // Kun, oy, yil
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+
+  // Soat, daqiqa
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+
+  return `${day}.${month}.${year} ${hours}:${minutes}`;
+};

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useEffect } from "react";
 import {
   ScrollView,
   View,
@@ -6,43 +6,42 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  InteractionManager,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../context/ThemeContext";
-import { Theme, Subject } from "../../types";
+import { Theme, Subject, AuthToken } from "../../types";
 import { useSubjects } from "../../hooks/useSubjects";
 import { Skeleton } from "../../components/Skeleton";
+import * as SecureStore from "expo-secure-store";
+import ErrorData from "@/src/components/exceptions/ErrorData";
+import EmptyData from "@/src/components/exceptions/EmptyData";
+import useDoubleBackExit from "@/src/hooks/useDoubleBackExit";
 
 export default function HomeScreen() {
+  useDoubleBackExit();
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = createStyles(theme);
-
-  // Fetch subjects data using React Query
+  const userData = JSON.parse(
+    String(SecureStore.getItem("session"))
+  ) as AuthToken | null;
   const { data: subjects, isLoading, error, refetch } = useSubjects();
 
   const handleSubjectPress = (subject: Subject) => {
-    // Navigate to SubjectScreen with subject data
     (navigation as any).navigate("SubjectScreen", {
       subjectId: subject.id,
       subjectName: subject.name,
     });
   };
-
-  // Legacy handler for hardcoded navigation (can be removed later)
-  const handleCategoryPress = (categoryName: string) => {
-    if (categoryName === "Algebra") {
-      (navigation as any).navigate("Algebra");
-    } else if (categoryName === "Geometriya") {
-      (navigation as any).navigate("Geometriya");
-    } else if (categoryName === "Milliy Sertifikat") {
-      (navigation as any).navigate("MilliySertifikat");
-    }
-  };
-
-  // Show error if API call fails
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      refetch();
+    });
+    return () => task.cancel();
+  }, []);
   if (error) {
     console.log(error);
 
@@ -50,7 +49,7 @@ export default function HomeScreen() {
   }
 
   // Get icon for subject
-  const getSubjectIcon = (name: string) => {
+  const getSubjectIcon = useCallback((name: string) => {
     switch (name) {
       case "Algebra":
         return <Ionicons name="add" size={24} color="white" />;
@@ -63,21 +62,37 @@ export default function HomeScreen() {
       default:
         return <Ionicons name="book" size={24} color="white" />;
     }
-  };
+  }, []);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.profileBtn}
-          onPress={() => (navigation as any).navigate("Statistika")}
+          onPress={() => {
+            if (userData && userData.user.id) {
+              (navigation as any).navigate("Statistika", {
+                userId: userData.user.id,
+              });
+            } else {
+              Alert.alert("Warning", "Iltimos ro'yhatdan o'ting");
+            }
+          }}
         >
           <Ionicons name="bar-chart" size={24} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Kurslar</Text>
         <TouchableOpacity
           style={styles.profileBtn}
-          onPress={() => (navigation as any).navigate("Chat")}
+          onPress={() => {
+            if (userData && userData.user.id) {
+              (navigation as any).navigate("Chat", {
+                userId: userData.user.id,
+              });
+            } else {
+              Alert.alert("Warning", "Iltimos ro'yhatdan o'ting");
+            }
+          }}
         >
           <Ionicons name="chatbox" size={24} color="white" />
         </TouchableOpacity>
@@ -88,7 +103,7 @@ export default function HomeScreen() {
         {/* Greeting */}
         <View style={styles.greetingSection}>
           <Text style={styles.greeting} onPress={() => refetch()}>
-            Salom, Farrux!
+            Salom, {userData?.user?.fullName}!
           </Text>
         </View>
 
@@ -101,7 +116,9 @@ export default function HomeScreen() {
               <Skeleton height={64} radius={12} />
               <Skeleton height={64} radius={12} />
             </>
-          ) : (
+          ) : error ? (
+            <ErrorData refetch={refetch} />
+          ) : subjects?.results ? (
             subjects?.results?.map((s) => (
               <TouchableOpacity
                 key={s.id}
@@ -114,20 +131,29 @@ export default function HomeScreen() {
                 <Text style={styles.categoryLabel}>{s.name}</Text>
               </TouchableOpacity>
             ))
+          ) : (
+            <EmptyData />
           )}
         </View>
 
         {/* Video Lessons */}
-        <View style={styles.section}>
+        {/* <View style={styles.section}>
           <TouchableOpacity style={styles.videoButton}>
             <View style={styles.videoIconContainer}>
               <Ionicons name="play" size={24} color="white" />
             </View>
             <Text style={styles.videoButtonText}>Video qo'llanma</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
       </ScrollView>
-      <TouchableOpacity style={styles.linkButton}>
+      <TouchableOpacity
+        style={styles.linkButton}
+        onPress={() =>
+          (navigation as any).navigate("PurchaseGroup", {
+            screen: "PurchaseSubject",
+          })
+        }
+      >
         <Text style={styles.linkText}>Kurslarni sotib olish</Text>
       </TouchableOpacity>
     </SafeAreaView>

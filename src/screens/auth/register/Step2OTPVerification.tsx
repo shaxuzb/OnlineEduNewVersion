@@ -83,19 +83,22 @@ const Step2OTPVerification: React.FC = () => {
 
   const handleVerifyOtp = async (code: string) => {
     setIsVerifying(true);
-
     try {
       // Simulate OTP verification API call
-      // const { data } = await $axiosBase.post("/sms/verify", {
-      //   phone: registerData.phone,
-      //   code,
-      // });
+      const { data } = await $axiosBase.post(`/sms/verify`, {
+        phone: registerData.phoneNumber,
+        code,
+      });
       // console.log(data);
 
       // For demo purposes, accept any 6-digit code
       // In real app, verify with backend
-      if (code.length === 6) {
-        setOtpData({ code, phoneNumber: registerData.phone, countdown: 0 });
+      if (code.length === 6 && data) {
+        setOtpData({
+          code,
+          phoneNumber: registerData.phoneNumber,
+          countdown: 0,
+        });
         nextStep();
       } else {
         Alert.alert("Xatolik", "Noto'g'ri kod kiritildi");
@@ -106,7 +109,7 @@ const Step2OTPVerification: React.FC = () => {
     } catch (error) {
       Alert.alert("Xatolik", "Kodni tasdiqlashda xatolik yuz berdi");
       setOtpCode(["", "", "", "", "", ""]);
-        otpRefs.current[0]?.focus();
+      otpRefs.current[0]?.focus();
     } finally {
       setIsVerifying(false);
     }
@@ -117,7 +120,9 @@ const Step2OTPVerification: React.FC = () => {
 
     try {
       // Simulate resend API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await $axiosBase.post("sms/send", {
+        phone: registerData.phoneNumber,
+      });
 
       // Reset countdown and OTP
       setCountdown(60);
@@ -155,7 +160,7 @@ const Step2OTPVerification: React.FC = () => {
           <View style={styles.header}>
             <Text style={styles.title}>Ro'yxatdan o'tish</Text>
             <Text style={styles.subtitle}>
-              {registerData.phone} raqamiga yuborilgan SMS kodni kiriting
+              {registerData.phoneNumber} raqamiga yuborilgan SMS kodni kiriting
             </Text>
           </View>
 
@@ -164,7 +169,9 @@ const Step2OTPVerification: React.FC = () => {
             {otpCode.map((digit, index) => (
               <TextInput
                 key={index}
-                ref={(ref) => { otpRefs.current[index] = ref; }}
+                ref={(ref) => {
+                  otpRefs.current[index] = ref;
+                }}
                 style={[
                   styles.otpInput,
                   digit && styles.otpInputFilled,

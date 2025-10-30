@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { memo, useState } from "react";
 import {
   View,
   Text,
@@ -8,20 +8,18 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Image,
-  Dimensions,
+  StatusBar,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { AuthUserData, Theme } from "../../types";
+import { Theme } from "../../types";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-const { width } = Dimensions.get("window");
-
-export default function PersonalInfoScreen() {
+function PersonalInfoScreen() {
   const navigation = useNavigation();
-  const { theme, isDark } = useTheme();
+  const { theme } = useTheme();
   const styles = createStyles(theme);
 
   const { user } = useAuth();
@@ -200,9 +198,10 @@ export default function PersonalInfoScreen() {
   }
 
   return (
-    <View
+    <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
+      <StatusBar />
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -442,10 +441,10 @@ export default function PersonalInfoScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
-
+export default memo(PersonalInfoScreen);
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     // Container

@@ -8,7 +8,8 @@ import React, {
 import * as SecureStore from "expo-secure-store";
 import { AuthToken, AuthUserData } from "../types";
 import { $axiosBase, $axiosPrivate } from "../services/AxiosService";
-
+import DeviceInfo from "react-native-device-info";
+import { queryClient } from "../utils/helpers/queryClient";
 interface AuthContextType {
   user: AuthUserData | null;
   isAuthenticated: boolean;
@@ -64,13 +65,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<any> => {
     setIsLoginLoading(true);
-
     try {
       const { data } = await $axiosBase.post<AuthToken>("/account/login", {
         userName: email,
         password,
+        uniqueId: (await DeviceInfo.getUniqueId()).toString(),
       });
 
       if (data) {
@@ -86,14 +87,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return true;
     } catch (error) {
       setIsLoginLoading(false);
-      console.error("Login error:", error);
-      return false;
+      return error;
     }
   };
 
   const logout = async () => {
     try {
       await SecureStore.deleteItemAsync(AUTH_TOKEN_SESSION);
+      queryClient.clear();
       setUser(null);
     } catch (error) {
       console.error("Logout error:", error);

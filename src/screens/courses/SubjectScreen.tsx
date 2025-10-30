@@ -1,28 +1,26 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   ScrollView,
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useTheme } from "../../context/ThemeContext";
-import {
-  ChapterWithThemes,
-  ChapterTheme,
-  RootStackParamList,
-  Theme,
-} from "../../types";
+import { ChapterTheme, RootStackParamList, Theme } from "../../types";
 import { useThemes } from "../../hooks/useThemes";
+import LoadingData from "@/src/components/exceptions/LoadingData";
+import ErrorData from "@/src/components/exceptions/ErrorData";
+import PurchaseModal from "../purchases/components/PurchaseModal";
 
 export default function SubjectScreen() {
   const navigation = useNavigation();
   const route = useRoute<any>();
   const { theme } = useTheme();
+  const [visible, setVisible] = useState(false);
   const styles = createStyles(theme);
 
   const { subjectId, subjectName } =
@@ -35,70 +33,26 @@ export default function SubjectScreen() {
   };
 
   const handleThemePress = (chapterTheme: ChapterTheme) => {
-    if (!chapterTheme.isLocked) {
+    if (chapterTheme.hasAccess) {
       (navigation as any).navigate("LessonDetail", {
         themeId: chapterTheme.id,
         themeOrdinalNumber: chapterTheme.ordinalNumber,
         themeName: chapterTheme.name,
       });
+    } else {
+      setVisible(true);
     }
   };
-
-  // Add custom isLocked logic (first theme unlocked, others locked)
-  const processDataWithLocking = (data: ChapterWithThemes[]) => {
-    return data.map((chapter) => ({
-      ...chapter,
-      themes: chapter.themes.map((theme, index) => ({
-        ...theme,
-        isLocked: false, // First theme unlocked, others locked
-      })),
-    }));
+  const handlePurchase = () => {
+    (navigation as any).navigate("PurchaseGroup", {
+      screen: "PurchaseSubjectTheme",
+      params: {
+        subjectId: subjectId,
+        subjectName: subjectName,
+      },
+    });
+    setVisible(false);
   };
-
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.container} edges={["top"]}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{subjectName}</Text>
-          <TouchableOpacity style={styles.profileBtn}>
-            <Ionicons name="person" size={24} color="white" />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>Yuklanmoqda...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (isError) {
-    return (
-      <SafeAreaView style={styles.container} edges={["top"]}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{subjectName}</Text>
-          <TouchableOpacity style={styles.profileBtn}>
-            <Ionicons name="person" size={24} color="white" />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.errorText}>
-            Xatolik yuz berdi. Qayta urinib ko'ring.
-          </Text>
-          <TouchableOpacity onPress={() => refetch()} style={styles.retryBtn}>
-            <Text style={styles.retryText}>Qayta yuklash</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
@@ -111,60 +65,73 @@ export default function SubjectScreen() {
           <Ionicons name="person" size={24} color="white" />
         </TouchableOpacity>
       </View>
+      {isLoading ? (
+        <LoadingData />
+      ) : isError ? (
+        <ErrorData refetch={refetch} />
+      ) : data && data.results.length > 0 ? (
+        <ScrollView style={styles.content}>
+          {data?.results.map((chapter) => (
+            <View key={chapter.id}>
+              {/* Chapter Title */}
+              <Text style={styles.chapterSectionTitle}>
+                {chapter.ordinalNumber}-bob. {chapter.name}
+              </Text>
 
-      <ScrollView style={styles.content}>
-        {processDataWithLocking(data?.results || []).map((chapter) => (
-          <View key={chapter.id}>
-            {/* Chapter Title */}
-            <Text style={styles.chapterSectionTitle}>
-              {chapter.ordinalNumber}-bob. {chapter.name}
-            </Text>
-
-            {/* Chapter Themes */}
-            {chapter.themes.map((chapterTheme) => (
-              <TouchableOpacity
-                key={chapterTheme.id}
-                style={[
-                  styles.themeCard,
-                  chapterTheme.isLocked && styles.lockedThemeCard,
-                ]}
-                onPress={() => handleThemePress(chapterTheme)}
-                disabled={chapterTheme.isLocked}
-              >
-                <View style={styles.themeLeft}>
-                  <View style={styles.lockIconContainer}>
-                    <Ionicons
-                      name={chapterTheme.isLocked ? "lock-closed" : "lock-open"}
-                      size={16}
-                      color={
-                        chapterTheme.isLocked
-                          ? theme.colors.textMuted
-                          : theme.colors.success
-                      }
-                    />
+              {/* Chapter Themes */}
+              {chapter.themes.map((chapterTheme) => (
+                <TouchableOpacity
+                  key={chapterTheme.id}
+                  style={[
+                    styles.themeCard,
+                    !chapterTheme.hasAccess && styles.lockedThemeCard,
+                  ]}
+                  activeOpacity={0.8}
+                  onPress={() => handleThemePress(chapterTheme)}
+                >
+                  <View style={styles.themeLeft}>
+                    <View style={styles.lockIconContainer}>
+                      <Ionicons
+                        name={
+                          chapterTheme.hasAccess ? "lock-closed" : "lock-open"
+                        }
+                        size={16}
+                        color={
+                          !chapterTheme.hasAccess
+                            ? theme.colors.textMuted
+                            : theme.colors.success
+                        }
+                      />
+                    </View>
+                    <View style={styles.themeInfo}>
+                      <Text style={styles.themeNumber}>
+                        {chapterTheme.ordinalNumber}-mavzu:
+                      </Text>
+                      <Text
+                        style={[
+                          styles.themeName,
+                          !chapterTheme.hasAccess && styles.lockedThemeName,
+                        ]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {chapterTheme.name}
+                      </Text>
+                    </View>
                   </View>
-                  <View style={styles.themeInfo}>
-                    <Text style={styles.themeNumber}>
-                      {chapterTheme.ordinalNumber}-mavzu:
-                    </Text>
-                    <Text
-                      style={[
-                        styles.themeName,
-                        chapterTheme.isLocked && styles.lockedThemeName,
-                      ]}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                    >
-                      {chapterTheme.name}
-                    </Text>
-                  </View>
-                </View>
-                
-              </TouchableOpacity>
-            ))}
-          </View>
-        ))}
-      </ScrollView>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ))}
+        </ScrollView>
+      ) : (
+        "Topilmadi"
+      )}
+      <PurchaseModal
+        visible={visible}
+        onClose={() => setVisible(false)}
+        onPurchase={handlePurchase}
+      />
     </SafeAreaView>
   );
 }
@@ -180,8 +147,7 @@ const createStyles = (theme: Theme) =>
       justifyContent: "space-between",
       alignItems: "center",
       backgroundColor: theme.colors.primary,
-      padding: 20,
-      paddingTop: 16,
+      padding: 11,
     },
     backButton: {
       padding: 4,

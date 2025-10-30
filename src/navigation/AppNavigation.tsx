@@ -2,7 +2,6 @@ import React, { useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 
@@ -13,9 +12,8 @@ import ProfileScreen from "../screens/profile/ProfileScreen";
 import PersonalInfoScreen from "../screens/profile/PersonalInfoScreen";
 import LoginScreen from "../screens/auth/LoginScreen";
 import LoadingScreen from "../components/LoadingScreen";
-import StatistikaScreen from "../screens/courses/StatistikaScreen";
+import StatistikaScreen from "../screens/statistics/StatistikaScreen";
 import LessonDetailScreen from "../screens/courses/LessonDetailScreen";
-import VideoPlayerScreen from "../screens/courses/VideoPlayerScreen";
 import PDFViewerScreen from "../screens/courses/PDFViewerScreen";
 import QuizScreen from "../screens/courses/QuizScreen";
 import QuizResultsScreen from "../screens/courses/QuizResultsScreen";
@@ -23,6 +21,12 @@ import ChatScreen from "../screens/chat/ChatScreen";
 import { useAuth } from "../context/AuthContext";
 
 import SystemNavigationBar from "react-native-system-navigation-bar";
+import StatistikaSubjectScreen from "../screens/statistics/details/StatistikaSubjectScreen";
+import StatistikaTestScreen from "../screens/statistics/details/StatistikaTestScreen";
+import { StatusBar } from "react-native";
+import PaymentOrders from "../screens/profile/screen/paymentorders";
+import SolutionScreen from "../screens/courses/SolutionScreen";
+import VideoPlayerScreen from "../screens/courses/videoplayer";
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
@@ -54,6 +58,7 @@ const MainTabNavigator = () => {
           borderTopColor: theme.colors.border,
         },
         headerShown: false,
+        lazy: true,
       })}
     >
       <Tab.Screen
@@ -84,6 +89,7 @@ const MainStackNavigator = () => (
   <Stack.Navigator
     screenOptions={{
       animation: "ios_from_right",
+      freezeOnBlur: true,
     }}
   >
     <Stack.Screen
@@ -94,6 +100,16 @@ const MainStackNavigator = () => (
     <Stack.Screen
       name="Statistika"
       component={StatistikaScreen}
+      options={{ headerShown: false, animation: "ios_from_left" }}
+    />
+    <Stack.Screen
+      name="StatistikaDetail"
+      component={StatistikaSubjectScreen}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen
+      name="StatistikaDetailTest"
+      component={StatistikaTestScreen}
       options={{ headerShown: false }}
     />
     <Stack.Screen
@@ -121,6 +137,11 @@ const MainStackNavigator = () => (
       component={QuizResultsScreen}
       options={{ headerShown: false }}
     />
+     <Stack.Screen
+      name="QuizSolution"
+      component={SolutionScreen}
+      options={{ headerShown: false }}
+    />
     <Stack.Screen
       name="Chat"
       component={ChatScreen}
@@ -131,18 +152,25 @@ const MainStackNavigator = () => (
       component={PersonalInfoScreen}
       options={{ headerShown: false }}
     />
+    <Stack.Screen
+      name="PaymentOrders"
+      component={PaymentOrders}
+      options={{ headerShown: false }}
+    />
   </Stack.Navigator>
 );
 
 export default function AppNavigation() {
   const { isAuthenticated, isLoading } = useAuth();
   const { theme } = useTheme();
-
   // Show loading screen (splash screen) while checking authentication
   useEffect(() => {
-    SystemNavigationBar.setBarMode(theme.isDark ? "light" : "dark");
-    SystemNavigationBar.setNavigationColor(theme.colors.tabBarBackground);
-    
+    try {
+      SystemNavigationBar.setBarMode(theme.isDark ? "light" : "dark");
+      SystemNavigationBar.setNavigationColor(theme.colors.tabBarBackground);
+    } catch (error) {
+      console.warn("SystemNavigationBar error:", error);
+    }
   }, [theme]);
   if (isLoading) {
     return <LoadingScreen />;
@@ -150,7 +178,11 @@ export default function AppNavigation() {
 
   return (
     <NavigationContainer>
-      <StatusBar style={theme.isDark ? "light" : "dark"} />
+      <StatusBar
+        backgroundColor={"red"}
+        hidden
+        barStyle={!theme.isDark ? "dark-content" : "light-content"}
+      />
       {isAuthenticated ? <MainStackNavigator /> : <LoginScreen />}
     </NavigationContainer>
   );

@@ -27,4 +27,5 @@ export const quizService = {
     const response = await $axiosPrivate.get(`/theme-test-results?userId=${userId}&themeId=${themeId}`);
     return response.data;
   },
+
 };

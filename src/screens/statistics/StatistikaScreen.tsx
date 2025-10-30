@@ -1,28 +1,29 @@
-import React, { useMemo } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
+  InteractionManager,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { useTheme } from "../../context/ThemeContext";
 import { Theme, SubjectStatistic } from "../../types";
-import { SPACING, FONT_SIZES, BORDER_RADIUS } from "../../utils";
+import { SPACING, FONT_SIZES, BORDER_RADIUS, COLORS } from "../../utils";
 import { useStatistics } from "../../hooks/useStatistics";
-import { Skeleton } from "../../components/Skeleton";
+import LoadingData from "@/src/components/exceptions/LoadingData";
+import ErrorData from "@/src/components/exceptions/ErrorData";
 
-export default function StatistikaScreen() {
+function StatistikaScreen() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = createStyles(theme);
-
-  // Fetch statistics data
-  const { data: statistics, isLoading, error, refetch } = useStatistics();
+  const route = useRoute();
+  const { userId } = route.params as any;
+  const { data: statistics, isLoading, error, refetch } = useStatistics(userId);
 
   const handleGoBack = () => {
     navigation.goBack();
@@ -39,26 +40,28 @@ export default function StatistikaScreen() {
     );
     return Math.round(totalPercent / statistics.length);
   }, [statistics]);
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      refetch();
+    });
+    return () => task.cancel();
+  }, []);
 
-  // Show error alert if API call fails
-  if (error) {
-    Alert.alert(
-      "Xatolik",
-      "Statistika ma'lumotlarini yuklashda xatolik yuz berdi.",
-      [
-        { text: "Qayta urinish", onPress: () => refetch() },
-        { text: "Bekor qilish", style: "cancel" },
-      ]
-    );
-  }
-
+  const handleRoutePress = useCallback((item: SubjectStatistic) => {
+    (navigation as any).navigate("StatistikaDetail", {
+      userId: userId,
+      subjectId: item.subjectId,
+      subjectName: item.subjectName,
+      subjectPercent: item.percent,
+    });
+  }, []);
   // Get color for subject based on percentage
-  const getSubjectColor = (percentage: number) => {
+  const getSubjectColor = useCallback((percentage: number) => {
     if (percentage >= 80) return theme.colors.success;
     if (percentage >= 60) return theme.colors.primary;
     if (percentage >= 40) return theme.colors.warning;
     return theme.colors.error;
-  };
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -74,245 +77,226 @@ export default function StatistikaScreen() {
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Pie Chart Section */}
-        <View style={styles.chartSection}>
-          <View style={styles.chartCard}>
-            <View style={styles.pieChartContainer}>
-              {/* Beautiful 3D Pie Chart */}
-              <View style={styles.pieChartWrapper}>
-                {/* Outer ring */}
-                <View
-                  style={[
-                    styles.outerRing,
-                    { borderColor: theme.colors.primary + "30" },
-                  ]}
-                />
-
-                {/* Main pie chart */}
-                <View style={styles.pieBase}>
-                  {/* Completed segment */}
+      {isLoading ? (
+        <LoadingData />
+      ) : error ? (
+        <ErrorData refetch={refetch} />
+      ) : (
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Pie Chart Section */}
+          <View style={styles.chartSection}>
+            <View style={styles.chartCard}>
+              <View style={styles.pieChartContainer}>
+                {/* Beautiful 3D Pie Chart */}
+                <View style={styles.pieChartWrapper}>
+                  {/* Outer ring */}
                   <View
                     style={[
-                      styles.completedSegment,
-                      {
-                        backgroundColor: theme.colors.primary,
-                        transform: [
-                          { rotate: `${-90 + overallProgress * 3.6}deg` },
-                        ],
-                      },
+                      styles.outerRing,
+                      { borderColor: theme.colors.primary + "30" },
                     ]}
                   />
-                  {/* Remaining segment */}
-                  <View
-                    style={[
-                      styles.remainingSegment,
-                      {
-                        backgroundColor: theme.colors.divider,
-                        opacity: theme.isDark ? 0.3 : 0.2,
-                      },
-                    ]}
-                  />
-                </View>
 
-                {/* Center circle with gradient effect */}
-                <View
-                  style={[
-                    styles.centerCircle,
-                    { backgroundColor: theme.colors.card },
-                  ]}
-                >
-                  <View style={styles.centerContent}>
-                    <Text
-                      style={[
-                        styles.centerPercentage,
-                        { color: theme.colors.primary },
-                      ]}
-                    >
-                      {overallProgress}%
-                    </Text>
-                    <Text style={styles.centerLabel}>Progress</Text>
-                  </View>
-                </View>
-
-                {/* 3D shadow effect */}
-                <View
-                  style={[
-                    styles.pieShadow,
-                    {
-                      backgroundColor: theme.colors.shadow,
-                      opacity: theme.isDark ? 0.4 : 0.2,
-                    },
-                  ]}
-                />
-              </View>
-            </View>
-
-            <View style={styles.progressInfo}>
-              <Text style={styles.progressTitle}>Umumiy o'zlashtirish</Text>
-              <Text style={styles.progressSubtitle}>
-                {statistics && Array.isArray(statistics)
-                  ? statistics.length
-                  : 0}{" "}
-                ta fanlar bo'yicha
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Course Statistics */}
-        <View style={styles.courseStatsSection}>
-          <Text style={styles.sectionTitle}>Fanlar bo'yicha natijalar</Text>
-
-          {isLoading ? (
-            // Loading skeletons
-            Array.from({ length: 3 }).map((_, index) => (
-              <View key={index} style={styles.skeletonContainer}>
-                <Skeleton height={80} radius={16} />
-              </View>
-            ))
-          ) : statistics &&
-            Array.isArray(statistics) &&
-            statistics.length > 0 ? (
-            statistics.map((stat: SubjectStatistic, index: number) => (
-              <TouchableOpacity
-                key={stat.subjectId}
-                style={[
-                  styles.courseStatItem,
-                  {
-                    backgroundColor: theme.colors.card,
-                    borderColor:
-                      theme.colors.border + (theme.isDark ? "30" : "50"),
-                  },
-                ]}
-                activeOpacity={0.7}
-              >
-                {/* Subject Icon */}
-                <View
-                  style={[
-                    styles.subjectIcon,
-                    { backgroundColor: getSubjectColor(stat.percent) + "20" },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.subjectIconInner,
-                      { backgroundColor: getSubjectColor(stat.percent) },
-                    ]}
-                  >
-                    <Text style={styles.subjectIconText}>
-                      {stat.subjectName.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.courseStatContent}>
-                  <View style={styles.courseStatHeader}>
-                    <Text style={styles.courseStatName}>
-                      {stat.subjectName}
-                    </Text>
+                  {/* Main pie chart */}
+                  <View style={styles.pieBase}>
+                    {/* Completed segment */}
                     <View
                       style={[
-                        styles.percentageBadge,
+                        styles.completedSegment,
                         {
-                          backgroundColor: getSubjectColor(stat.percent) + "20",
+                          backgroundColor: theme.colors.primary,
+                          transform: [
+                            { rotate: `${-90 + overallProgress * 3.6}deg` },
+                          ],
                         },
                       ]}
-                    >
+                    />
+                    {/* Remaining segment */}
+                    <View
+                      style={[
+                        styles.remainingSegment,
+                        {
+                          backgroundColor: theme.colors.divider,
+                          opacity: theme.isDark ? 0.3 : 0.2,
+                        },
+                      ]}
+                    />
+                  </View>
+
+                  {/* Center circle with gradient effect */}
+                  <View
+                    style={[
+                      styles.centerCircle,
+                      { backgroundColor: theme.colors.card },
+                    ]}
+                  >
+                    <View style={styles.centerContent}>
                       <Text
                         style={[
-                          styles.percentageText,
-                          { color: getSubjectColor(stat.percent) },
+                          styles.centerPercentage,
+                          { color: theme.colors.primary },
                         ]}
                       >
-                        {stat.percent}%
+                        {overallProgress}%
+                      </Text>
+                      <Text style={styles.centerLabel}>Jarayonda</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.progressInfo}>
+                <Text style={styles.progressTitle}>Umumiy o'zlashtirish</Text>
+                <Text style={styles.progressSubtitle}>
+                  {statistics && Array.isArray(statistics)
+                    ? statistics.length
+                    : 0}{" "}
+                  ta fanlar bo'yicha
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Course Statistics */}
+          <View style={styles.courseStatsSection}>
+            <Text style={styles.sectionTitle}>Fanlar bo'yicha natijalar</Text>
+
+            {statistics &&
+              Array.isArray(statistics) &&
+              statistics.length > 0 ? (
+              statistics.map((stat: SubjectStatistic, index: number) => (
+                <TouchableOpacity
+                  key={stat.subjectId}
+                  style={[
+                    styles.courseStatItem,
+                    {
+                      backgroundColor: theme.colors.card,
+                      borderColor:
+                        theme.colors.border + (theme.isDark ? "30" : "50"),
+                    },
+                  ]}
+                  onPress={() => handleRoutePress(stat)}
+                  activeOpacity={0.7}
+                >
+                  {/* Subject Icon */}
+                  <View
+                    style={[
+                      styles.subjectIcon,
+                      { backgroundColor: getSubjectColor(stat.percent) + "20" },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.subjectIconInner,
+                        { backgroundColor: getSubjectColor(stat.percent) },
+                      ]}
+                    >
+                      <Text style={styles.subjectIconText}>
+                        {stat.subjectName.charAt(0).toUpperCase()}
                       </Text>
                     </View>
                   </View>
 
-                  <View style={styles.courseStatDetails}>
-                    <Text style={styles.courseStatSubtext}>
-                      {stat.correctSum}/{stat.totalSum} to'g'ri javob
-                    </Text>
-
-                    {/* Enhanced Progress Bar */}
-                    <View
-                      style={[
-                        styles.progressBarContainer,
-                        {
-                          backgroundColor:
-                            theme.colors.divider + (theme.isDark ? "30" : "50"),
-                        },
-                      ]}
-                    >
+                  <View style={styles.courseStatContent}>
+                    <View style={styles.courseStatHeader}>
+                      <Text style={styles.courseStatName}>
+                        {stat.subjectName}
+                      </Text>
                       <View
                         style={[
-                          styles.progressBarFill,
+                          styles.percentageBadge,
                           {
-                            width: `${stat.percent}%`,
-                            backgroundColor: getSubjectColor(stat.percent),
+                            backgroundColor:
+                              getSubjectColor(stat.percent) + "20",
                           },
                         ]}
-                      />
-                      {/* Shine effect */}
+                      >
+                        <Text
+                          style={[
+                            styles.percentageText,
+                            { color: getSubjectColor(stat.percent) },
+                          ]}
+                        >
+                          {stat.percent}%
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.courseStatDetails}>
+                      <Text style={styles.courseStatSubtext}>
+                        {stat.correctSum}/{stat.totalSum} to'g'ri javob
+                      </Text>
+
+                      {/* Enhanced Progress Bar */}
                       <View
                         style={[
-                          styles.progressBarShine,
-                          { width: `${stat.percent}%` },
+                          styles.progressBarContainer,
+                          {
+                            backgroundColor:
+                              theme.colors.divider +
+                              (theme.isDark ? "30" : "50"),
+                          },
                         ]}
-                      />
+                      >
+                        <View
+                          style={[
+                            styles.progressBarFill,
+                            {
+                              width: `${stat.percent}%`,
+                              backgroundColor: getSubjectColor(stat.percent),
+                            },
+                          ]}
+                        />
+                        {/* Shine effect */}
+                        <View
+                          style={[
+                            styles.progressBarShine,
+                            { width: `${stat.percent}%` },
+                          ]}
+                        />
+                      </View>
                     </View>
                   </View>
-                </View>
 
-                <View style={styles.courseStatArrow}>
+                  <View style={styles.courseStatArrow}>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color={theme.colors.textMuted}
+                    />
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <View
+                  style={[
+                    styles.emptyStateIcon,
+                    { backgroundColor: theme.colors.divider + "30" },
+                  ]}
+                >
                   <Ionicons
-                    name="chevron-forward"
-                    size={20}
+                    name="bar-chart-outline"
+                    size={32}
                     color={theme.colors.textMuted}
                   />
                 </View>
-              </TouchableOpacity>
-            ))
-          ) : (
-            <View style={styles.emptyState}>
-              <View
-                style={[
-                  styles.emptyStateIcon,
-                  { backgroundColor: theme.colors.divider + "30" },
-                ]}
-              >
-                <Ionicons
-                  name="bar-chart-outline"
-                  size={32}
-                  color={theme.colors.textMuted}
-                />
+                <Text style={styles.emptyStateTitle}>
+                  Statistika mavjud emas
+                </Text>
+                <Text style={styles.emptyStateText}>
+                  Hozircha statistika ma'lumotlari yo'q. Testlarni yechib
+                  ko'ring.
+                </Text>
               </View>
-              <Text style={styles.emptyStateTitle}>Statistika mavjud emas</Text>
-              <Text style={styles.emptyStateText}>
-                Hozircha statistika ma'lumotlari yo'q. Testlarni yechib ko'ring.
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Refresh Button */}
-        {error && (
-          <View style={styles.refreshSection}>
-            <TouchableOpacity
-              onPress={() => refetch()}
-              style={styles.refreshButton}
-            >
-              <Ionicons name="refresh" size={20} color="white" />
-              <Text style={styles.refreshButtonText}>Qayta yuklash</Text>
-            </TouchableOpacity>
+            )}
           </View>
-        )}
-      </ScrollView>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
-
+export default memo(StatistikaScreen);
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
@@ -328,6 +312,7 @@ const createStyles = (theme: Theme) =>
       paddingVertical: SPACING.base,
       minHeight: 60,
     },
+
     backButton: {
       padding: SPACING.xs,
       width: 40,
@@ -594,29 +579,5 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.textMuted,
       textAlign: "center",
       lineHeight: 22,
-    },
-    refreshSection: {
-      paddingHorizontal: SPACING.lg,
-      paddingVertical: SPACING.lg,
-      alignItems: "center",
-    },
-    refreshButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: theme.colors.primary,
-      paddingHorizontal: SPACING.xl,
-      paddingVertical: SPACING.base,
-      borderRadius: BORDER_RADIUS.lg,
-      shadowColor: theme.colors.primary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 6,
-      gap: SPACING.xs,
-    },
-    refreshButtonText: {
-      color: "white",
-      fontSize: FONT_SIZES.base,
-      fontWeight: "600",
     },
   });

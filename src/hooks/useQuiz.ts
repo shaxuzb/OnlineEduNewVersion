@@ -57,7 +57,6 @@ export function useQuizResults(userId: number, themeId: number) {
     enabled: !!userId && !!themeId, // Only run if both userId and themeId are provided
   });
 }
-
 // Helper hook to get current user ID from secure storage
 export function useCurrentUserId(): number | null {
   try {
