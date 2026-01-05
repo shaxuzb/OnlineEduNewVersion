@@ -1,36 +1,42 @@
-import React, { useMemo } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { Formik } from "formik";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
+  Pressable,
   ScrollView,
-  View,
-  Text,
-  TouchableOpacity,
   StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import { useTheme } from "../../context/ThemeContext";
-import { Theme } from "../../types";
+import Toast from "react-native-toast-message";
+import * as Yup from "yup";
+import { useTheme } from "@/src/context/ThemeContext";
 import { usePurchase } from "@/src/context/PurchaseContext";
 import { numberSpacing } from "@/src/utils";
-import Toast from "react-native-toast-message";
-import { Formik } from "formik";
-import * as Yup from "yup";
-import CreditCardInput from "./components/CreditCardInput";
 import { $axiosPrivate } from "@/src/services/AxiosService";
+import { lightColors } from "@/src/constants/theme";
+import { Theme } from "@/src/types";
+import CreditCardInput from "./components/CreditCardInput";
 
 const ValidationScheme = Yup.object().shape({
   number: Yup.string().required("Telefon raqam majburiy"),
   expire: Yup.string().required("sdasdsa"),
 });
-export default function CreditCardScreen() {
-  const navigation = useNavigation();
-  const route = useRoute<any>();
+export default function CreditCardScreen({
+  navigation,
+  route,
+}: {
+  navigation: any;
+  route: any;
+}) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { selectedItems, submitPurchase } = usePurchase();
+  const [loading, setLoading] = useState(false);
 
-  const { scopeTypeId, paymentType } = route.params as any;
+  const { scopeTypeId, paymentType } = route.params;
   const totalPrice = useMemo(
     () =>
       numberSpacing(selectedItems.reduce((acc, item) => acc + item.price, 0)),
@@ -44,16 +50,25 @@ export default function CreditCardScreen() {
           orderId: orderId,
         }
       );
+      setLoading(false);
       (navigation as any).navigate("OTPCardVerification", {
         orderId: orderId,
         phoneNumber: (data as any).phone,
       });
+      // router.navigate({
+      //   pathname: "/(root)/(purchases)/checkout/creditcard/otpverification",
+      //   params: {
+      //     orderId: orderId,
+      //     phoneNumber: (data as any).phone,
+      //   },
+      // });
       Toast.show({
         type: "success", // 'success' | 'error' | 'info'
         text1: "SMS yuborildi!",
         text2: `Tasdiqlash kodi yuborildi`,
       });
     } catch (error: any) {
+      setLoading(false);
       if (error.status === 400) {
         return Toast.show({
           type: "error", // 'success' | 'error' | 'info'
@@ -69,41 +84,58 @@ export default function CreditCardScreen() {
     }
   };
   const handleSubmit = async (values: any) => {
+    setLoading(true);
     try {
       const data = await submitPurchase({
         values: {
-          scopeTypeId: scopeTypeId,
-          paymentType: paymentType,
+          scopeTypeId: Number(scopeTypeId),
+          paymentType: paymentType.toString(),
           card: {
             expire: values.expire.split("/").join(""),
             number: values.number.split(" ").join(""),
           },
         },
       });
-      console.log(data);
-
       if (data as any) {
         handleSendSms((data as any).id);
       }
     } catch (error) {
+      setLoading(false);
       Toast.show({
         type: "error",
         text1: "Sotib olishda xatolik yuz berdi!",
       });
     }
   };
-  return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-
+  useEffect(() => {
+    navigation.setOptions({
+      headerTitle: () => (
         <Ionicons name="cart-outline" size={38} color="white" />
-
-        <TouchableOpacity></TouchableOpacity>
-      </View>
-
+      ),
+      freezeOnBlur: true,
+      headerRight: () => (
+        <Pressable
+          android_ripple={{
+            foreground: true,
+            color: lightColors.ripple,
+            borderless: true,
+            radius: 22,
+          }}
+          style={{
+            width: 40,
+            height: 40,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onPress={() => navigation.navigate("Chat")}
+        >
+          <Ionicons name="chatbox" size={24} color="white" />
+        </Pressable>
+      ),
+    });
+  }, [navigation]);
+  return (
+    <SafeAreaView style={styles.container} edges={[]}>
       <ScrollView
         style={{
           paddingHorizontal: 24,
@@ -239,14 +271,26 @@ export default function CreditCardScreen() {
                     </Text>
                   </View>
                 </View>
-                <TouchableOpacity
+                <Pressable
+                  android_ripple={{
+                    foreground: true,
+                    color: lightColors.ripple,
+                  }}
                   onPress={() => handleSubmit(values)}
                   style={styles.payButton}
+                  disabled={loading}
                 >
                   <Text style={styles.payButtonText}>
-                    To‘lovni amalga oshirish
+                    {loading ? (
+                      <ActivityIndicator
+                        color="white"
+                        style={{ width: 24, height: 24 }}
+                      />
+                    ) : (
+                      "To‘lovni amalga oshirish"
+                    )}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             );
           }}

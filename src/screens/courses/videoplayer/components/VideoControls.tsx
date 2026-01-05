@@ -1,13 +1,8 @@
 import React from "react";
-import {
-  View,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  SafeAreaView,
-} from "react-native";
-import Icon from "react-native-vector-icons/MaterialIcons";
+import { View, StyleSheet, Text, TouchableOpacity } from "react-native";
+import Icon from "@expo/vector-icons/MaterialIcons";
 import CustomSlider from "./CustomSlider";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 interface VideoControlsProps {
   paused: boolean;
@@ -17,8 +12,10 @@ interface VideoControlsProps {
   duration: number;
   fullscreen: boolean;
   onFullscreen: () => void;
+  toggleSettings:() => void;
   buffering: boolean;
   title: string;
+  onSlidingStart: any;
   onSliderValueChange: (value: number) => void;
   onSlidingComplete: (value: number) => void;
 }
@@ -31,6 +28,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   fullscreen,
   onFullscreen,
   buffering,
+  onSlidingStart,
+  toggleSettings,
   title,
   onSliderValueChange,
   onSlidingComplete,
@@ -44,60 +43,73 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 
   return (
     <SafeAreaView style={styles.controlsContainer}>
-      {/* Top controls */}
-      <View style={styles.topControls}>
-        <TouchableOpacity style={styles.topBackButton} onPress={handleBack}>
-          <Ionicons name="chevron-back" color={"white"} size={24} />
-        </TouchableOpacity>
-        <Text style={styles.title} numberOfLines={1}>
-          {title}
-        </Text>
-      </View>
-
-      {/* Center controls */}
-      <View style={styles.centerControls}>
-        <TouchableOpacity
-          style={styles.playButton}
-          onPress={onPlayPause}
-          disabled={buffering}
-        >
-          <Icon name={paused ? "play-arrow" : "pause"} size={40} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Bottom controls */}
-      <View style={styles.bottomControls}>
-        <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
-
-        <CustomSlider
-          value={currentTime}
-          maximumValue={duration || 1}
-          onValueChange={onSliderValueChange}
-          onSlidingComplete={onSlidingComplete}
-          style={styles.slider}
-        />
-
-        <Text style={styles.timeText}>{formatTime(duration)}</Text>
-
-        <TouchableOpacity
-          style={styles.fullscreenButton}
-          onPress={onFullscreen}
-        >
-          <Icon
-            name={fullscreen ? "fullscreen-exit" : "fullscreen"}
-            size={24}
-            color="#fff"
-          />
-        </TouchableOpacity>
-      </View>
-
-      {/* Buffering indicator */}
-      {buffering && (
-        <View style={styles.bufferingContainer}>
-          <Icon name="download" size={30} color="#fff" />
-          <Text style={styles.bufferingText}>Yuklanmoqda...</Text>
+      <View style={styles.controlsContainer}>
+        {/* Top controls */}
+        <View style={styles.topControls}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+            <Icon name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.title} numberOfLines={1}>
+            {title}
+          </Text>
+          <TouchableOpacity
+            style={[styles.backButton, styles.settingsButton]}
+            onPress={toggleSettings}
+          >
+            <Ionicons name="settings-outline" size={24} color="#FFF" />
+          </TouchableOpacity>
         </View>
-      )}
+
+        {/* Center controls */}
+        <View style={styles.centerControls}>
+          <TouchableOpacity
+            style={styles.playButton}
+            onPress={onPlayPause}
+            disabled={buffering}
+          >
+            <Icon
+              name={paused ? "play-arrow" : "pause"}
+              size={40}
+              color="#fff"
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* Bottom controls */}
+        <View style={styles.bottomControls}>
+          <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+
+          <CustomSlider
+            value={currentTime}
+            maximumValue={duration || 1}
+            onSlidingStart={onSlidingStart}
+            onValueChange={onSliderValueChange}
+            onSlidingComplete={onSlidingComplete}
+            style={styles.slider}
+          />
+
+          <Text style={styles.timeText}>{formatTime(duration)}</Text>
+
+          <TouchableOpacity
+            style={styles.fullscreenButton}
+            onPress={onFullscreen}
+          >
+            <Icon
+              name={fullscreen ? "fullscreen-exit" : "fullscreen"}
+              size={24}
+              color="#fff"
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* Buffering indicator */}
+        {buffering && (
+          <View style={styles.bufferingContainer}>
+            <Icon name="download" size={30} color="#fff" />
+            <Text style={styles.bufferingText}>Yuklanmoqda...</Text>
+          </View>
+        )}
+      </View>
     </SafeAreaView>
   );
 };
@@ -111,6 +123,7 @@ const styles = StyleSheet.create({
   topControls: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent:"space-between",
     gap: 10,
     padding: 16,
   },
@@ -120,7 +133,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-
+  settingsButton: {
+    marginRight: 8,
+  },
+  topRightButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   title: {
     color: "#fff",
     fontSize: 16,
@@ -146,6 +165,10 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     minWidth: 40,
+  },
+  backButton: {
+    marginRight: 16,
+    padding: 4,
   },
   slider: {
     flex: 1,

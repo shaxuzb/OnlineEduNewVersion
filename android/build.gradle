@@ -4,9 +4,6 @@ buildscript {
   repositories {
     google()
     mavenCentral()
-  }  
-  ext {
-    ndkVersion = "26.3.11579264"   // ✅ shu yerdan o‘qiladi
   }
   dependencies {
     classpath('com.android.tools.build:gradle')

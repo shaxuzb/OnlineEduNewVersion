@@ -1,23 +1,22 @@
-import React, { memo, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  ActivityIndicator,
-  TouchableOpacity,
-  Image,
-  StatusBar,
-} from "react-native";
+import { useAuth } from "@/src/context/AuthContext";
+import { useTheme } from "@/src/context/ThemeContext";
+import { Theme } from "@/src/types";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { Theme } from "../../types";
-import { useAuth } from "../../context/AuthContext";
-import { useTheme } from "../../context/ThemeContext";
+import React, { memo, useState } from "react";
+import {
+    ActivityIndicator,
+    Image,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-function PersonalInfoScreen() {
+function UserDetailScreen() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = createStyles(theme);
@@ -38,84 +37,6 @@ function PersonalInfoScreen() {
   const userData = user;
 
   // renderInfoItem funksiyasi yangi design da ishlatilmaydi
-
-  const renderPermissions = () => {
-    if (!user?.permissions || user.permissions.length === 0) {
-      return null;
-    }
-
-    return (
-      <View style={[styles.section, { backgroundColor: theme.colors.card }]}>
-        <View style={styles.cardHeader}>
-          <Ionicons
-            name="key"
-            size={24}
-            color={theme.colors.primary}
-            style={{ marginRight: 12 }}
-          />
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            Ruxsatlar
-          </Text>
-        </View>
-        <View style={styles.permissionsContainer}>
-          {user.permissions.map((permission, index) => (
-            <View
-              key={index}
-              style={[
-                styles.permissionChip,
-                { backgroundColor: theme.colors.primary + "20" },
-              ]}
-            >
-              <Text
-                style={[styles.permissionText, { color: theme.colors.primary }]}
-              >
-                {permission}
-              </Text>
-            </View>
-          ))}
-        </View>
-      </View>
-    );
-  };
-
-  const renderModules = () => {
-    if (!user?.modules || user.modules.length === 0) {
-      return null;
-    }
-
-    return (
-      <View style={[styles.section, { backgroundColor: theme.colors.card }]}>
-        <View style={styles.cardHeader}>
-          <Ionicons
-            name="library"
-            size={24}
-            color={theme.colors.primary}
-            style={{ marginRight: 12 }}
-          />
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            Modullar
-          </Text>
-        </View>
-        <View style={styles.modulesContainer}>
-          {user.modules.map((moduleId, index) => (
-            <View
-              key={index}
-              style={[
-                styles.moduleChip,
-                { backgroundColor: theme.colors.success + "20" },
-              ]}
-            >
-              <Text
-                style={[styles.moduleText, { color: theme.colors.success }]}
-              >
-                Modul {moduleId}
-              </Text>
-            </View>
-          ))}
-        </View>
-      </View>
-    );
-  };
 
   if (isLoading) {
     return (
@@ -200,23 +121,14 @@ function PersonalInfoScreen() {
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
+      edges={["bottom"]}
     >
-      <StatusBar />
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Shaxsiy ma'lumotlar</Text>
-        <View style={styles.placeholder} />
-      </View>
-
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
+        snapToEnd
+        snapToStart={false}
         refreshControl={
           <RefreshControl
             refreshing={isLoading}
@@ -296,7 +208,7 @@ function PersonalInfoScreen() {
               </View>
             </View>
 
-            <View style={styles.infoRow}>
+            {/* <View style={styles.infoRow}>
               <Text
                 style={[styles.infoLabel, { color: theme.colors.textMuted }]}
               >
@@ -305,7 +217,7 @@ function PersonalInfoScreen() {
               <Text style={[styles.infoValue, { color: theme.colors.text }]}>
                 {userData?.role || "Ma'lumot yo'q"}
               </Text>
-            </View>
+            </View> */}
           </View>
 
           {/* Aloqa ma'lumotlari */}
@@ -375,17 +287,6 @@ function PersonalInfoScreen() {
               </Text>
             </View>
 
-            <View style={styles.infoRow}>
-              <Text
-                style={[styles.infoLabel, { color: theme.colors.textMuted }]}
-              >
-                ID
-              </Text>
-              <Text style={[styles.infoValue, { color: theme.colors.text }]}>
-                {userData?.id || "Ma'lumot yo'q"}
-              </Text>
-            </View>
-
             <View style={styles.infoRowLast}>
               <Text
                 style={[styles.infoLabel, { color: theme.colors.textMuted }]}
@@ -407,10 +308,7 @@ function PersonalInfoScreen() {
           </View>
 
           {/* Ruxsatlar va Modullar */}
-          {renderPermissions()}
-          {renderModules()}
 
-          {/* Yangilash tugmasi */}
           <TouchableOpacity
             onPress={() => refetch()}
             disabled={isLoading}
@@ -444,7 +342,7 @@ function PersonalInfoScreen() {
     </SafeAreaView>
   );
 }
-export default memo(PersonalInfoScreen);
+export default memo(UserDetailScreen);
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     // Container
@@ -474,7 +372,7 @@ const createStyles = (theme: Theme) =>
 
     // Profile header styles
     profileHeader: {
-      backgroundColor: theme.colors.primary,
+      backgroundColor: "#3a5dde",
       paddingTop: 40,
       paddingBottom: 60,
       borderBottomLeftRadius: 30,

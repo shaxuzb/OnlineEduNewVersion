@@ -1,28 +1,31 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import EmptyData from "@/src/components/exceptions/EmptyData";
+import ErrorData from "@/src/components/exceptions/ErrorData";
+import Skeleton from "@/src/components/Skeleton";
+import { usePurchase } from "@/src/context/PurchaseContext";
+import { useTheme } from "@/src/context/ThemeContext";
+import { useSubjects } from "@/src/hooks/useSubjects";
+import { SubjectsResponse, Theme } from "@/src/types";
+import { numberSpacing } from "@/src/utils";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useCallback, useEffect, useMemo } from "react";
 import {
+  Alert,
+  Image,
+  InteractionManager,
   ScrollView,
-  View,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  Alert,
-  InteractionManager,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import { useTheme } from "../../context/ThemeContext";
-import { Theme, SubjectsResponse } from "../../types";
-import { useSubjects } from "../../hooks/useSubjects";
-import { Skeleton } from "../../components/Skeleton";
-import ErrorData from "@/src/components/exceptions/ErrorData";
-import EmptyData from "@/src/components/exceptions/EmptyData";
-import { numberSpacing } from "@/src/utils";
 import Toast from "react-native-toast-message";
-import { usePurchase } from "@/src/context/PurchaseContext";
 
-export default function PurchaseSubjectScreen() {
-  const navigation = useNavigation();
+export default function PurchaseSubjectScreen({
+  navigation,
+}: {
+  navigation: any;
+}) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { data: subjects, isLoading, error, refetch } = useSubjects();
@@ -65,7 +68,7 @@ export default function PurchaseSubjectScreen() {
         text1: "Kurs tanlamadingiz!",
       });
     }
-    (navigation as any).navigate("Checkout", { scopeTypeId: 3 });
+    navigation.navigate("Checkout", { scopeTypeId: 3 });
   };
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(refetch);
@@ -81,47 +84,76 @@ export default function PurchaseSubjectScreen() {
 
   const totalPrice = useMemo(
     () =>
-      numberSpacing(
-        selectedItems.reduce((acc, item) => acc + item.price, 0)
-      ),
+      numberSpacing(selectedItems.reduce((acc, item) => acc + item.price, 0)),
     [selectedItems]
   );
 
   const getSubjectIcon = useCallback(
-    (name: string) => {
-      const iconColor = "white";
-      switch (name) {
-        case "Algebra":
-          return <Ionicons name="add" size={24} color={iconColor} />;
-        case "Geometriya":
-          return <Ionicons name="triangle" size={24} color={iconColor} />;
-        case "Milliy Sertifikat":
-          return <Text style={styles.iconText}>A+</Text>;
-        case "Olimpiadaga kirish":
-          return <Text style={styles.iconText}>Σ</Text>;
-        default:
-          return <Ionicons name="book" size={24} color={iconColor} />;
-      }
-    },
-    [styles.iconText]
-  );
-
-  return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-
+      (name: string) => {
+        switch (name) {
+          case "Algebra":
+            return (
+              <Image
+                resizeMode="contain"
+                style={{ flex: 1, resizeMode: "contain" }}
+                source={require("@/src/assets/icons/subjects/algebra.png")}
+              />
+            );
+          case "Geometriya":
+            return (
+              <Image
+                resizeMode="contain"
+                style={{ flex: 1, resizeMode: "contain" }}
+                source={require("@/src/assets/icons/subjects/geometry.png")}
+              />
+            );
+          case "Milliy Sertifikat":
+            return (
+              <Image
+                resizeMode="contain"
+                style={{ flex: 1, resizeMode: "contain" }}
+                source={require("@/src/assets/icons/subjects/milliysertificat.png")}
+              />
+            );
+          case "Maktab Dasturi":
+            return (
+              <Image
+                resizeMode="contain"
+                style={{ flex: 1, resizeMode: "contain" }}
+                source={require("@/src/assets/icons/subjects/bolalar.png")}
+              />
+            );
+          default:
+            return (
+              <Image
+                resizeMode="contain"
+                style={{ flex: 1, resizeMode: "contain" }}
+                source={require("@/src/assets/icons/subjects/bolalar.png")}
+              />
+            );
+        }
+      },
+      [styles.iconText]
+    );
+  useEffect(() => {
+    navigation.setOptions({
+      headerTitle: () => (
         <Ionicons name="cart-outline" size={38} color="white" />
+      ),
+      headerTintColor: "white",
+      freezeOnBlur: true,
 
+      headerRight: () => (
         <TouchableOpacity onPress={toggleSelectAll}>
           <Text style={styles.headerSelectTotal}>
             Barchasini {"\n"} belgilash
           </Text>
         </TouchableOpacity>
-      </View>
-
+      ),
+    });
+  }, [navigation, toggleSelectAll]);
+  return (
+    <SafeAreaView style={styles.container} edges={[]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.greetingSection}>
           <Text style={styles.greeting}>{totalPrice} UZS</Text>
@@ -136,9 +168,7 @@ export default function PurchaseSubjectScreen() {
             <ErrorData refetch={refetch} />
           ) : subjects?.results?.length ? (
             subjects.results.map((subject) => {
-              const isSelected = selectedItems.some(
-                (s) => s.id === subject.id
-              );
+              const isSelected = selectedItems.some((s) => s.id === subject.id);
               return (
                 <TouchableOpacity
                   key={subject.id}
@@ -243,6 +273,7 @@ const createStyles = (theme: Theme) =>
       borderRadius: 12,
       justifyContent: "center",
       alignItems: "center",
+      padding: 10,
       backgroundColor: theme.colors.primary,
       marginRight: 12,
     },

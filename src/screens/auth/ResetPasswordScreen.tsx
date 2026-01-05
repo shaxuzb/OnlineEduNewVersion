@@ -103,10 +103,7 @@ const ResetPasswordScreenContent: React.FC<ResetPasswordScreenContentProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar
-        barStyle={theme.isDark ? "light-content" : "dark-content"}
-        backgroundColor={theme.colors.background}
-      />
+      
 
       {/* Header with close button and progress - hide on success screen */}
       {currentStep !== 3 && (

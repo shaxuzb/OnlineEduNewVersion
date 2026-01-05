@@ -1,0 +1,33 @@
+diff --git a/node_modules/react-native-gesture-image-viewer/lib/module/useGestureViewer.js b/node_modules/react-native-gesture-image-viewer/lib/module/useGestureViewer.js
+index a4c68fd..3b8e91f 100644
+--- a/node_modules/react-native-gesture-image-viewer/lib/module/useGestureViewer.js
++++ b/node_modules/react-native-gesture-image-viewer/lib/module/useGestureViewer.js
+@@ -3,8 +3,7 @@
+ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+ import { InteractionManager, useWindowDimensions } from 'react-native';
+ import { Gesture } from 'react-native-gesture-handler';
+-import { Easing, interpolate, useAnimatedReaction, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+-import { runOnJS } from 'react-native-worklets';
++import { Easing, interpolate, runOnJS, useAnimatedReaction, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+ import { registry } from "./GestureViewerRegistry.js";
+ import { createBoundsConstraint, createScrollAction, getLoopAdjustedIndex } from "./utils/index.js";
+ export const useGestureViewer = ({
+diff --git a/node_modules/react-native-gesture-image-viewer/src/useGestureViewer.ts b/node_modules/react-native-gesture-image-viewer/src/useGestureViewer.ts
+index e3ef31f..7a84ebd 100644
+--- a/node_modules/react-native-gesture-image-viewer/src/useGestureViewer.ts
++++ b/node_modules/react-native-gesture-image-viewer/src/useGestureViewer.ts
+@@ -9,13 +9,13 @@ import { Gesture } from 'react-native-gesture-handler';
+ import {
+   Easing,
+   interpolate,
++  runOnJS,
+   useAnimatedReaction,
+   useAnimatedStyle,
+   useSharedValue,
+   withSpring,
+   withTiming,
+ } from 'react-native-reanimated';
+-import { runOnJS } from 'react-native-worklets';
+ import type GestureViewerManager from './GestureViewerManager';
+ import { registry } from './GestureViewerRegistry';
+ import type { GestureViewerProps, TriggerRect } from './types';

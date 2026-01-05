@@ -5,7 +5,7 @@ interface SkeletonProps {
   width?: number | string;
   height?: number | string;
   radius?: number;
-  colorMode?: "light" | "dark";
+  colorMode?: any;
   style?: any;
 }
 
@@ -42,7 +42,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   const backgroundColor = animatedValue.interpolate({
     inputRange: [0, 1],
     outputRange:
-      colorMode === "dark" ? ["#374151", "#4B5563"] : ["#E5E7EB", "#F3F4F6"],
+      colorMode === "dark" ? ["#37415199", "#4b5563c4"] : ["#e5e7eb9a", "#f3f4f6d8"],
   });
 
   return (

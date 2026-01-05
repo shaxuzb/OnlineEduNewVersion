@@ -1,33 +1,34 @@
-import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  InteractionManager,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import { useTheme } from "../../context/ThemeContext";
-import { Theme, SubjectStatistic } from "../../types";
-import { SPACING, FONT_SIZES, BORDER_RADIUS, COLORS } from "../../utils";
-import { useStatistics } from "../../hooks/useStatistics";
-import LoadingData from "@/src/components/exceptions/LoadingData";
 import ErrorData from "@/src/components/exceptions/ErrorData";
+import LoadingData from "@/src/components/exceptions/LoadingData";
+import { useTheme } from "@/src/context/ThemeContext";
+import { useCurrentUserId } from "@/src/hooks/useQuiz";
+import { useStatistics } from "@/src/hooks/useStatistics";
+import { SubjectStatistic, Theme } from "@/src/types";
+import { BORDER_RADIUS, FONT_SIZES, SPACING } from "@/src/utils";
+import { Ionicons } from "@expo/vector-icons";
+import React, { memo, useCallback, useEffect, useMemo } from "react";
+import {
+  InteractionManager,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import LinearGradient from "react-native-linear-gradient";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-function StatistikaScreen() {
-  const navigation = useNavigation();
+function StatistikaScreen({ navigation }: { navigation: any }) {
+  const userId = useCurrentUserId();
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const route = useRoute();
-  const { userId } = route.params as any;
-  const { data: statistics, isLoading, error, refetch } = useStatistics(userId);
-
-  const handleGoBack = () => {
-    navigation.goBack();
-  };
+  const {
+    data: statistics,
+    isLoading,
+    error,
+    refetch,
+  } = useStatistics(Number(userId));
 
   // Calculate overall progress
   const overallProgress = useMemo(() => {
@@ -48,35 +49,22 @@ function StatistikaScreen() {
   }, []);
 
   const handleRoutePress = useCallback((item: SubjectStatistic) => {
-    (navigation as any).navigate("StatistikaDetail", {
+    navigation.navigate("StatistikaDetail", {
       userId: userId,
       subjectId: item.subjectId,
       subjectName: item.subjectName,
       subjectPercent: item.percent,
     });
   }, []);
-  // Get color for subject based on percentage
   const getSubjectColor = useCallback((percentage: number) => {
     if (percentage >= 80) return theme.colors.success;
     if (percentage >= 60) return theme.colors.primary;
     if (percentage >= 40) return theme.colors.warning;
     return theme.colors.error;
   }, []);
-
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Statistika</Text>
-        <View style={styles.headerIndicator}>
-          <View style={styles.dotIndicator} />
-        </View>
-      </View>
-
-      {/* Content */}
+    <SafeAreaView style={styles.container} edges={[]}>
+      <StatusBar barStyle={"dark-content"} />
       {isLoading ? (
         <LoadingData />
       ) : error ? (
@@ -162,8 +150,8 @@ function StatistikaScreen() {
             <Text style={styles.sectionTitle}>Fanlar bo'yicha natijalar</Text>
 
             {statistics &&
-              Array.isArray(statistics) &&
-              statistics.length > 0 ? (
+            Array.isArray(statistics) &&
+            statistics.length > 0 ? (
               statistics.map((stat: SubjectStatistic, index: number) => (
                 <TouchableOpacity
                   key={stat.subjectId}
@@ -179,30 +167,33 @@ function StatistikaScreen() {
                   activeOpacity={0.7}
                 >
                   {/* Subject Icon */}
-                  <View
-                    style={[
-                      styles.subjectIcon,
-                      { backgroundColor: getSubjectColor(stat.percent) + "20" },
-                    ]}
+                  <LinearGradient
+                    colors={["#3a5ede1f", "#5e85e61f"]}
+                    start={{ x: 0.5, y: 1.0 }}
+                    end={{ x: 0.5, y: 0.0 }}
+                    style={styles.subjectIcon}
                   >
-                    <View
-                      style={[
-                        styles.subjectIconInner,
-                        { backgroundColor: getSubjectColor(stat.percent) },
-                      ]}
+                    <LinearGradient
+                      colors={["#3a5dde", "#5e84e6"]}
+                      start={{ x: 0.5, y: 1.0 }}
+                      end={{ x: 0.5, y: 0.0 }}
+                      style={[styles.subjectIconInner]}
                     >
                       <Text style={styles.subjectIconText}>
                         {stat.subjectName.charAt(0).toUpperCase()}
                       </Text>
-                    </View>
-                  </View>
+                    </LinearGradient>
+                  </LinearGradient>
 
                   <View style={styles.courseStatContent}>
                     <View style={styles.courseStatHeader}>
                       <Text style={styles.courseStatName}>
                         {stat.subjectName}
                       </Text>
-                      <View
+                      <LinearGradient
+                        colors={["#3a5ede16", "#5e85e615"]}
+                        start={{ x: 0.5, y: 1.0 }}
+                        end={{ x: 0.5, y: 0.0 }}
                         style={[
                           styles.percentageBadge,
                           {
@@ -212,14 +203,11 @@ function StatistikaScreen() {
                         ]}
                       >
                         <Text
-                          style={[
-                            styles.percentageText,
-                            { color: getSubjectColor(stat.percent) },
-                          ]}
+                          style={[styles.percentageText, { color: "#3a5dde" }]}
                         >
                           {stat.percent}%
                         </Text>
-                      </View>
+                      </LinearGradient>
                     </View>
 
                     <View style={styles.courseStatDetails}>

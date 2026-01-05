@@ -1,30 +1,38 @@
-import React, { useState, useRef, useMemo, useCallback } from "react";
+import { useTheme } from "@/src/context/ThemeContext";
+import { useChat, useSendMessage } from "@/src/hooks/useChat";
+import { useCurrentUserId } from "@/src/hooks/useQuiz";
+import { ChatMessage, MessageGroup, Theme } from "@/src/types";
+import { Ionicons } from "@expo/vector-icons";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  FlatList,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  Animated,
   ActivityIndicator,
+  Animated,
+  FlatList,
+  Platform,
+  Pressable,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import { useTheme } from "../../context/ThemeContext";
-import { ChatMessage, MessageGroup, Theme } from "../../types";
-import { useChat, useSendMessage } from "@/src/hooks/useChat";
-import { COLORS } from "@/src/utils";
-import MessageInput from "./components/MessageInput";
 import MessageHeaderItem from "./components/MessageHeaderItem";
+import MessageInput from "./components/MessageInput";
+import { COLORS } from "@/src/utils";
+import { lightColors } from "@/src/constants/theme";
+import {
+  KeyboardAvoidingView,
+  KeyboardProvider,
+} from "react-native-keyboard-controller";
 
-export default function ChatScreen() {
-  const navigation = useNavigation();
+export default function ChatScreen({ navigation }: { navigation: any }) {
   const { theme } = useTheme();
-  const route = useRoute();
-  const { userId } = route.params as any;
+  const userId = useCurrentUserId();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [message, setMessage] = useState("");
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -34,7 +42,7 @@ export default function ChatScreen() {
     setMessage(e);
   }, []);
   const mutation = useSendMessage();
-  const { data = [], isLoading, isFetching, refetch } = useChat(userId);
+  const { data = [], isLoading, isFetching, refetch } = useChat(Number(userId));
 
   // ✅ isRead so‘rov yuborish
   // const markAsRead = useCallback((id: number) => {
@@ -91,7 +99,7 @@ export default function ChatScreen() {
   const sendMessage = () => {
     if (!message.trim()) return;
     mutation.mutate(
-      { userId, text: message.trim(), attachmentUrl: "" },
+      { userId: Number(userId), text: message.trim(), attachmentUrl: "" },
       { onSuccess: () => setMessage("") }
     );
   };
@@ -106,84 +114,95 @@ export default function ChatScreen() {
     const isScrolledUp = contentOffset.y > 50;
     setShowScrollToBottom(isScrolledUp);
   }, []);
-
-  return (
-    <KeyboardAvoidingView
-      style={styles.chatContainer}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-    >
-      <SafeAreaView style={styles.container} edges={["bottom", "top"]}>
-        {/* Header */}
-
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={navigation.goBack}
-          >
-            <Ionicons name="chevron-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Chat</Text>
-          <TouchableOpacity
-            style={styles.headerRight}
-            onPress={() => refetch()}
-          >
-            <Ionicons name="reload" size={20} color="white" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Loading */}
-        {(isLoading || isFetching) && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-          </View>
-        )}
-
-        {/* Messages */}
-        <FlatList
-          ref={flatListRef}
-          data={messageGroups}
-          keyExtractor={(_, i) => `group-${i}`}
-          renderItem={({ item }) => (
-            <MessageHeaderItem
-              item={item}
-              styles={styles}
-              theme={theme}
-              userId={userId}
-            />
-          )}
-          style={styles.messagesList}
-          onScroll={handleScroll}
-          onContentSizeChange={() => {
-            flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+  useEffect(() => {
+    navigation.setOptions({
+      title: "Habarlar",
+      freezeOnBlur: true,
+      headerRight: () => (
+        <Pressable
+          android_ripple={{
+            foreground: true,
+            color: lightColors.ripple,
+            borderless: true,
+            radius: 30,
           }}
-          scrollEventThrottle={16}
-          showsVerticalScrollIndicator={false}
-          inverted
-        />
+          style={{
+            width: 40,
+            height: 40,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onPress={() => refetch()}
+        >
+          <Ionicons name="reload" size={20} color="white" />
+        </Pressable>
+      ),
+    });
+  }, [navigation]);
+  return (
+    <KeyboardProvider>
+      <KeyboardAvoidingView
+        style={styles.chatContainer}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={50}
+      >
+        <SafeAreaView style={styles.container} edges={["bottom"]}>
+          {/* Loading */}
+          {(isLoading || isFetching) && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+            </View>
+          )}
 
-        {/* Scroll to Bottom */}
-        {showScrollToBottom && (
-          <Animated.View style={styles.scrollToBottomContainer}>
-            <TouchableOpacity
-              activeOpacity={1}
-              style={styles.scrollToBottomButton}
-              onPress={scrollToBottom}
-            >
-              <Ionicons name="chevron-down" size={20} color="white" />
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-        {/* Input */}
-        <MessageInput
-          handleChangeInput={handleChangeInput}
-          message={message}
-          sendMessage={sendMessage}
-          styles={styles}
-          theme={theme}
-        />
-      </SafeAreaView>
-    </KeyboardAvoidingView>
+          {/* Messages */}
+          <FlatList
+            ref={flatListRef}
+            data={messageGroups}
+            keyExtractor={(_, i) => `group-${i}`}
+            renderItem={({ item }) => (
+              <MessageHeaderItem
+                item={item}
+                styles={styles}
+                theme={theme}
+                userId={userId}
+              />
+            )}
+            style={styles.messagesList}
+            onScroll={handleScroll}
+            onContentSizeChange={() => {
+              flatListRef.current?.scrollToOffset({
+                offset: 0,
+                animated: false,
+              });
+            }}
+            scrollEventThrottle={16}
+            showsVerticalScrollIndicator={false}
+            inverted
+          />
+
+          {/* Scroll to Bottom */}
+          {showScrollToBottom && (
+            <Animated.View style={styles.scrollToBottomContainer}>
+              <TouchableOpacity
+                activeOpacity={1}
+                style={styles.scrollToBottomButton}
+                onPress={scrollToBottom}
+              >
+                <Ionicons name="chevron-down" size={20} color="white" />
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+          {/* Input */}
+          <MessageInput
+            handleChangeInput={handleChangeInput}
+            message={message}
+            sendMessage={sendMessage}
+            styles={styles}
+            theme={theme}
+          />
+        </SafeAreaView>
+      </KeyboardAvoidingView>
+    </KeyboardProvider>
   );
 }
 
@@ -224,7 +243,7 @@ const createStyles = (theme: Theme) =>
       zIndex: 10,
       backgroundColor: "rgba(255, 255, 255, 0.06)",
     },
-    messagesList: { flex: 1, paddingHorizontal: 16 },
+    messagesList: { flex: 1, paddingHorizontal: 10 },
     dateHeader: { alignItems: "center", marginVertical: 12 },
     dateText: {
       backgroundColor: theme.colors.divider,
@@ -254,7 +273,7 @@ const createStyles = (theme: Theme) =>
     },
     messageText: { fontSize: 16, lineHeight: 20 },
     sentMessageText: { color: "white" },
-    receivedMessageText: { color: theme.colors.text },
+    receivedMessageText: { color: "white" },
     messageFooter: {
       flexDirection: "row",
       alignItems: "center",
@@ -263,10 +282,10 @@ const createStyles = (theme: Theme) =>
     },
     timeText: { fontSize: 11, marginRight: 4 },
     sentTimeText: { color: "rgba(255,255,255,0.7)" },
-    receivedTimeText: { color: theme.colors.textMuted },
+    receivedTimeText: { color: "rgba(255,255,255,0.7)" },
     scrollToBottomContainer: {
       position: "absolute",
-      bottom: 80,
+      bottom: 120,
       right: 16,
       zIndex: 1000,
     },

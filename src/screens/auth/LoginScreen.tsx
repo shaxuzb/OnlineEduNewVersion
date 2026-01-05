@@ -7,10 +7,9 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   Modal,
+  StatusBar,
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
@@ -19,6 +18,11 @@ import RegisterScreen from "./RegisterScreen";
 import ResetPasswordScreen from "./ResetPasswordScreen";
 import { Ionicons } from "@expo/vector-icons";
 import SupportModal from "./SupportModal";
+import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  KeyboardAwareScrollView,
+  KeyboardProvider,
+} from "react-native-keyboard-controller";
 const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -47,120 +51,134 @@ const LoginScreen: React.FC = () => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.content}>
-          {/* Logo Section */}
-          <View style={styles.logoContainer}>
-            <Text style={styles.logoText}>MATH</Text>
-            <Text style={styles.logoSubtext}>me</Text>
-          </View>
-          {/* Login Form */}
-          <View style={styles.formContainer}>
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Login</Text>
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="Telefon yoki foydalanuvchi nomini kiriting"
-                placeholderTextColor={theme.colors.placeholder}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoginLoading}
-              />
+    <KeyboardProvider>
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <KeyboardAwareScrollView
+          ScrollViewComponent={ScrollView}
+          style={{
+            flex: 1,
+          }}
+          contentContainerStyle={{
+            justifyContent: "center",
+            flex: 1,
+          }}
+        >
+          <StatusBar
+            barStyle={theme.isDark ? "light-content" : "dark-content"}
+            backgroundColor={theme.colors.background}
+          />
+          <ScrollView
+            contentContainerStyle={styles.scrollContainer}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.content}>
+              {/* Logo Section */}
+              <View style={styles.logoContainer}>
+                <Text style={styles.logoText}>MATH</Text>
+                <Text style={styles.logoSubtext}>me</Text>
+              </View>
+              {/* Login Form */}
+              <View style={styles.formContainer}>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Login</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="Telefon yoki foydalanuvchi nomini kiriting"
+                    placeholderTextColor={theme.colors.placeholder}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!isLoginLoading}
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Parol</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="Parol kiriting"
+                    placeholderTextColor={theme.colors.placeholder}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!isLoginLoading}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye" : "eye-off"}
+                      size={22}
+                      color={theme.colors.textMuted}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.loginButton,
+                    isLoginLoading && styles.loginButtonDisabled,
+                  ]}
+                  onPress={handleLogin}
+                  disabled={isLoginLoading}
+                >
+                  {isLoginLoading ? (
+                    <ActivityIndicator color="white" size="small" />
+                  ) : (
+                    <Text style={styles.loginButtonText}>Kirish</Text>
+                  )}
+                </TouchableOpacity>
+
+                {/* Forgot Password Link */}
+                <TouchableOpacity
+                  style={styles.forgotPasswordContainer}
+                  onPress={() => setShowResetPassword(true)}
+                >
+                  <Text style={styles.forgotPasswordText}>
+                    Parolni unutdingizmi?
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Register Link */}
+                <TouchableOpacity
+                  style={styles.registerContainer}
+                  onPress={() => setShowRegister(true)}
+                >
+                  <Text style={styles.registerText}>Ro'yxatdan o'tish</Text>
+                </TouchableOpacity>
+              </View>
             </View>
+          </ScrollView>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Parol</Text>
-              <TextInput
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Parol kiriting"
-                placeholderTextColor={theme.colors.placeholder}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoginLoading}
-              />
-              <TouchableOpacity
-                style={styles.eyeButton}
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                <Ionicons
-                  name={showPassword ? "eye" : "eye-off"}
-                  size={22}
-                  color={theme.colors.textMuted}
-                />
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={[
-                styles.loginButton,
-                isLoginLoading && styles.loginButtonDisabled,
-              ]}
-              onPress={handleLogin}
-              disabled={isLoginLoading}
-            >
-              {isLoginLoading ? (
-                <ActivityIndicator color="white" size="small" />
-              ) : (
-                <Text style={styles.loginButtonText}>Kirish</Text>
-              )}
-            </TouchableOpacity>
-
-            {/* Forgot Password Link */}
-            <TouchableOpacity
-              style={styles.forgotPasswordContainer}
-              onPress={() => setShowResetPassword(true)}
-            >
-              <Text style={styles.forgotPasswordText}>
-                Parolni unutdingizmi?
-              </Text>
-            </TouchableOpacity>
-
-            {/* Register Link */}
-            <TouchableOpacity
-              style={styles.registerContainer}
-              onPress={() => setShowRegister(true)}
-            >
-              <Text style={styles.registerText}>Ro'yxatdan o'tish</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* Register Modal */}
-      <SupportModal
-        visible={supportModal}
-        onClose={() => setSupportModal(false)}
-      />
-      <Modal
-        visible={showResetPassword}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={() => setShowResetPassword(false)}
-      >
-        <ResetPasswordScreen onClose={() => setShowResetPassword(false)} />
-      </Modal>
-      <Modal
-        visible={showRegister}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={() => setShowRegister(false)}
-      >
-        <RegisterScreen onClose={() => setShowRegister(false)} />
-      </Modal>
-    </KeyboardAvoidingView>
+          {/* Register Modal */}
+          <SupportModal
+            visible={supportModal}
+            onClose={() => setSupportModal(false)}
+          />
+          <Modal
+            visible={showResetPassword}
+            animationType="slide"
+            presentationStyle="fullScreen"
+            onRequestClose={() => setShowResetPassword(false)}
+          >
+            <ResetPasswordScreen onClose={() => setShowResetPassword(false)} />
+          </Modal>
+          <Modal
+            visible={showRegister}
+            animationType="slide"
+            presentationStyle="fullScreen"
+            onRequestClose={() => setShowRegister(false)}
+          >
+            <RegisterScreen onClose={() => setShowRegister(false)} />
+          </Modal>
+        </KeyboardAwareScrollView>
+      </SafeAreaView>
+    </KeyboardProvider>
   );
 };
 
@@ -171,7 +189,7 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.background,
     },
     scrollContainer: {
-      flexGrow: 1,
+      flex: 1,
       justifyContent: "center",
     },
     content: {

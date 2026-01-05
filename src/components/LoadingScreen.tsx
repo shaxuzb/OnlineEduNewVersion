@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,9 +6,13 @@ import {
   StyleSheet,
   StatusBar,
   Animated,
-} from 'react-native';
-import * as SplashScreen from 'expo-splash-screen';
-
+  Dimensions,
+} from "react-native";
+import * as SplashScreen from "expo-splash-screen";
+import Logo from "@/src/assets/icons/logo/logo.svg";
+import { moderateScale } from "react-native-size-matters";
+import LinearGradient from "react-native-linear-gradient";
+const { width } = Dimensions.get("window");
 const LoadingScreen: React.FC = () => {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.8));
@@ -34,12 +38,16 @@ const LoadingScreen: React.FC = () => {
       }),
     ]).start();
   }, []);
-
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#3b82f6" />
-      
-      <Animated.View 
+    <LinearGradient
+      colors={["#3a5dde", "#5e84e6"]}
+      start={{ x: 0.5, y: 1.0 }}
+      end={{ x: 0.5, y: 0.0 }}
+      style={styles.container}
+    >
+      <StatusBar barStyle="light-content" backgroundColor="transparent" />
+
+      <Animated.View
         style={[
           styles.logoContainer,
           {
@@ -48,54 +56,47 @@ const LoadingScreen: React.FC = () => {
           },
         ]}
       >
-        <Text style={styles.logoText}>MATH</Text>
-        <Text style={styles.logoSubtext}>me</Text>
+        <Logo width={width} />
       </Animated.View>
 
-      <Animated.View 
-        style={[
-          styles.loadingContainer,
-          { opacity: fadeAnim },
-        ]}
-      >
+      <Animated.View style={[styles.loadingContainer, { opacity: fadeAnim }]}>
         <ActivityIndicator size="large" color="#ffffff" style={styles.loader} />
         <Text style={styles.loadingText}>Tekshirilmoqda...</Text>
       </Animated.View>
-    </View>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#3b82f6',
+    justifyContent: "center",
+    alignItems: "center",
   },
   logoContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 80,
   },
   logoText: {
     fontSize: 64,
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontWeight: "bold",
+    color: "#ffffff",
     letterSpacing: -2,
-    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowColor: "rgba(0, 0, 0, 0.1)",
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
   logoSubtext: {
     fontSize: 32,
-    fontWeight: '300',
-    color: '#ffffff',
+    fontWeight: "300",
+    color: "#ffffff",
     marginTop: -12,
-    fontStyle: 'italic',
+    fontStyle: "italic",
     opacity: 0.9,
   },
   loadingContainer: {
-    alignItems: 'center',
-    position: 'absolute',
+    alignItems: "center",
+    position: "absolute",
     bottom: 100,
     left: 0,
     right: 0,
@@ -104,9 +105,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   loadingText: {
-    fontSize: 16,
-    color: '#ffffff',
-    fontWeight: '400',
+    fontSize: moderateScale(18),
+    color: "#ffffff",
+    fontWeight: "500",
     opacity: 0.8,
   },
 });

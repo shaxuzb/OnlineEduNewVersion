@@ -1,41 +1,43 @@
+import EmptyData from "@/src/components/exceptions/EmptyData";
+import ErrorData from "@/src/components/exceptions/ErrorData";
+import LoadingData from "@/src/components/exceptions/LoadingData";
+import { useTheme } from "@/src/context/ThemeContext";
+import { useThemes } from "@/src/hooks/useThemes";
+import { ChapterTheme, Theme } from "@/src/types";
+import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
-  ScrollView,
-  View,
+  SectionList,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import { useTheme } from "../../context/ThemeContext";
-import { ChapterTheme, RootStackParamList, Theme } from "../../types";
-import { useThemes } from "../../hooks/useThemes";
-import LoadingData from "@/src/components/exceptions/LoadingData";
-import ErrorData from "@/src/components/exceptions/ErrorData";
 import PurchaseModal from "../purchases/components/PurchaseModal";
+import PageCard from "@/src/components/ui/cards/PageCard";
+import { moderateScale } from "react-native-size-matters";
 
-export default function SubjectScreen() {
-  const navigation = useNavigation();
-  const route = useRoute<any>();
+export default function SubjectScreen({
+  navigation,
+  route,
+}: {
+  navigation: any;
+  route: any;
+}) {
   const { theme } = useTheme();
   const [visible, setVisible] = useState(false);
   const styles = createStyles(theme);
 
-  const { subjectId, subjectName } =
-    route.params as RootStackParamList["SubjectScreen"];
+  const { subjectId, subjectName, percent } = route.params;
 
-  const { data, isLoading, isError, refetch } = useThemes(subjectId);
-
-  const handleGoBack = () => {
-    navigation.goBack();
-  };
+  const { data, isLoading, isError, refetch } = useThemes(Number(subjectId));
 
   const handleThemePress = (chapterTheme: ChapterTheme) => {
     if (chapterTheme.hasAccess) {
-      (navigation as any).navigate("LessonDetail", {
+      navigation.navigate("LessonDetail", {
         themeId: chapterTheme.id,
+        percent: chapterTheme.percent,
         themeOrdinalNumber: chapterTheme.ordinalNumber,
         themeName: chapterTheme.name,
       });
@@ -44,7 +46,7 @@ export default function SubjectScreen() {
     }
   };
   const handlePurchase = () => {
-    (navigation as any).navigate("PurchaseGroup", {
+    navigation.navigate("PurchaseGroup", {
       screen: "PurchaseSubjectTheme",
       params: {
         subjectId: subjectId,
@@ -53,85 +55,106 @@ export default function SubjectScreen() {
     });
     setVisible(false);
   };
-  return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{subjectName}</Text>
-        <TouchableOpacity style={styles.profileBtn}>
-          <Ionicons name="person" size={24} color="white" />
-        </TouchableOpacity>
-      </View>
-      {isLoading ? (
-        <LoadingData />
-      ) : isError ? (
-        <ErrorData refetch={refetch} />
-      ) : data && data.results.length > 0 ? (
-        <ScrollView style={styles.content}>
-          {data?.results.map((chapter) => (
-            <View key={chapter.id}>
-              {/* Chapter Title */}
-              <Text style={styles.chapterSectionTitle}>
-                {chapter.ordinalNumber}-bob. {chapter.name}
-              </Text>
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: true,
+      title: subjectName.toString(),
+      freezeOnBlur: true,
 
-              {/* Chapter Themes */}
-              {chapter.themes.map((chapterTheme) => (
-                <TouchableOpacity
-                  key={chapterTheme.id}
-                  style={[
-                    styles.themeCard,
-                    !chapterTheme.hasAccess && styles.lockedThemeCard,
-                  ]}
-                  activeOpacity={0.8}
-                  onPress={() => handleThemePress(chapterTheme)}
-                >
-                  <View style={styles.themeLeft}>
-                    <View style={styles.lockIconContainer}>
-                      <Ionicons
-                        name={
-                          chapterTheme.hasAccess ? "lock-closed" : "lock-open"
-                        }
-                        size={16}
-                        color={
-                          !chapterTheme.hasAccess
-                            ? theme.colors.textMuted
-                            : theme.colors.success
-                        }
-                      />
-                    </View>
-                    <View style={styles.themeInfo}>
-                      <Text style={styles.themeNumber}>
-                        {chapterTheme.ordinalNumber}-mavzu:
-                      </Text>
-                      <Text
-                        style={[
-                          styles.themeName,
-                          !chapterTheme.hasAccess && styles.lockedThemeName,
-                        ]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        {chapterTheme.name}
-                      </Text>
-                    </View>
+      headerRight: () => (
+        <Text
+          style={{
+            color: "white",
+            fontSize: moderateScale(16),
+            fontWeight: "500",
+          }}
+        >
+          {percent}%
+        </Text>
+      ),
+    });
+  }, [navigation]);
+
+  return (
+    <SafeAreaView style={styles.container} edges={[]}>
+      <PageCard>
+        {isLoading ? (
+          <LoadingData />
+        ) : isError ? (
+          <ErrorData refetch={refetch} />
+        ) : data && data.results.length > 0 ? (
+          <SectionList
+            sections={
+              data?.results?.map((chapter) => ({
+                title: `${chapter.ordinalNumber}-bob. ${chapter.name}`,
+                data: chapter.themes,
+              })) ?? []
+            }
+            keyExtractor={(item, index) => item.id.toString() + index}
+            renderSectionHeader={({ section: { title } }) => (
+              <Text style={styles.chapterSectionTitle}>{title}</Text>
+            )}
+            renderItem={({ item: chapterTheme }) => (
+              <TouchableOpacity
+                key={chapterTheme.id}
+                style={[
+                  styles.themeCard,
+                  !chapterTheme.hasAccess && styles.lockedThemeCard,
+                ]}
+                activeOpacity={0.8}
+                onPress={() => handleThemePress(chapterTheme)}
+              >
+                <View style={styles.themeLeft}>
+                  <View style={styles.lockIconContainer}>
+                    <Ionicons
+                      name={
+                        chapterTheme.hasAccess ? "lock-closed" : "lock-open"
+                      }
+                      size={moderateScale(16)}
+                      color={
+                        !chapterTheme.hasAccess
+                          ? theme.colors.textMuted
+                          : theme.colors.success
+                      }
+                    />
                   </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ))}
-        </ScrollView>
-      ) : (
-        "Topilmadi"
-      )}
-      <PurchaseModal
-        visible={visible}
-        onClose={() => setVisible(false)}
-        onPurchase={handlePurchase}
-      />
+                  <View style={styles.themeInfo}>
+                    <Text style={styles.themeNumber}>
+                      {chapterTheme.ordinalNumber}-mavzu:
+                    </Text>
+                    <Text
+                      style={[
+                        styles.themeName,
+                        !chapterTheme.hasAccess && styles.lockedThemeName,
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {chapterTheme.name}
+                    </Text>
+                  </View>
+                  <View>
+                    <Text style={styles.loadingText}>
+                      {chapterTheme.percent}%
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            )}
+            initialNumToRender={10}
+            maxToRenderPerBatch={20}
+            windowSize={2}
+            scrollEnabled
+            contentContainerStyle={styles.content}
+          />
+        ) : (
+          <EmptyData />
+        )}
+        <PurchaseModal
+          visible={visible}
+          onClose={() => setVisible(false)}
+          onPurchase={handlePurchase}
+        />
+      </PageCard>
     </SafeAreaView>
   );
 }
@@ -140,7 +163,6 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background,
     },
     header: {
       flexDirection: "row",
@@ -163,7 +185,6 @@ const createStyles = (theme: Theme) =>
       borderRadius: 50,
     },
     content: {
-      flex: 1,
       paddingHorizontal: 16,
       paddingTop: 5,
     },
@@ -174,6 +195,7 @@ const createStyles = (theme: Theme) =>
     },
     loadingText: {
       marginTop: 12,
+      fontSize: moderateScale(12),
       color: theme.colors.textSecondary,
     },
     errorText: {
@@ -250,9 +272,9 @@ const createStyles = (theme: Theme) =>
     },
     themeCard: {
       backgroundColor: theme.colors.card,
-      borderRadius: 12,
-      padding: 16,
-      marginBottom: 12,
+      borderRadius: moderateScale(12),
+      padding: moderateScale(16),
+      marginBottom: moderateScale(12),
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
@@ -275,7 +297,7 @@ const createStyles = (theme: Theme) =>
       marginRight: 12,
     },
     themeNumber: {
-      fontSize: 14,
+      fontSize: moderateScale(14),
       color: theme.colors.textSecondary,
       marginBottom: 4,
     },
@@ -283,15 +305,16 @@ const createStyles = (theme: Theme) =>
       flex: 1,
     },
     themeName: {
-      fontSize: 16,
+      fontSize: moderateScale(16),
       color: theme.colors.text,
       lineHeight: 20,
+      flexShrink: 1,
     },
     lockedThemeName: {
       color: theme.colors.textMuted,
     },
     chapterSectionTitle: {
-      fontSize: 18,
+      fontSize: moderateScale(18),
       fontWeight: "bold",
       color: theme.colors.text,
       marginBottom: 12,

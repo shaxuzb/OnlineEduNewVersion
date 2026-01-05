@@ -1,347 +1,516 @@
-import React, { useCallback, useEffect } from "react";
+import EmptyData from "@/src/components/exceptions/EmptyData";
+import ErrorData from "@/src/components/exceptions/ErrorData";
+import Skeleton from "@/src/components/Skeleton";
+import { lightColors } from "@/src/constants/theme";
+import Logo from "@/src/assets/icons/logo/logo.svg";
+import { useTheme } from "@/src/context/ThemeContext";
+import { useCurrentUserId } from "@/src/hooks/useQuiz";
+import { useStatistics } from "@/src/hooks/useStatistics";
+import { AuthToken, SubjectStatistic, Theme } from "@/src/types";
+import { Ionicons, FontAwesome } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import * as SecureStore from "expo-secure-store";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { moderateScale, ScaledSheet } from "react-native-size-matters";
 import {
+  Alert,
+  Image,
+  InteractionManager,
+  Pressable,
+  RefreshControl,
   ScrollView,
-  View,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  Alert,
-  InteractionManager,
+  View,
 } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import { useTheme } from "../../context/ThemeContext";
-import { Theme, Subject, AuthToken } from "../../types";
-import { useSubjects } from "../../hooks/useSubjects";
-import { Skeleton } from "../../components/Skeleton";
-import * as SecureStore from "expo-secure-store";
-import ErrorData from "@/src/components/exceptions/ErrorData";
-import EmptyData from "@/src/components/exceptions/EmptyData";
-import useDoubleBackExit from "@/src/hooks/useDoubleBackExit";
-
-export default function HomeScreen() {
-  useDoubleBackExit();
+const HomeScreen: React.FC = () => {
   const navigation = useNavigation();
-  const { theme } = useTheme();
-  const styles = createStyles(theme);
-  const userData = JSON.parse(
-    String(SecureStore.getItem("session"))
-  ) as AuthToken | null;
-  const { data: subjects, isLoading, error, refetch } = useSubjects();
+  const { theme, themeMode } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const userId = useCurrentUserId();
+  const {
+    data: subjects,
+    isLoading,
+    isFetching,
+    isError,
+    refetch,
+  } = useStatistics(Number(userId));
+  const [userData, setUserData] = useState<AuthToken | null>(null);
+  // const { data: subjects, isLoading, error, refetch } = useSubjects();
 
-  const handleSubjectPress = (subject: Subject) => {
-    (navigation as any).navigate("SubjectScreen", {
-      subjectId: subject.id,
-      subjectName: subject.name,
-    });
-  };
+  // ✅ Fetch user session once
   useEffect(() => {
-    const task = InteractionManager.runAfterInteractions(() => {
-      refetch();
-    });
+    (async () => {
+      const session = await SecureStore.getItemAsync("session");
+      if (session) setUserData(JSON.parse(session));
+    })();
+  }, []);
+
+  // ✅ Trigger refetch after UI idle
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => refetch());
     return () => task.cancel();
-  }, []);
-  if (error) {
-    console.log(error);
+  }, [refetch]);
 
-    Alert.alert("Xatolik", "Ma'lumotlarni yuklashda xatolik yuz berdi.");
-  }
-
-  // Get icon for subject
-  const getSubjectIcon = useCallback((name: string) => {
-    switch (name) {
-      case "Algebra":
-        return <Ionicons name="add" size={24} color="white" />;
-      case "Geometriya":
-        return <Ionicons name="triangle" size={24} color="white" />;
-      case "Milliy Sertifikat":
-        return <Text style={styles.iconText}>A+</Text>;
-      case "Olimpiadaga kirish":
-        return <Text style={styles.iconText}>Σ</Text>;
-      default:
-        return <Ionicons name="book" size={24} color="white" />;
+  // ✅ Show error only once
+  useEffect(() => {
+    if (isError) {
+      Alert.alert("Xatolik", "Ma'lumotlarni yuklashda xatolik yuz berdi.");
     }
-  }, []);
+  }, [isError]);
 
+  const overallProgress = useMemo(() => {
+    if (!subjects || !Array.isArray(subjects) || subjects.length === 0)
+      return 0;
+
+    const totalPercent = subjects.reduce(
+      (sum: number, stat: SubjectStatistic) => sum + stat.percent,
+      0
+    );
+    return Math.round(totalPercent / subjects.length);
+  }, [subjects]);
+  const handleSubjectPress = useCallback(
+    (subject: SubjectStatistic) => {
+      (navigation as any).navigate("SubjectScreen", {
+        subjectId: subject.subjectId,
+        percent: subject.percent,
+        subjectName: subject.subjectName,
+      });
+    },
+    [navigation]
+  );
+
+  const getSubjectIcon = useCallback(
+    (name: string) => {
+      switch (name) {
+        case "Algebra":
+          return (
+            <Image
+              resizeMode="contain"
+              style={{ flex: 1, resizeMode: "contain" }}
+              source={require("@/src/assets/icons/subjects/algebra.png")}
+            />
+          );
+        case "Geometriya":
+          return (
+            <Image
+              resizeMode="contain"
+              style={{ flex: 1, resizeMode: "contain" }}
+              source={require("@/src/assets/icons/subjects/geometry.png")}
+            />
+          );
+        case "Milliy Sertifikat":
+          return (
+            <Image
+              resizeMode="contain"
+              style={{ flex: 1, resizeMode: "contain" }}
+              source={require("@/src/assets/icons/subjects/milliysertificat.png")}
+            />
+          );
+        case "Maktab Dasturi":
+          return (
+            <Image
+              resizeMode="contain"
+              style={{ flex: 1, resizeMode: "contain" }}
+              source={require("@/src/assets/icons/subjects/bolalar.png")}
+            />
+          );
+        default:
+          return (
+            <Image
+              resizeMode="contain"
+              style={{ flex: 1, resizeMode: "contain" }}
+              source={require("@/src/assets/icons/subjects/bolalar.png")}
+            />
+          );
+      }
+    },
+    [styles.iconText]
+  );
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.profileBtn}
-          onPress={() => {
-            if (userData && userData.user.id) {
-              (navigation as any).navigate("Statistika", {
-                userId: userData.user.id,
-              });
-            } else {
-              Alert.alert("Warning", "Iltimos ro'yhatdan o'ting");
-            }
-          }}
-        >
-          <Ionicons name="bar-chart" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Kurslar</Text>
-        <TouchableOpacity
-          style={styles.profileBtn}
-          onPress={() => {
-            if (userData && userData.user.id) {
-              (navigation as any).navigate("Chat", {
-                userId: userData.user.id,
-              });
-            } else {
-              Alert.alert("Warning", "Iltimos ro'yhatdan o'ting");
-            }
-          }}
-        >
-          <Ionicons name="chatbox" size={24} color="white" />
-        </TouchableOpacity>
-      </View>
-      <ScrollView>
-        {/* Header */}
-
-        {/* Greeting */}
-        <View style={styles.greetingSection}>
-          <Text style={styles.greeting} onPress={() => refetch()}>
-            Salom, {userData?.user?.fullName}!
-          </Text>
-        </View>
-
-        {/* Categories */}
-        <View style={styles.section}>
-          {isLoading ? (
-            <>
-              <Skeleton height={64} radius={12} />
-              <Skeleton height={64} radius={12} />
-              <Skeleton height={64} radius={12} />
-              <Skeleton height={64} radius={12} />
-            </>
-          ) : error ? (
-            <ErrorData refetch={refetch} />
-          ) : subjects?.results ? (
-            subjects?.results?.map((s) => (
-              <TouchableOpacity
-                key={s.id}
-                style={styles.categoryItem}
-                onPress={() => handleSubjectPress(s)}
-              >
-                <View style={styles.categoryIconContainer}>
-                  {getSubjectIcon(s.name)}
-                </View>
-                <Text style={styles.categoryLabel}>{s.name}</Text>
-              </TouchableOpacity>
-            ))
-          ) : (
-            <EmptyData />
-          )}
-        </View>
-
-        {/* Video Lessons */}
-        {/* <View style={styles.section}>
-          <TouchableOpacity style={styles.videoButton}>
-            <View style={styles.videoIconContainer}>
-              <Ionicons name="play" size={24} color="white" />
-            </View>
-            <Text style={styles.videoButtonText}>Video qo'llanma</Text>
-          </TouchableOpacity>
-        </View> */}
-      </ScrollView>
-      <TouchableOpacity
-        style={styles.linkButton}
-        onPress={() =>
-          (navigation as any).navigate("PurchaseGroup", {
-            screen: "PurchaseSubject",
-          })
+    <SafeAreaView style={styles.container} edges={[]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading || isFetching}
+            onRefresh={refetch}
+          />
         }
       >
-        <Text style={styles.linkText}>Kurslarni sotib olish</Text>
-      </TouchableOpacity>
+        <View style={{ flex: 1, backgroundColor: "#3a5dde" }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              paddingHorizontal: 10,
+              paddingTop: 30,
+            }}
+          >
+            <Pressable
+              android_ripple={{
+                foreground: true,
+                color: lightColors.ripple,
+                borderless: true,
+                radius: 22,
+              }}
+              style={{
+                width: 40,
+                height: 40,
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: 10,
+              }}
+              onPress={() => (navigation as any).navigate("Profile")}
+            >
+              <FontAwesome name="user-circle" size={34} color="white" />
+            </Pressable>
+            <Logo width={150} />
+            <Pressable
+              android_ripple={{
+                foreground: true,
+                color: lightColors.ripple,
+                borderless: true,
+                radius: 22,
+              }}
+              style={{
+                width: 40,
+                height: 40,
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: 10,
+              }}
+              onPress={() => (navigation as any).navigate("News")}
+            >
+              <Ionicons name="notifications-outline" size={34} color="white" />
+            </Pressable>
+          </View>
+          {isError ? null : (
+            <View
+              style={{
+                padding: 20,
+                flexDirection: "row",
+                alignItems: "center",
+              }}
+            >
+              <View style={{ gap: 5, minWidth: "40%" }}>
+                {isLoading || isFetching
+                  ? [...Array(4)].map((_, i) => (
+                      <View
+                        key={i}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Skeleton
+                          width={moderateScale(40)}
+                          height={moderateScale(40)}
+                          radius={moderateScale(150)}
+                          colorMode={themeMode}
+                        />
+                        <Skeleton
+                          width={moderateScale(15)}
+                          height={moderateScale(2)}
+                          radius={moderateScale(150)}
+                          colorMode={themeMode}
+                        />
+                        <View style={{ flexGrow: 1 }}>
+                          <Skeleton
+                            height={moderateScale(25)}
+                            radius={moderateScale(40)}
+                            style={{}}
+                            colorMode={themeMode}
+                          />
+                        </View>
+                      </View>
+                    ))
+                  : subjects?.map((s) => (
+                      <View
+                        key={s.subjectId}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                        }}
+                      >
+                        <LinearGradient
+                          colors={["#718ff9ff", "#ffffffff"]}
+                          start={{ x: 0.5, y: 1.0 }}
+                          style={{
+                            width: moderateScale(40),
+                            height: moderateScale(40),
+                            padding: moderateScale(1),
+                            borderRadius: moderateScale(150),
+                          }}
+                          end={{ x: 0.5, y: 0.0 }}
+                        >
+                          <View
+                            style={{
+                              borderRadius: moderateScale(150),
+                              width: "100%",
+                              height: "100%",
+                              backgroundColor: "#3a5dde",
+                              justifyContent: "center",
+                              alignItems: "center",
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: "white",
+                                fontSize: moderateScale(12),
+                                flexWrap: "nowrap",
+                              }}
+                            >
+                              {s.percent.toFixed(1)}%
+                            </Text>
+                          </View>
+                        </LinearGradient>
+                        <View
+                          style={{
+                            width: moderateScale(15),
+                            height: moderateScale(1),
+                            backgroundColor: "white",
+                          }}
+                        />
+                        <LinearGradient
+                          colors={["#718ff9ff", "#ffffffff"]}
+                          start={{ x: 0.5, y: 1.0 }}
+                          style={{
+                            flexGrow: 1,
+                            padding: moderateScale(1),
+                            borderRadius: moderateScale(40),
+                          }}
+                          end={{ x: 0.5, y: 0.0 }}
+                        >
+                          <View
+                            style={{
+                              paddingVertical: moderateScale(2),
+                              paddingHorizontal: moderateScale(16),
+                              backgroundColor: "#3a5dde",
+                              borderRadius: moderateScale(40),
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: moderateScale(15),
+                                lineHeight: moderateScale(18),
+                                color: "white",
+                                fontWeight: "500",
+                              }}
+                            >
+                              {s.subjectName}
+                            </Text>
+                          </View>
+                        </LinearGradient>
+                      </View>
+                    ))}
+              </View>
+              <View
+                style={{
+                  paddingLeft: moderateScale(20),
+                  paddingRight: moderateScale(20),
+                  flexGrow: 1,
+                }}
+              >
+                {isLoading || isFetching ? (
+                  <Skeleton
+                    radius={moderateScale(150)}
+                    style={{
+                      aspectRatio: 1 / 1,
+                      flexGrow: 1,
+                    }}
+                    colorMode={themeMode}
+                  />
+                ) : (
+                  <LinearGradient
+                    colors={["#718ff9ff", "#ffffffff"]}
+                    start={{ x: 0.5, y: 1.0 }}
+                    style={{
+                      padding: moderateScale(4),
+                      borderRadius: moderateScale(150),
+                    }}
+                    end={{ x: 0.5, y: 0.0 }}
+                  >
+                    <View
+                      style={{
+                        backgroundColor: "#3a5dde",
+                        borderRadius: moderateScale(150),
+                        aspectRatio: 1 / 1,
+
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: "white",
+                          fontSize: moderateScale(42),
+                          fontWeight: "700",
+                        }}
+                      >
+                        {overallProgress}%
+                      </Text>
+                    </View>
+                  </LinearGradient>
+                )}
+              </View>
+            </View>
+          )}
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: theme.colors.background,
+              borderTopEndRadius: moderateScale(20),
+              borderTopStartRadius: moderateScale(20),
+            }}
+          >
+            <View style={styles.greetingSection}>
+              <Text
+                style={styles.greeting}
+                // onPress={() => {
+                //   (navigation as any).navigate("QuizSolution", {
+                //     userId: 19,
+                //     testId: 36,
+                //     themeId: 23,
+                //     mavzu: "test",
+                //   });
+                // }}
+              >
+                {/* Salom, {userData?.user?.fullName || "mehmon"}! */}
+                Kurslar
+              </Text>
+            </View>
+
+            <View style={styles.section}>
+              {isLoading || isFetching ? (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    flexWrap: "wrap",
+                    width: "100%",
+                    padding: 10,
+                  }}
+                >
+                  {[...Array(4)].map((_, i) => (
+                    <View style={{ width: "50%", padding: 10 }} key={i}>
+                      <Skeleton
+                        height={175}
+                        radius={12}
+                        colorMode={themeMode}
+                      />
+                    </View>
+                  ))}
+                </View>
+              ) : isError ? (
+                <ErrorData refetch={refetch} />
+              ) : subjects?.length ? (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    flexWrap: "wrap",
+                    width: "100%",
+                    padding: 10,
+                  }}
+                >
+                  {subjects.map((s, index) => (
+                    <View
+                      style={{
+                        width: "50%",
+                        padding: 10,
+                        overflow: "hidden",
+                      }}
+                      key={index}
+                    >
+                      <TouchableOpacity
+                        key={s.subjectId + index}
+                        onPress={() => handleSubjectPress(s)}
+                        activeOpacity={0.8}
+                        style={{
+                          zIndex: 11,
+                        }}
+                      >
+                        <LinearGradient
+                          colors={["#3055ddff", "#5e84e6"]}
+                          start={{ x: 0.5, y: 1.0 }}
+                          style={styles.categoryItem}
+                          end={{ x: 0.5, y: 0.0 }}
+                        >
+                          <View style={[styles.categoryIconContainer]}>
+                            {getSubjectIcon(s.subjectName)}
+                          </View>
+                          <Text style={styles.categoryLabel}>
+                            {s.subjectName}
+                          </Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <EmptyData />
+              )}
+            </View>
+          </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
-}
+};
 
+export default React.memo(HomeScreen);
 const createStyles = (theme: Theme) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    header: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      backgroundColor: theme.colors.primary,
-      padding: 20,
-      paddingVertical: 20,
-      paddingTop: 16,
-    },
-    headerTitle: {
-      fontSize: 20,
-      fontWeight: "bold",
-      color: "white",
-    },
-    profileBtn: {
-      borderRadius: 50,
-    },
+  ScaledSheet.create({
+    container: { flex: 1, backgroundColor: theme.colors.background },
     greetingSection: {
       paddingHorizontal: 20,
+      paddingTop: 12,
       paddingVertical: 24,
+      paddingBottom: 0,
     },
     greeting: {
-      fontSize: 36,
+      fontSize: moderateScale(26),
       fontWeight: "bold",
       color: theme.colors.text,
     },
-    section: {
-      paddingHorizontal: 16,
-      gap: 14,
-      marginTop: 24,
-      marginBottom: 24,
-    },
-    sectionTitle: {
-      fontSize: 20,
-      fontWeight: "bold",
-      color: theme.colors.text,
-      marginBottom: 16,
-    },
-    sectionHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 16,
-    },
-    seeAllText: {
-      color: theme.colors.primary,
-      fontWeight: "500",
-    },
-    categoriesRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-    },
-    categoryCard: {
-      flex: 1,
-      padding: 16,
-      borderRadius: 12,
-      alignItems: "center",
-      marginHorizontal: 4,
-    },
-    categoryText: {
-      color: "white",
-      fontSize: 14,
-      fontWeight: "500",
-      marginTop: 8,
-    },
-    courseCard: {
-      backgroundColor: theme.colors.card,
-      borderRadius: 12,
-      padding: 16,
-      shadowColor: theme.colors.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
-    },
-    courseImage: {
-      height: 120,
-      backgroundColor: theme.colors.primary,
-      borderRadius: 8,
-      marginBottom: 12,
-    },
-    courseInfo: {
-      flex: 1,
-    },
-    courseTitle: {
-      fontSize: 18,
-      fontWeight: "bold",
-      color: theme.colors.text,
-      marginBottom: 4,
-    },
-    courseInstructor: {
-      fontSize: 14,
-      color: theme.colors.textSecondary,
-      marginBottom: 8,
-    },
-    courseStats: {
-      flexDirection: "row",
-      alignItems: "center",
-    },
-    rating: {
-      marginLeft: 4,
-      marginRight: 16,
-      color: theme.colors.text,
-    },
-    students: {
-      color: theme.colors.textSecondary,
-      fontSize: 14,
-    },
-    categoriesGrid: {
-      flexDirection: "row",
-      justifyContent: "space-around",
-      marginBottom: 16,
-    },
+    section: { marginVertical: 0 },
     categoryItem: {
+      flexDirection: "column",
       alignItems: "center",
-      position: "relative",
-      flexDirection: "row",
-      flex: 1,
       backgroundColor: theme.colors.card,
-      padding: 16,
-      borderRadius: 12,
-      shadowColor: theme.colors.shadow,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.1,
-      shadowRadius: 2,
-      elevation: 2,
+      padding: moderateScale(10),
+      paddingHorizontal: moderateScale(5),
+      aspectRatio: 1,
+      borderRadius: moderateScale(12),
     },
     categoryIconContainer: {
-      width: 48,
-      height: 48,
-      borderRadius: 12,
+      position: "relative",
+      borderRadius: moderateScale(12),
+      padding: moderateScale(15),
+      flexShrink: 1,
       justifyContent: "center",
       alignItems: "center",
-      backgroundColor: theme.colors.primary,
     },
     iconText: {
-      color: "white",
-      fontSize: 18,
+      color: "#fff",
+      fontSize: moderateScale(80),
       fontWeight: "bold",
     },
     categoryLabel: {
-      fontSize: 20,
+      fontSize: moderateScale(22),
       flexGrow: 1,
-      color: theme.colors.text,
-      textAlign: "center",
-    },
-    pointingIcon: {
-      position: "absolute",
-      top: -5,
-      right: -5,
-    },
-    videoButton: {
-      backgroundColor: theme.colors.primary,
-      flexDirection: "row",
-      alignItems: "center",
-      padding: 16,
-      borderRadius: 12,
-      marginBottom: 12,
-    },
-    videoIconContainer: {
-      backgroundColor: "rgba(255, 255, 255, 0.2)",
-      padding: 8,
-      borderRadius: 50,
-      marginRight: 12,
-    },
-    videoButtonText: {
       color: "white",
+      fontWeight: "500",
       textAlign: "center",
-      flexGrow: 1,
-      fontSize: 20,
-      fontWeight: "600",
     },
-    linkButton: {
-      alignItems: "center",
-      paddingVertical: 10,
-    },
+    linkButton: { alignItems: "center", paddingVertical: 10 },
     linkText: {
       color: theme.colors.primary,
       fontSize: 16,

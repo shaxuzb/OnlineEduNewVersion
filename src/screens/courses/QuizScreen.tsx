@@ -4,10 +4,9 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
-  SectionList,
+  FlatList,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -21,10 +20,13 @@ import { useTheme } from "@/src/context/ThemeContext";
 import {
   useCurrentUserId,
   useSubmitTestResults,
-  useTestPdf,
   useThemeTest,
 } from "@/src/hooks/useQuiz";
-import { QuizAnswer, Theme } from "@/src/types";
+import { AnswerKey, QuizAnswer, Theme } from "@/src/types";
+import { CustomStyledCard } from "@/src/components/ui/cards/CustomStyledCard";
+import { moderateScale, verticalScale } from "react-native-size-matters";
+import { scale } from "react-native-size-matters";
+import { ScaledSheet } from "react-native-size-matters";
 
 const { width } = Dimensions.get("window");
 
@@ -36,30 +38,17 @@ interface LocalQuizAnswer {
 }
 
 // Memoized komponentlar
-const HeaderTitle = React.memo(
-  ({ title, subtitle }: { title: string; subtitle: string }) => (
-    <View style={headerTitleStyles.container}>
-      <Text style={headerTitleStyles.title}>{title}</Text>
-      <Text style={headerTitleStyles.subtitle}>{subtitle}</Text>
-    </View>
-  )
-);
+const HeaderTitle = React.memo(({ title }: { title: string }) => (
+  <View style={headerTitleStyles.container}>
+    <Text style={headerTitleStyles.title}>{title}</Text>
+  </View>
+));
 
-const HeaderRight = React.memo(
-  ({
-    currentQuestion,
-    totalQuestions,
-  }: {
-    currentQuestion: number;
-    totalQuestions: number;
-  }) => (
-    <View style={headerRightStyles.container}>
-      <Text style={headerRightStyles.text}>
-        {currentQuestion}/{totalQuestions}
-      </Text>
-    </View>
-  )
-);
+const HeaderRight = React.memo(({ percent }: { percent: number }) => (
+  <View style={headerRightStyles.container}>
+    <Text style={headerRightStyles.text}>{percent}</Text>
+  </View>
+));
 
 const LoadingState = React.memo(() => (
   <SafeAreaView style={loadingStyles.container}>
@@ -112,7 +101,7 @@ const PdfViewer = React.memo(
     return (
       <Pdf
         source={{
-          uri: `${Constants.expoConfig?.extra?.API_URL}/theme-test/${testId}/pdf`,
+          uri: `${Constants.expoConfig?.extra?.API_URL}/api/theme-test/${testId}/pdf`,
           headers: { Authorization: `Bearer ${authToken}` },
           cache: true,
           method: "get",
@@ -146,20 +135,24 @@ const OptionButton = React.memo(
     styles,
   }: {
     option: string;
-    isSelected: boolean;
+    isSelected: string | null | undefined;
     disabled: boolean;
-    onSelect: (option: string) => void;
+    onSelect: (selectedOption: any) => void;
     styles: any;
   }) => (
     <TouchableOpacity
-      style={[styles.optionButton, isSelected && styles.optionButtonSelected]}
+      activeOpacity={1}
+      style={[
+        styles.optionButton,
+        isSelected === option && styles.optionButtonSelected,
+      ]}
       onPress={() => onSelect(option)}
       disabled={disabled}
     >
       <Text
         style={[
           styles.optionButtonText,
-          isSelected && styles.optionButtonTextSelected,
+          isSelected === option && styles.optionButtonTextSelected,
         ]}
       >
         {option}
@@ -170,38 +163,61 @@ const OptionButton = React.memo(
 
 const TestGridItem = React.memo(
   ({
-    testNumber,
-    orderNumber,
-    isAnswered,
-    isCurrent,
-    onSelect,
+    item,
+    answers,
+    handleConfirm,
+    isFinishing,
     styles,
   }: {
-    testNumber: number;
-    orderNumber: number;
-    isAnswered: any;
-    isCurrent: boolean;
-    onSelect: (testNumber: number) => void;
+    item: AnswerKey;
+    answers: LocalQuizAnswer[];
+    isFinishing: boolean;
+    handleConfirm: (
+      selectedOption: any,
+      currentQuestion: any,
+      currentSubTestNo: any
+    ) => void;
     styles: any;
-  }) => (
-    <TouchableOpacity
-      style={[
-        styles.testGridItem,
-        isAnswered && styles.testGridItemAnswered,
-        isCurrent && styles.testGridItemCurrent,
-      ]}
-      onPress={() => onSelect(testNumber)}
-    >
-      <Text
-        style={[
-          styles.testGridItemText,
-          (isAnswered || isCurrent) && styles.testGridItemTextActive,
-        ]}
+  }) => {
+    const questionOptions = useMemo(
+      () => (item?.options ? JSON.parse(item.options) : []),
+      [item]
+    );
+    const currentAnswer = answers.find(
+      (a) => a.questionId === item.dbQuestionNumber
+    );
+    return (
+      <View
+        style={{
+          flexDirection: "row",
+          gap: 10,
+          alignItems: "center",
+          marginTop: 2,
+        }}
       >
-        {orderNumber}
-      </Text>
-    </TouchableOpacity>
-  )
+        <Text style={[styles.testGridItemText]}>{item.questionNumber}</Text>
+        <View
+          style={{
+            flexDirection: "row",
+            gap: 4,
+          }}
+        >
+          {questionOptions.map((option: string) => (
+            <OptionButton
+              key={option}
+              option={option}
+              disabled={isFinishing}
+              isSelected={currentAnswer?.selectedOption}
+              onSelect={(selected) =>
+                handleConfirm(selected, item.dbQuestionNumber, item.subTestNo)
+              }
+              styles={styles}
+            />
+          ))}
+        </View>
+      </View>
+    );
+  }
 );
 
 export default function QuizScreen({
@@ -214,7 +230,7 @@ export default function QuizScreen({
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const { testId, mavzu } = route.params;
+  const { testId, mavzu, percent } = route.params;
   const numericTestId = Number(testId);
 
   // API hooks
@@ -224,56 +240,41 @@ export default function QuizScreen({
     error: testError,
   } = useThemeTest(numericTestId);
 
-  const { data: pdfBlob } = useTestPdf(numericTestId);
   const submitResults = useSubmitTestResults();
   const currentUserId = useCurrentUserId();
 
   // State management
-  const [currentQuestion, setCurrentQuestion] = useState(1);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [answers, setAnswers] = useState<LocalQuizAnswer[]>([]);
   const [showTestModal, setShowTestModal] = useState(false);
-  const [textInputValue, setTextInputValue] = useState("");
+  const [showTestIndex, setShowTestIndex] = useState(1);
   const [authToken, setAuthToken] = useState<string | null>(null);
-  const [isTextInputFocused, setIsTextInputFocused] = useState(false);
-  const [isFinishing, setIsFinishing] = useState(false);
+  const [isFinishing, _setIsFinishing] = useState(false);
 
   // Memoized values
   const totalQuestions = useMemo(
     () => testData?.questionCount || 0,
     [testData]
   );
+  const groupedSubTest = useMemo(() => {
+    if (!testData) return [];
+    const groups: { [key: number]: AnswerKey[] } = {};
 
-  const currentAnswerKey = useMemo(
-    () =>
-      testData?.answerKeys?.find(
-        (ak) => ak.dbQuestionNumber === currentQuestion
-      ),
-    [testData, currentQuestion]
-  );
+    // Guruhlash: subTestNo bo‘yicha
+    testData.answerKeys.forEach((item) => {
+      if (!groups[item.subTestNo]) {
+        groups[item.subTestNo] = [];
+      }
+      groups[item.subTestNo].push(item);
+    });
 
-  const isMultipleChoice = useMemo(
-    () => currentAnswerKey?.answerType === 1,
-    [currentAnswerKey]
-  );
+    // Har bir guruhdan faqat birinchi elementni olish
+    const result = Object.values(groups).map(
+      (group) => (group as AnswerKey[])[0].subTestNo
+    );
 
-  const questionOptions = useMemo(
-    () =>
-      currentAnswerKey?.options ? JSON.parse(currentAnswerKey.options) : [],
-    [currentAnswerKey]
-  );
-
-  const currentAnswer = useMemo(
-    () => answers.find((a) => a.questionId === currentQuestion),
-    [answers, currentQuestion]
-  );
-
-  const isAnswerSelected = useMemo(
-    () =>
-      isMultipleChoice ? selectedOption !== null : textInputValue.trim() !== "",
-    [isMultipleChoice, selectedOption, textInputValue]
-  );
-
+    return result;
+  }, [testData]);
   // Auth token loading
   useEffect(() => {
     const loadAuthToken = async () => {
@@ -292,18 +293,18 @@ export default function QuizScreen({
   }, []);
 
   // Load saved answer when question changes
-  useEffect(() => {
-    const savedAnswer = answers.find((a) => a.questionId === currentQuestion);
-    if (savedAnswer) {
-      setSelectedOption(savedAnswer.selectedOption);
-      setTextInputValue(
-        isMultipleChoice ? "" : savedAnswer.selectedOption || ""
-      );
-    } else {
-      setSelectedOption(null);
-      setTextInputValue("");
-    }
-  }, [currentQuestion, answers, isMultipleChoice]);
+  // useEffect(() => {
+  //   const savedAnswer = answers.find((a) => a.questionId === currentQuestion);
+  //   if (savedAnswer) {
+  //     setSelectedOption(savedAnswer.selectedOption);
+  //     setTextInputValue(
+  //       isMultipleChoice ? "" : savedAnswer.selectedOption || ""
+  //     );
+  //   } else {
+  //     setSelectedOption(null);
+  //     setTextInputValue("");
+  //   }
+  // }, [currentQuestion, answers, isMultipleChoice]);
 
   // Event handlers
   const handleGoBack = useCallback(() => {
@@ -317,67 +318,51 @@ export default function QuizScreen({
     );
   }, []);
 
-  const handleOptionSelect = useCallback(
-    (option: string) => {
-      setSelectedOption(option);
-      setTextInputValue("");
-      if (currentAnswer?.isConfirmed) {
-        handleEditAnswer();
-      }
+  // const handleOptionSelect = useCallback(
+  //   (option: string) => {
+  //     setSelectedOption(option);
+  //     setTextInputValue("");
+  //     if (currentAnswer?.isConfirmed) {
+  //       handleEditAnswer();
+  //     }
+  //   },
+  //   [currentAnswer]
+  // );
+
+  const handleConfirm = useCallback(
+    (selectedOption: any, currentQuestion: any, currentSubTestNo: any) => {
+      if (!selectedOption) return;
+
+      const newAnswer: LocalQuizAnswer = {
+        questionId: currentQuestion,
+        selectedOption: selectedOption,
+        subTestNo: currentSubTestNo ?? 1,
+        isConfirmed: true,
+      };
+
+      setAnswers((prev) => {
+        const filtered = prev.filter((a) => a.questionId !== currentQuestion);
+        return [...filtered, newAnswer];
+      });
     },
-    [currentAnswer]
+    [selectedOption, totalQuestions]
   );
 
-  const handleTextInputChange = useCallback((text: string) => {
-    setTextInputValue(text);
-    setSelectedOption(null);
-  }, []);
+  // const handleEditAnswer = useCallback(() => {
+  //   setAnswers((prev) => prev.filter((a) => a.questionId !== currentQuestion));
+  // }, [currentQuestion]);
 
-  const handleConfirm = useCallback(() => {
-    const answerValue = isMultipleChoice
-      ? selectedOption
-      : textInputValue.trim();
-    if (!answerValue) return;
+  // const handleNext = useCallback(() => {
+  //   setShowTestModal(false);
+  //   setCurrentQuestion((prev) => prev + 1);
+  // }, [currentQuestion, totalQuestions]);
 
-    const newAnswer: LocalQuizAnswer = {
-      questionId: currentQuestion,
-      selectedOption: answerValue,
-      subTestNo: currentAnswerKey?.subTestNo ?? 1,
-      isConfirmed: true,
-    };
-
-    setAnswers((prev) => {
-      const filtered = prev.filter((a) => a.questionId !== currentQuestion);
-      return [...filtered, newAnswer];
-    });
-
-    if (currentQuestion < totalQuestions) {
-      handleNext();
-    }
-  }, [
-    isMultipleChoice,
-    selectedOption,
-    textInputValue,
-    currentQuestion,
-    currentAnswerKey,
-    totalQuestions,
-  ]);
-
-  const handleEditAnswer = useCallback(() => {
-    setAnswers((prev) => prev.filter((a) => a.questionId !== currentQuestion));
-  }, [currentQuestion]);
-
-  const handleNext = useCallback(() => {
-    setShowTestModal(false);
-    setCurrentQuestion((prev) => prev + 1);
-  }, [currentQuestion, totalQuestions]);
-
-  const handlePrevious = useCallback(() => {
-    if (currentQuestion > 1) {
-      setShowTestModal(false);
-      setCurrentQuestion((prev) => prev - 1);
-    }
-  }, [currentQuestion]);
+  // const handlePrevious = useCallback(() => {
+  //   if (currentQuestion > 1) {
+  //     setShowTestModal(false);
+  //     setCurrentQuestion((prev) => prev - 1);
+  //   }
+  // }, [currentQuestion]);
 
   const handleFinishTest = useCallback(async () => {
     if (!currentUserId || !testId) {
@@ -458,52 +443,57 @@ export default function QuizScreen({
     mavzu,
     submitResults,
   ]);
-  useEffect(() => {
-    if (currentQuestion === totalQuestions && currentAnswer?.isConfirmed) {
-      setIsFinishing(true);
-      const timer = setTimeout(() => {
-        handleFinishTest();
-        setIsFinishing(false);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [answers, currentQuestion, handleNext]);
+  // useEffect(() => {
+  //   if (currentQuestion === totalQuestions && currentAnswer?.isConfirmed) {
+  //     setIsFinishing(true);
+  //     const timer = setTimeout(() => {
+  //       handleFinishTest();
+  //       setIsFinishing(false);
+  //     }, 1000);
+  //     return () => clearTimeout(timer);
+  //   }
+  // }, [answers, currentQuestion, handleNext]);
 
-  const handleQuestionNumberPress = useCallback(() => {
+  const handleShowTestModal = useCallback(() => {
     setShowTestModal(true);
   }, []);
 
-  const handleTestSelect = useCallback((testNumber: number) => {
-    setCurrentQuestion(testNumber);
-    setShowTestModal(false);
-  }, []);
+  // const handleTestSelect = useCallback((testNumber: number) => {
+  //   // setCurrentQuestion(testNumber);
+  //   setShowTestModal(false);
+  // }, []);
 
   // Grouped test data for modal
+  // const groupedTestData = useMemo(() => {
+  //   if (!testData?.answerKeys) return [];
+
+  //   return Object.entries(
+  //     testData.answerKeys.reduce((acc: any, key: any) => {
+  //       const group = acc[key.subTestNo] || [];
+  //       group.push(key);
+  //       acc[key.subTestNo] = group;
+  //       return acc;
+  //     }, {})
+  //   );
+  // }, [testData]);
   const groupedTestData = useMemo(() => {
     if (!testData?.answerKeys) return [];
 
-    return Object.entries(
-      testData.answerKeys.reduce((acc: any, key: any) => {
-        const group = acc[key.subTestNo] || [];
-        group.push(key);
-        acc[key.subTestNo] = group;
-        return acc;
-      }, {})
+    return testData.answerKeys.filter(
+      (item) => item.subTestNo === showTestIndex
     );
-  }, [testData]);
+  }, [testData, showTestIndex]);
+
   useEffect(() => {
     navigation.setOptions({
-      title: mavzu.toString(),
+      title: "IDS mavzulashtirilgan testlar to'plami",
       headerTitle: ({ children }: { children: any }) => (
-        <HeaderTitle title={children || "1-mavzu"} subtitle="Mashqlar" />
-      ),
-      freezeOnBlur: true,
-      headerRight: () => (
-        <HeaderRight
-          currentQuestion={currentQuestion}
-          totalQuestions={totalQuestions}
+        <HeaderTitle
+          title={children || "IDS mavzulashtirilgan testlar to'plami"}
         />
       ),
+      freezeOnBlur: true,
+      headerRight: () => <HeaderRight percent={percent} />,
     });
   }, [navigation]);
   // Loading and error states
@@ -517,31 +507,11 @@ export default function QuizScreen({
 
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
-      {/* <Stack.Screen
-        options={{
-          headerShown: true,
-          title: mavzu.toString(),
-          headerTitle: ({ children }) => (
-            <HeaderTitle title={children || "1-mavzu"} subtitle="Mashqlar" />
-          ),
-          headerTitleAlign: "center",
-          headerTintColor: "white",
-          freezeOnBlur: true,
-          headerStyle: { backgroundColor: theme.colors.primary },
-          headerRight: () => (
-            <HeaderRight
-              currentQuestion={currentQuestion}
-              totalQuestions={totalQuestions}
-            />
-          ),
-        }}
-      /> */}
-
       {/* PDF Content */}
       <View style={styles.pdfContainer}>
-        {pdfBlob && authToken ? (
-          <PdfViewer testId={numericTestId} authToken={authToken} />
-        ) : (
+        {/* {pdfBlob && authToken ? ( */}
+        <PdfViewer testId={numericTestId} authToken={authToken} />
+        {/* ) : (
           <View style={styles.errorContainer}>
             <Ionicons name="document-outline" size={64} color={COLORS.gray} />
             <Text style={styles.errorTitle}>Test topilmadi</Text>
@@ -549,183 +519,90 @@ export default function QuizScreen({
               <Text style={styles.retryButtonText}>Orqaga qaytish</Text>
             </TouchableOpacity>
           </View>
-        )}
+        )} */}
       </View>
-
-      {/* Quiz Controls */}
       <View style={styles.quizControls}>
-        {/* Navigation and Answer Options Row */}
-        <View style={styles.topControlsRow}>
-          <View
-            style={{
-              flexDirection: "row",
-              position: "relative",
-              alignItems: "center",
-            }}
-          >
-            <Text
-              style={{
-                position: "absolute",
-                top: -12,
-                fontSize: 12,
-                flexDirection: "row",
-                color: theme.colors.textSecondary,
-                left: "50%",
-                transform: [{ translateX: "-50%" }],
-              }}
-            >
-              {currentAnswerKey?.subTestNo}-test
-            </Text>
-            <TouchableOpacity
-              style={[
-                styles.navButton,
-                currentQuestion === 1 && styles.navButtonDisabled,
-              ]}
-              onPress={handlePrevious}
-              disabled={currentQuestion === 1 || isFinishing}
-            >
-              <Ionicons
-                name="chevron-back"
-                size={20}
-                color={
-                  currentQuestion === 1 ? COLORS.textMuted : COLORS.primary
-                }
-              />
-              {questionOptions.length !== 6 && (
-                <Text style={styles.navButtonText}>Back</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={{ position: "relative" }}
-              onPress={handleQuestionNumberPress}
-            >
-              <Text style={styles.dbQuestionNumber}>
-                {currentAnswerKey?.questionNumber}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.navButton,
-                currentQuestion === totalQuestions && styles.navButtonDisabled,
-              ]}
-              onPress={handleNext}
-              disabled={currentQuestion === totalQuestions || isFinishing}
-            >
-              {questionOptions.length !== 6 && (
-                <Text style={styles.navButtonText}>Next</Text>
-              )}
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color={
-                  currentQuestion === totalQuestions
-                    ? COLORS.textMuted
-                    : COLORS.primary
-                }
-              />
-            </TouchableOpacity>
-          </View>
-          {/* Answer Options */}
-          {isMultipleChoice &&
-            questionOptions.map((option: string) => (
-              <OptionButton
-                key={option}
-                option={option}
-                disabled={isFinishing}
-                isSelected={selectedOption === option}
-                onSelect={handleOptionSelect}
-                styles={styles}
-              />
-            ))}
-        </View>
-
-        {/* Text Input for Non-Multiple Choice Questions */}
-        {!isMultipleChoice && (
-          <View style={styles.textInputContainer}>
-            <Text style={styles.textInputLabel}>Javobingizni kiriting:</Text>
-            <TextInput
-              style={styles.textInput}
-              value={textInputValue}
-              onChangeText={handleTextInputChange}
-              onFocus={() => setIsTextInputFocused(true)}
-              onBlur={() => setIsTextInputFocused(false)}
-              placeholder="Matematik klaviaturadan foydalaning..."
-              placeholderTextColor={COLORS.gray}
-              multiline={true}
-              numberOfLines={3}
-              textAlignVertical="top"
-              showSoftInputOnFocus={false}
-              caretHidden={false}
-              editable={true}
-            />
-          </View>
-        )}
-
-        {/* Action Buttons */}
         <View style={styles.actionContainer}>
           <TouchableOpacity
             style={[styles.actionButton, styles.choiceButton]}
             onPress={() => {
               setSelectedOption(null);
-              setTextInputValue("");
             }}
+            activeOpacity={1}
           >
-            <Text style={styles.choiceButtonText}>Yechim</Text>
+            <Ionicons
+              name="chevron-back"
+              size={moderateScale(20)}
+              style={{
+                flexGrow: 1,
+              }}
+              onPress={() => {
+                setShowTestIndex((prev) => prev - 1);
+              }}
+              disabled={showTestIndex === 1}
+              color={showTestIndex === 1 ? COLORS.textMuted : COLORS.primary}
+            />
+            <Text style={styles.choiceButtonText}>{showTestIndex}-test</Text>
+            <Ionicons
+              name="chevron-forward"
+              size={moderateScale(20)}
+              color={
+                showTestIndex === groupedSubTest.length
+                  ? COLORS.textMuted
+                  : COLORS.primary
+              }
+              onPress={() => {
+                setShowTestIndex((prev) => prev + 1);
+              }}
+              disabled={showTestIndex === groupedSubTest.length}
+              style={{
+                flexGrow: 1,
+                textAlign: "right",
+              }}
+            />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[
-              styles.actionButton,
-              styles.confirmButton,
-              !isAnswerSelected && styles.confirmButtonDisabled,
-            ]}
-            onPress={handleConfirm}
-            disabled={!isAnswerSelected || isFinishing}
+            style={{ flexGrow: 1, flexShrink: 0 }}
+            onPress={handleShowTestModal}
+            disabled={isFinishing}
           >
-            {isFinishing ? (
-              <ActivityIndicator color="white" size="small" />
-            ) : (
-              <>
-                <Text
-                  style={[
-                    styles.confirmButtonText,
-                    !isAnswerSelected && styles.confirmButtonTextDisabled,
-                  ]}
-                >
-                  Tasdiqlash
-                </Text>
-                <Ionicons
-                  name="hand-right"
-                  size={20}
-                  color={!isAnswerSelected ? COLORS.gray : "white"}
-                  style={styles.handIcon}
-                />
-              </>
-            )}
+            <CustomStyledCard
+              style={[
+                styles.actionButton,
+                styles.confirmButton,
+                // !isAnswerSelected && styles.confirmButtonDisabled,
+              ]}
+            >
+              {isFinishing ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <>
+                  <Text
+                    style={[
+                      styles.confirmButtonText,
+                      // !isAnswerSelected && styles.confirmButtonTextDisabled,
+                    ]}
+                  >
+                    Belgilash
+                  </Text>
+                </>
+              )}
+            </CustomStyledCard>
           </TouchableOpacity>
         </View>
-
-        {/* Finish Test Button */}
         <TouchableOpacity
-          style={styles.finishButton}
           onPress={handleFinishTest}
+          activeOpacity={1}
           disabled={submitResults.isPending}
         >
-          {submitResults.isPending ? (
-            <ActivityIndicator color="white" size="small" />
-          ) : (
-            <>
+          <CustomStyledCard style={styles.finishButton}>
+            {submitResults.isPending ? (
+              <ActivityIndicator color="white" size="small" />
+            ) : (
               <Text style={styles.finishButtonText}>Testni yakunlash</Text>
-              <Ionicons
-                name="checkmark-circle"
-                size={20}
-                color="white"
-                style={styles.finishIcon}
-              />
-            </>
-          )}
+            )}
+          </CustomStyledCard>
         </TouchableOpacity>
       </View>
 
@@ -733,9 +610,9 @@ export default function QuizScreen({
       {showTestModal && (
         <TestModal
           groupedTestData={groupedTestData}
+          handleConfirm={handleConfirm}
           answers={answers}
-          currentQuestion={currentQuestion}
-          onTestSelect={handleTestSelect}
+          isFinishing={isFinishing}
           onClose={() => setShowTestModal(false)}
           styles={styles}
         />
@@ -747,21 +624,25 @@ export default function QuizScreen({
 const TestModal = React.memo(
   ({
     groupedTestData,
+    handleConfirm,
     answers,
-    currentQuestion,
-    onTestSelect,
+    isFinishing,
     onClose,
     styles,
   }: {
-    groupedTestData: [string, any][];
+    groupedTestData: AnswerKey[];
     answers: LocalQuizAnswer[];
-    currentQuestion: number;
-    onTestSelect: (testNumber: number) => void;
+    isFinishing: boolean;
+    handleConfirm: (
+      selectedOption: any,
+      currentQuestion: any,
+      currentSubTestNo: any
+    ) => void;
     onClose: () => void;
     styles: any;
   }) => {
-    const subtestCounters: Record<number, number> = {};
-
+    const leftColumn = groupedTestData.slice(0, 10);
+    const rightColumn = groupedTestData.slice(10, 20);
     return (
       <View style={styles.popoverOverlay} pointerEvents="box-none">
         <TouchableOpacity
@@ -772,70 +653,53 @@ const TestModal = React.memo(
 
         <View style={styles.popoverContainer}>
           <View style={styles.popoverHeader}>
-            <Text style={styles.popoverTitle}>Testni tanlang</Text>
+            <Text style={styles.popoverTitle}>
+              {groupedTestData[0].subTestNo}-test
+            </Text>
           </View>
-          <SectionList
-            sections={
-              groupedTestData.map((chapter) => ({
-                title: `Test ${chapter[0]}`,
-                data: chapter[1],
-              })) ?? []
-            }
-            keyExtractor={(item, index) => item.id.toString() + index}
-            renderSectionHeader={({ section: { title } }) => (
-              <Text style={styles.subTestTitle}>{title}</Text>
-            )}
+          <View
             style={{
-              padding: 4,
+              flexDirection: "row",
+              justifyContent: "space-between",
+              paddingHorizontal: 0,
             }}
-            renderItem={({ section, index }) => {
-              const itemsPerRow = 8; // har qatorda 3 ta chiqadi
-              const startIndex = index * itemsPerRow;
-              const rowItems = section.data.slice(
-                startIndex,
-                startIndex + itemsPerRow
-              );
+          >
+            {/* LEFT COLUMN: 1–10 */}
+            <View>
+              <FlatList
+                data={leftColumn}
+                scrollEnabled={false}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={({ item }) => (
+                  <TestGridItem
+                    item={item}
+                    isFinishing={isFinishing}
+                    handleConfirm={handleConfirm}
+                    answers={answers}
+                    styles={styles}
+                  />
+                )}
+              />
+            </View>
 
-              return (
-                <View style={styles.testGrid}>
-                  {rowItems.map((item: any) => {
-                    const { subTestNo: currentSubTestNo, dbQuestionNumber } =
-                      item;
-
-                    if (!subtestCounters[currentSubTestNo]) {
-                      subtestCounters[currentSubTestNo] = 1;
-                    } else {
-                      subtestCounters[currentSubTestNo]++;
-                    }
-
-                    // const orderNumber = subtestCounters[currentSubTestNo];
-                    const isAnswered = answers.find(
-                      (a) => a.questionId === dbQuestionNumber
-                    )?.isConfirmed;
-                    const isCurrent = dbQuestionNumber === currentQuestion;
-
-                    return (
-                      <TestGridItem
-                        key={dbQuestionNumber}
-                        testNumber={dbQuestionNumber}
-                        orderNumber={item.questionNumber}
-                        isAnswered={isAnswered}
-                        isCurrent={isCurrent}
-                        onSelect={onTestSelect}
-                        styles={styles}
-                      />
-                    );
-                  })}
-                </View>
-              );
-            }}
-            initialNumToRender={10}
-            maxToRenderPerBatch={20}
-            windowSize={2}
-            scrollEnabled
-            contentContainerStyle={styles.content}
-          />
-          <View style={styles.popoverArrow} />
+            {/* RIGHT COLUMN: 11–20 */}
+            <View>
+              <FlatList
+                data={rightColumn}
+                scrollEnabled={false}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={({ item }) => (
+                  <TestGridItem
+                    item={item}
+                    isFinishing={isFinishing}
+                    handleConfirm={handleConfirm}
+                    answers={answers}
+                    styles={styles}
+                  />
+                )}
+              />
+            </View>
+          </View>
         </View>
       </View>
     );
@@ -843,24 +707,21 @@ const TestModal = React.memo(
 );
 
 // Alohida style sheet'lar
-const headerTitleStyles = StyleSheet.create({
+const headerTitleStyles = ScaledSheet.create({
   container: {
     alignItems: "center",
+    justifyContent: "center",
     paddingBottom: 5,
   },
   title: {
-    fontSize: FONT_SIZES.lg,
+    fontSize: moderateScale(FONT_SIZES.lg),
     fontWeight: "bold",
+    textAlign: "center",
     color: COLORS.white,
-  },
-  subtitle: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.white,
-    opacity: 0.8,
   },
 });
 
-const headerRightStyles = StyleSheet.create({
+const headerRightStyles = ScaledSheet.create({
   container: {
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     paddingHorizontal: SPACING.sm,
@@ -870,13 +731,13 @@ const headerRightStyles = StyleSheet.create({
     alignItems: "center",
   },
   text: {
-    fontSize: FONT_SIZES.sm,
+    fontSize: moderateScale(FONT_SIZES.sm),
     color: COLORS.white,
     fontWeight: "500",
   },
 });
 
-const loadingStyles = StyleSheet.create({
+const loadingStyles = ScaledSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.secondary,
@@ -889,12 +750,12 @@ const loadingStyles = StyleSheet.create({
   },
   text: {
     marginTop: SPACING.base,
-    fontSize: FONT_SIZES.base,
+    fontSize: moderateScale(FONT_SIZES.base),
     color: COLORS.text,
   },
 });
 
-const errorStyles = StyleSheet.create({
+const errorStyles = ScaledSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.secondary,
@@ -903,10 +764,10 @@ const errorStyles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: moderateScale(SPACING.xl),
   },
   title: {
-    fontSize: FONT_SIZES.xl,
+    fontSize: moderateScale(FONT_SIZES.xl),
     fontWeight: "bold",
     color: COLORS.text,
     marginTop: SPACING.base,
@@ -927,7 +788,7 @@ const errorStyles = StyleSheet.create({
 });
 
 const createStyles = (theme: Theme) =>
-  StyleSheet.create({
+  ScaledSheet.create({
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
@@ -967,18 +828,16 @@ const createStyles = (theme: Theme) =>
     },
     quizControls: {
       position: "relative",
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.card,
       paddingTop: SPACING.base,
       paddingHorizontal: SPACING.lg,
       paddingBottom: SPACING.lg,
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.border,
     },
     topControlsRow: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.card,
       paddingVertical: SPACING.sm,
       paddingHorizontal: SPACING.sm,
       marginHorizontal: -SPACING.lg,
@@ -1007,23 +866,22 @@ const createStyles = (theme: Theme) =>
       marginHorizontal: SPACING.sm,
     },
     optionButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: theme.colors.border,
-      borderWidth: 2,
-      borderColor: theme.colors.border,
+      width: (25 / 385) * width,
+      aspectRatio: 1 / 1,
+      borderRadius: (8 / 375) * width,
+      backgroundColor: theme.colors.card,
+      borderWidth: 1,
+      borderColor: theme.colors.textMuted,
       justifyContent: "center",
       alignItems: "center",
-      marginHorizontal: SPACING.xs,
     },
     optionButtonSelected: {
       backgroundColor: COLORS.primary,
       borderColor: COLORS.primary,
     },
     optionButtonText: {
-      fontSize: FONT_SIZES.base,
-      fontWeight: "bold",
+      fontSize: moderateScale(FONT_SIZES.base),
+      fontWeight: "500",
       color: theme.colors.text,
     },
     optionButtonTextSelected: {
@@ -1036,19 +894,21 @@ const createStyles = (theme: Theme) =>
     },
     actionButton: {
       flex: 1,
-      paddingVertical: SPACING.sm,
-      backgroundColor: theme.colors.background,
-      borderRadius: BORDER_RADIUS.sm,
+      paddingVertical: moderateScale(SPACING.sm),
+      backgroundColor: theme.colors.card,
+      borderRadius: moderateScale(BORDER_RADIUS.sm),
+
+      flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
     },
     choiceButton: {
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.card,
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
     choiceButtonText: {
-      fontSize: FONT_SIZES.base,
+      fontSize: moderateScale(FONT_SIZES.base),
       color: theme.colors.text,
       fontWeight: "500",
     },
@@ -1058,11 +918,11 @@ const createStyles = (theme: Theme) =>
       alignItems: "center",
     },
     confirmButtonDisabled: {
-      backgroundColor: COLORS.gray,
+      backgroundColor: COLORS.white,
       opacity: 0.6,
     },
     confirmButtonText: {
-      fontSize: FONT_SIZES.base,
+      fontSize: moderateScale(FONT_SIZES.base),
       color: COLORS.white,
       fontWeight: "500",
       marginRight: SPACING.xs,
@@ -1074,10 +934,9 @@ const createStyles = (theme: Theme) =>
       marginLeft: SPACING.xs,
     },
     finishButton: {
-      backgroundColor: "#e74c3c",
-      paddingVertical: SPACING.sm + 3,
-      borderRadius: BORDER_RADIUS.sm,
-      marginTop: SPACING.sm,
+      paddingVertical: moderateScale(SPACING.sm),
+      borderRadius: moderateScale(BORDER_RADIUS.sm),
+      marginTop: moderateScale(SPACING.sm),
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
@@ -1088,13 +947,13 @@ const createStyles = (theme: Theme) =>
       elevation: 3,
     },
     finishButtonText: {
-      fontSize: FONT_SIZES.base,
+      fontSize: moderateScale(FONT_SIZES.base),
       color: COLORS.white,
       fontWeight: "bold",
-      marginRight: SPACING.xs,
+      marginRight: moderateScale(SPACING.xs),
     },
     finishIcon: {
-      marginLeft: SPACING.xs,
+      marginLeft: moderateScale(SPACING.xs),
     },
     popoverOverlay: {
       ...StyleSheet.absoluteFillObject,
@@ -1106,28 +965,22 @@ const createStyles = (theme: Theme) =>
     },
     popoverContainer: {
       position: "absolute",
-      bottom: 180,
+      bottom: moderateScale(155),
       left: SPACING.lg,
       right: SPACING.lg,
-      backgroundColor: theme.colors.background,
-      paddingBottom: 10,
+      backgroundColor: theme.colors.card,
+      paddingHorizontal: moderateScale(10),
+      paddingBottom: moderateScale(6),
+      borderColor: theme.colors.inputBorder,
+      borderWidth: 1,
       borderRadius: BORDER_RADIUS.lg,
-      maxHeight: 300,
-      shadowColor: theme.colors.shadow,
-      shadowOffset: { width: 0, height: -2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 8,
-      elevation: 8,
     },
     popoverHeader: {
-      paddingHorizontal: SPACING.lg,
-      paddingVertical: SPACING.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: COLORS.textMuted,
-      alignItems: "center",
+      paddingVertical: SPACING.xs,
+      alignItems: "flex-start",
     },
     popoverTitle: {
-      fontSize: FONT_SIZES.base,
+      fontSize: moderateScale(FONT_SIZES.base),
       fontWeight: "bold",
       color: theme.colors.text,
     },
@@ -1181,8 +1034,10 @@ const createStyles = (theme: Theme) =>
       borderColor: "#ffd700",
     },
     testGridItemText: {
-      fontSize: FONT_SIZES.sm,
-      fontWeight: "bold",
+      fontSize: (FONT_SIZES.lg / width) * width,
+      fontWeight: "500",
+      width: 22,
+      textAlign: "right",
       color: theme.colors.text,
     },
     testGridItemTextActive: {
@@ -1192,7 +1047,7 @@ const createStyles = (theme: Theme) =>
       marginBottom: SPACING.base,
     },
     textInputLabel: {
-      fontSize: FONT_SIZES.base,
+      fontSize: moderateScale(FONT_SIZES.base),
       fontWeight: "500",
       color: COLORS.text,
       marginBottom: SPACING.xs,

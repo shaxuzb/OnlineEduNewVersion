@@ -12,18 +12,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useBookmark } from "../../context/BookmarkContext";
 import { useTheme } from "../../context/ThemeContext";
-import { SPACING, FONT_SIZES, BORDER_RADIUS } from "../../utils";
+import { SPACING, FONT_SIZES } from "../../utils";
 import { BookmarkedLesson, Theme } from "../../types";
-import { useCurrentUserId } from "@/src/hooks/useQuiz";
-import useDoubleBackExit from "@/src/hooks/useDoubleBackExit";
+import PageCard from "@/src/components/ui/cards/PageCard";
 
 export default function SaveScreen() {
-  useDoubleBackExit();
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = createStyles(theme);
 
-  const currentUserId = useCurrentUserId();
   const {
     bookmarkedLessons,
     getBookmarksByCategory,
@@ -33,12 +30,6 @@ export default function SaveScreen() {
 
   const categorizedBookmarks = getBookmarksByCategory();
   const categoryKeys = Object.keys(categorizedBookmarks);
-
-  const handleStatisticsPress = () => {
-    (navigation as any).navigate("Statistika", {
-      userId: currentUserId,
-    });
-  };
 
   const handleLessonPress = (lesson: BookmarkedLesson) => {
     (navigation as any).navigate("LessonDetail", {
@@ -82,71 +73,61 @@ export default function SaveScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.menuButton}
-          onPress={handleStatisticsPress}
-        >
-          <Ionicons name="bar-chart" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Save</Text>
-        <View style={styles.headerIndicator}>
-          <View style={styles.dotIndicator} />
-        </View>
-      </View>
-
+    <SafeAreaView style={styles.container} edges={[]}>
       {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {categoryKeys.map((categoryName) => {
-          const lessons = categorizedBookmarks[categoryName];
-          return (
-            <View key={categoryName} style={styles.categorySection}>
-              <Text style={styles.categoryTitle}>{categoryName}</Text>
+      <PageCard>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {categoryKeys.map((categoryName) => {
+            const lessons = categorizedBookmarks[categoryName];
+            return (
+              <View key={categoryName} style={styles.categorySection}>
+                <Text style={styles.categoryTitle}>{categoryName}</Text>
 
-              {lessons
-                .sort((a, b) => a.id - b.id)
-                .map((lesson) => (
-                  <TouchableOpacity
-                    key={`${lesson.id}-${lesson.courseType}`}
-                    style={styles.lessonItem}
-                    onPress={() => handleLessonPress(lesson)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.lessonIcon}>
-                      <Ionicons
-                        name="lock-closed"
-                        size={16}
-                        color={theme.colors.success}
-                      />
-                    </View>
-
-                    <View style={styles.lessonContent}>
-                      <Text style={styles.lessonTitle}>{lesson.mavzu}</Text>
-                      <Text style={styles.lessonSubtitle}>{lesson.title}</Text>
-                    </View>
-
+                {lessons
+                  .sort((a, b) => a.id - b.id)
+                  .map((lesson) => (
                     <TouchableOpacity
-                      style={styles.removeButton}
-                      onPress={() => handleRemoveBookmark(lesson)}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      key={`${lesson.id}-${lesson.courseType}`}
+                      style={styles.lessonItem}
+                      onPress={() => handleLessonPress(lesson)}
+                      activeOpacity={0.7}
                     >
-                      <Ionicons
-                        name="close"
-                        size={16}
-                        color={theme.colors.textMuted}
-                      />
-                    </TouchableOpacity>
-                  </TouchableOpacity>
-                ))}
-            </View>
-          );
-        })}
+                      <View style={styles.lessonIcon}>
+                        <Ionicons
+                          name="lock-closed"
+                          size={16}
+                          color={theme.colors.success}
+                        />
+                      </View>
 
-        {/* Bottom spacing */}
-        <View style={styles.bottomSpacing} />
-      </ScrollView>
+                      <View style={styles.lessonContent}>
+                        <Text style={styles.lessonTitle}>{lesson.mavzu}</Text>
+                        <Text style={styles.lessonSubtitle}>
+                          {lesson.title}
+                        </Text>
+                      </View>
+
+                      <TouchableOpacity
+                        style={styles.removeButton}
+                        onPress={() => handleRemoveBookmark(lesson)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <Ionicons
+                          name="close"
+                          size={16}
+                          color={theme.colors.textMuted}
+                        />
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+                  ))}
+              </View>
+            );
+          })}
+
+          {/* Bottom spacing */}
+          <View style={styles.bottomSpacing} />
+        </ScrollView>
+      </PageCard>
     </SafeAreaView>
   );
 }
@@ -224,7 +205,7 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.card,
     },
     categorySection: {
-      marginTop: SPACING.lg,
+      marginTop: SPACING.sm,
     },
     categoryTitle: {
       fontSize: FONT_SIZES.lg,

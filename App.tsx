@@ -15,6 +15,7 @@ import Toast, {
   ErrorToast,
   ToastConfig,
 } from "react-native-toast-message";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 SplashScreen.preventAutoHideAsync();
 
 const toastConfig: ToastConfig = {
@@ -83,10 +84,12 @@ export default function App() {
 
     prepare();
   }, []);
-
   const handleUpdateLater = () => {
     dismissUpdate();
   };
+  useEffect(() => {
+    SplashScreen.hideAsync();
+  }, []);
   if (!isConnected) {
     return <NoConnection setIsConnected={setIsConnected} />;
   }
@@ -95,18 +98,20 @@ export default function App() {
       <ThemeProvider>
         <AuthProvider>
           <BookmarkProvider>
-            <AppNavigation />
-            <Toast config={toastConfig} topOffset={30} />
+            <SafeAreaProvider>
+              <AppNavigation />
 
-            {/* Update Notification Bottom Sheet */}
-            {versionInfo && (
-              <UpdateNotificationSheet
-                visible={showUpdateSheet}
-                versionInfo={versionInfo}
-                onClose={() => setShowUpdateSheet(false)}
-                onUpdateLater={handleUpdateLater}
-              />
-            )}
+              <Toast config={toastConfig} topOffset={30} />
+              {/* Update Notification Bottom Sheet */}
+              {versionInfo && (
+                <UpdateNotificationSheet
+                  visible={showUpdateSheet}
+                  versionInfo={versionInfo}
+                  onClose={() => setShowUpdateSheet(false)}
+                  onUpdateLater={handleUpdateLater}
+                />
+              )}
+            </SafeAreaProvider>
           </BookmarkProvider>
         </AuthProvider>
       </ThemeProvider>

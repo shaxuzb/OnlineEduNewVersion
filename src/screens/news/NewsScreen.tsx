@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   View,
   Text,
@@ -7,16 +7,16 @@ import {
   RefreshControl,
   ActivityIndicator,
   TouchableOpacity,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { NewsItem, Theme } from "../../types";
 import { useNews } from "@/src/hooks/useNews";
 import { useTheme } from "../../context/ThemeContext";
-import useDoubleBackExit from "@/src/hooks/useDoubleBackExit";
+import { lightColors } from "@/src/constants/theme";
 
-export default function NewsScreen() {
-  useDoubleBackExit();
+export default function NewsScreen({ navigation }: { navigation: any }) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
 
@@ -134,7 +134,31 @@ export default function NewsScreen() {
       </Text>
     </TouchableOpacity>
   );
-
+  useEffect(() => {
+    navigation.setOptions({
+      title: "Yangiliklar",
+      freezeOnBlur: true,
+      headerRight: () => (
+        <Pressable
+          android_ripple={{
+            foreground: true,
+            color: lightColors.ripple,
+            borderless: true,
+            radius: 30,
+          }}
+          style={{
+            width: 40,
+            height: 40,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onPress={() => refetch()}
+        >
+          <Ionicons name="reload" size={20} color="white" />
+        </Pressable>
+      ),
+    });
+  }, [navigation]);
   if (isLoading) {
     return (
       <SafeAreaView
@@ -181,8 +205,9 @@ export default function NewsScreen() {
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
+      edges={["bottom"]}
     >
-      <View
+      {/* <View
         style={[
           styles.header,
           {
@@ -200,7 +225,7 @@ export default function NewsScreen() {
         >
           <Ionicons name="refresh" size={24} color={theme.colors.primary} />
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       <ScrollView
         style={styles.scrollView}
@@ -236,6 +261,7 @@ export default function NewsScreen() {
           </View>
         ) : (
           <>
+            {data?.items.map(renderNewsItem)}
             {data?.items.map(renderNewsItem)}
             <View style={styles.bottomSpacing} />
           </>

@@ -1,11 +1,12 @@
+import Slider from "@react-native-community/slider";
 import React from "react";
 import { StyleSheet } from "react-native";
-import Slider from "@react-native-community/slider";
 
 interface CustomSliderProps {
   value: number;
   maximumValue: number;
   onValueChange: (value: number) => void;
+  onSlidingStart: any;
   onSlidingComplete: (value: number) => void;
   style?: object;
 }
@@ -13,6 +14,7 @@ const CustomSlider: React.FC<CustomSliderProps> = ({
   value,
   maximumValue,
   onValueChange,
+  onSlidingStart,
   onSlidingComplete,
   style,
 }) => {
@@ -21,6 +23,7 @@ const CustomSlider: React.FC<CustomSliderProps> = ({
       style={[styles.slider, style]}
       value={value}
       maximumValue={maximumValue}
+      onSlidingStart={onSlidingStart}
       onValueChange={onValueChange}
       onSlidingComplete={onSlidingComplete}
       minimumTrackTintColor="#ff0000"

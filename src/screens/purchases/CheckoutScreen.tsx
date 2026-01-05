@@ -1,23 +1,24 @@
-import React, { useMemo } from "react";
+import Cash from "../../assets/icons/payments/cash.svg";
+import Payme from "../../assets/icons/payments/payme.svg";
+import { lightColors } from "@/src/constants/theme";
+import { usePurchase } from "@/src/context/PurchaseContext";
+import { useTheme } from "@/src/context/ThemeContext";
+import { Theme } from "@/src/types";
+import { numberSpacing } from "@/src/utils";
+import { queryClient } from "@/src/utils/helpers/queryClient";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useEffect, useMemo } from "react";
 import {
+  Linking,
+  Pressable,
   ScrollView,
-  View,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  Linking,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import { useTheme } from "../../context/ThemeContext";
-import { Theme } from "../../types";
-// import Cash from "../../assets/icons/payments/cash.svg";
-import Payme from "../../assets/icons/payments/payme.svg";
-import { usePurchase } from "@/src/context/PurchaseContext";
-import { numberSpacing } from "@/src/utils";
 import Toast from "react-native-toast-message";
-import { queryClient } from "@/src/utils/helpers/queryClient";
 
 interface PaymentItems {
   label: string;
@@ -26,12 +27,12 @@ interface PaymentItems {
   paymentCode: string;
 }
 const paymentItems: PaymentItems[] = [
-  // {
-  //   icon: <Cash width={50} height={35} />,
-  //   id: 1,
-  //   label: "Karta raqam",
-  //   paymentCode: "PAYME_SUBSCRIBE",
-  // },
+  {
+    icon: <Cash width={50} height={35} />,
+    id: 1,
+    label: "Karta raqam",
+    paymentCode: "PAYME_SUBSCRIBE",
+  },
   {
     icon: <Payme width={50} height={35} />,
     id: 2,
@@ -39,14 +40,18 @@ const paymentItems: PaymentItems[] = [
     paymentCode: "PAYME_MERCHANT",
   },
 ];
-export default function CheckoutScreen() {
-  const navigation = useNavigation();
-  const route = useRoute<any>();
+export default function CheckoutScreen({
+  navigation,
+  route,
+}: {
+  navigation: any;
+  route: any;
+}) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { selectedItems, submitPurchase } = usePurchase();
 
-  const { scopeTypeId } = route.params as any;
+  const { scopeTypeId } = route.params;
   const totalPrice = useMemo(
     () =>
       numberSpacing(selectedItems.reduce((acc, item) => acc + item.price, 0)),
@@ -54,21 +59,35 @@ export default function CheckoutScreen() {
   );
   const handleSubmit = async (paymentCode: string) => {
     if (paymentCode === "PAYME_SUBSCRIBE") {
-      return (navigation as any).navigate("CreditCardScreen", {
+      return navigation.navigate("CreditCardScreen", {
         scopeTypeId: scopeTypeId,
         paymentType: paymentCode,
       });
     }
     try {
       const data = await submitPurchase({
-        values: { scopeTypeId: scopeTypeId, paymentType: paymentCode },
+        values: { scopeTypeId: Number(scopeTypeId), paymentType: paymentCode },
       });
       queryClient.clear();
+      await queryClient.refetchQueries({ queryKey: ["themes"] });
       await Linking.openURL((data as any).paymentUrl);
-
-      (navigation as any).navigate("MainTabs", {
-        screen: "Courses",
-        params: { screen: "CoursesList" },
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: "MainTabs",
+            state: {
+              routes: [
+                {
+                  name: "Courses",
+                  state: {
+                    routes: [{ name: "CoursesList" }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
       });
     } catch (error) {
       Toast.show({
@@ -77,18 +96,36 @@ export default function CheckoutScreen() {
       });
     }
   };
-  return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-
+  useEffect(() => {
+    navigation.setOptions({
+      headerTitle: () => (
         <Ionicons name="cart-outline" size={38} color="white" />
+      ),
+      freezeOnBlur: true,
 
-        <TouchableOpacity></TouchableOpacity>
-      </View>
-
+      headerRight: () => (
+        <Pressable
+          android_ripple={{
+            foreground: true,
+            color: lightColors.ripple,
+            borderless: true,
+            radius: 22,
+          }}
+          style={{
+            width: 40,
+            height: 40,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onPress={() => navigation.navigate("Chat")}
+        >
+          <Ionicons name="chatbox" size={24} color="white" />
+        </Pressable>
+      ),
+    });
+  }, [navigation]);
+  return (
+    <SafeAreaView style={styles.container} edges={[]}>
       <ScrollView
         style={{
           paddingHorizontal: 24,

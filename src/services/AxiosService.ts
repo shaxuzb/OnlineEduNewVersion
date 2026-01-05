@@ -1,53 +1,59 @@
-import axios, { AxiosError } from "axios";
+import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
-import { AuthToken } from "../types";
 import DeviceInfo from "react-native-device-info";
-// 🔹 Request interceptor → token qo‘shish
+import { AuthToken } from "../types";
+
+// 🔹 Queue management for refresh token
 let isRefreshing = false;
-let failedQueue: any[] = [];
+let failedQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (error: any) => void;
+}> = [];
+
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
     } else {
-      prom.resolve(token);
+      prom.resolve(token!);
     }
   });
   failedQueue = [];
 };
-const addToken = (config: any) => {
+
+// 🔹 Request interceptor - add token
+const addToken = async (config: InternalAxiosRequestConfig) => {
   try {
-    const userData = JSON.parse(
-      String(SecureStore.getItem("session"))
-    ) as AuthToken | null;
-    if (userData) {
-      const { token } = userData;
-      if (token) {
-        config.headers = {
-          ...config.headers,
-          Authorization: `Bearer ${token}`,
-        };
+    const session = await SecureStore.getItemAsync("session");
+    if (session) {
+      const userData = JSON.parse(session) as AuthToken;
+      if (userData?.token) {
+        config.headers.Authorization = `Bearer ${userData.token}`;
       }
     }
   } catch (error) {
-    console.log(error);
-
     console.error("Token parsing error:", error);
   }
   return config;
 };
 
-// 🔹 Response interceptor → 401 bo‘lsa logout qilish
+// 🔹 Response interceptor - handle 401
 const handleResponseError = async (error: AxiosError) => {
-  const originalRequest: any = error.config;
+  const originalRequest = error.config as InternalAxiosRequestConfig & {
+    _retry?: boolean;
+  };
 
-  if (error.response?.status === 401 && !originalRequest._retry) {
+  if (
+    error.response?.status === 401 &&
+    originalRequest &&
+    !originalRequest._retry
+  ) {
     originalRequest._retry = true;
 
-    // 🔁 Agar refresh jarayoni allaqachon boshlanib bo‘lgan bo‘lsa:
+    // 🔁 Agar refresh jarayoni allaqachon boshlanib bo'lsa
     if (isRefreshing) {
-      return new Promise((resolve, reject) => {
+      return new Promise<string>((resolve, reject) => {
         failedQueue.push({ resolve, reject });
       })
         .then((token) => {
@@ -64,42 +70,50 @@ const handleResponseError = async (error: AxiosError) => {
       const session = await SecureStore.getItemAsync("session");
       if (!session) throw new Error("No session found");
 
-      const { refreshToken } = JSON.parse(session) as AuthToken;
+      const authData = JSON.parse(session) as AuthToken;
+      const refreshToken = authData.refreshToken;
+
       if (!refreshToken) throw new Error("No refresh token found");
 
-      // 🔄 Refresh API so‘rov
-      const { data } = await axios.post(
-        `${Constants.expoConfig?.extra?.API_URL}/account/refresh`,
-        {
-          refreshToken,
-          uniqueId: (await DeviceInfo.getUniqueId()).toString(),
-        }
-      );
+      // 🔄 Refresh API so'rov
+      const { data } = await $axiosBase.post(`/account/refresh`, {
+        refreshToken,
+        uniqueId: await DeviceInfo.getUniqueId(),
+      });
 
-      const newAccessToken = data?.accessToken;
+      const newAccessToken = data?.accessToken || data?.token;
       const newRefreshToken = data?.refreshToken;
 
       if (!newAccessToken) throw new Error("No access token returned");
 
-      // 🔸 SecureStore ichiga saqlash
-      await SecureStore.setItemAsync(
-        "session",
-        JSON.stringify({
-          accessToken: newAccessToken,
-          refreshToken: newRefreshToken || refreshToken,
-        })
-      );
+      // 🔸 Session ma'lumotlarini yangilash (barcha ma'lumotlarni saqlab qolgan holda)
+      const updatedSession: AuthToken = {
+        ...authData, // eski barcha ma'lumotlarni saqlab qolish
+        token: newAccessToken,
+        refreshToken: newRefreshToken || refreshToken,
+      };
 
+      // 🔸 SecureStore yangilash
+      await SecureStore.setItemAsync("session", JSON.stringify(updatedSession));
+
+      // 🔁 Navbatdagi so'rovlarni yangi token bilan bajarish
       processQueue(null, newAccessToken);
 
-      // 🔁 Eski so‘rovni yangilangan token bilan qayta yuborish
+      // 🔁 Eski so'rovni yangilangan token bilan qayta yuborish
       originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
       return $axiosPrivate(originalRequest);
     } catch (refreshError) {
       console.warn("🔒 Refresh token failed:", refreshError);
+
+      // 🔁 Navbatdagi so'rovlarni rad etish
       processQueue(refreshError, null);
+
+      // 🔐 Sessionni tozalash
       await SecureStore.deleteItemAsync("session");
-      // TODO: foydalanuvchini logout sahifasiga yo‘naltirish kerak bo‘ladi
+
+      // TODO: Foydalanuvchini login sahifasiga yo'naltirish
+      // Masalan: navigation.navigate('Login');
+
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;
@@ -109,14 +123,20 @@ const handleResponseError = async (error: AxiosError) => {
   return Promise.reject(error);
 };
 
-// 🔹 Axios private instance
+// 🔹 Axios instances
 export const $axiosPrivate = axios.create({
-  baseURL: Constants.expoConfig?.extra?.API_URL,
+  baseURL: Constants.expoConfig?.extra?.API_URL+"/api",
   timeout: 10000,
 });
+
 export const $axiosBase = axios.create({
-  baseURL: Constants.expoConfig?.extra?.API_URL,
+  baseURL: Constants.expoConfig?.extra?.API_URL+"/api",
   timeout: 10000,
 });
+
+// 🔹 Interceptorlarni ulash
 $axiosPrivate.interceptors.request.use(addToken);
-$axiosPrivate.interceptors.response.use((res) => res, handleResponseError);
+$axiosPrivate.interceptors.response.use(
+  (response) => response,
+  handleResponseError
+);

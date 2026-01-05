@@ -120,6 +120,8 @@ export interface ThemeColors {
   tabBarBackground: string;
   tabBarActive: string;
   tabBarInactive: string;
+
+  ripple: string;
 }
 
 export interface Theme {
@@ -214,6 +216,7 @@ export interface ChapterTheme {
   descritpion: string | null; // API typo kept as-is
   content: string | null;
   stateId: number;
+  percent: number;
   hasAccess: boolean;
   price: number;
   state: string;
@@ -223,6 +226,7 @@ export interface ChapterTheme {
 export interface ChapterWithThemes {
   id: number;
   name: string;
+  percent: number;
   ordinalNumber: number;
   subjectId: number;
   subject: string;
@@ -262,6 +266,7 @@ export interface ThemeDetail {
 export interface AnswerKey {
   id: number;
   questionNumber: number;
+  dbQuestionNumber: number;
   partIndex: number;
   subTestNo: number;
   partLabel: string | null;
@@ -308,6 +313,12 @@ export interface QuizResult {
 // Quiz Results API types
 export interface QuizResultAnswer {
   questionNumber: number;
+  dbQuestionNumber: number;
+  answerFileId: string;
+  photos: {
+    fileId: string;
+    relativePath: string;
+  }[];
   partIndex: number;
   answer: string;
   subTestNo: number;
@@ -319,6 +330,8 @@ export interface QuizResultData {
   id: number;
   testId: number;
   userId: number;
+  percent: number;
+  maxScore: number;
   answers: QuizResultAnswer[];
   score: number;
 }
@@ -356,6 +369,7 @@ export interface StatisticsResponse extends Array<SubjectStatistic> {}
 //theme statistics
 export interface ChapterThemeStatistic {
   id: number;
+  testId: number;
   name: string;
   chapterId: number;
   ordinalNumber: number;
@@ -377,7 +391,11 @@ export interface ChapterWithThemesStatistic {
 }
 
 //theme test statistics
-
+export interface ThemeTestStatisticWrongAnswers {
+  subTestNo: number;
+  dbQuestionNumber: number;
+  questionNumber: number;
+}
 export interface ThemeTestStatistic {
   testId: number;
   name: string;
@@ -386,7 +404,7 @@ export interface ThemeTestStatistic {
   correct: number;
   wrong: number;
   total: number;
-  wrongOrUnsolvedNumbers: number[];
+  wrongOrUnsolvedNumbers: ThemeTestStatisticWrongAnswers[];
 }
 //orders
 export interface OrderItem {

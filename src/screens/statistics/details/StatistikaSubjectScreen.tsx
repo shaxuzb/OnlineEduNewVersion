@@ -1,33 +1,41 @@
-import React, { useCallback, useEffect } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-  ScrollView,
-  View,
+  InteractionManager,
+  SectionList,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  InteractionManager,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
 import { useTheme } from "@/src/context/ThemeContext";
-import { ChapterThemeStatistic, Theme } from "@/src/types";
 import { useThemeStatistics } from "@/src/hooks/useStatistics";
+import { ChapterThemeStatistic, Theme } from "@/src/types";
 import LoadingData from "@/src/components/exceptions/LoadingData";
 import ErrorData from "@/src/components/exceptions/ErrorData";
+import NoTestResultsModal from "../components/NoTestResultsModal";
 
-export default function StatistikaSubjectScreen() {
-  const navigation = useNavigation();
-  const route = useRoute<any>();
+export default function StatistikaSubjectScreen({
+  navigation,
+  route,
+}: {
+  navigation: any;
+  route: any;
+}) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-
-  const { userId, subjectId, subjectName, subjectPercent } =
-    route.params as any;
+  const [noTestResult, setNoTestResult] = useState(false);
+  const [chapterThemeData, setChapterThemeData] = useState<{
+    themeId: number;
+    themeOrdinalNumber: number;
+    themeName: string;
+  } | null>(null);
+  const { userId, subjectId, subjectName, subjectPercent } = route.params;
 
   const { data, isLoading, isError, refetch } = useThemeStatistics(
-    userId,
-    subjectId
+    Number(userId),
+    Number(subjectId)
   );
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() => {
@@ -36,91 +44,78 @@ export default function StatistikaSubjectScreen() {
     return () => task.cancel();
   }, []);
 
-  const handleGoBack = useCallback(() => {
-    navigation.goBack();
-  }, [navigation]);
-
   const handleThemePress = useCallback(
     (chapterTheme: ChapterThemeStatistic) => {
-      if (!chapterTheme.isLocked) {
-        (navigation as any).navigate("StatistikaDetailTest", {
+      if (!chapterTheme.isLocked && chapterTheme.testId) {
+        navigation.navigate("StatistikaDetailTest", {
           subjectId,
-          testId: 25,
+          testId: chapterTheme.testId,
+          themeId: chapterTheme.id,
           themePercent: chapterTheme.percent,
           userId,
           themeName: `${chapterTheme.ordinalNumber}-${chapterTheme.name}`,
         });
+      } else {
+        setNoTestResult(true);
+        setChapterThemeData({
+          themeId: chapterTheme.id,
+          themeName: chapterTheme.name,
+          themeOrdinalNumber: chapterTheme.ordinalNumber,
+        });
       }
     },
-    [navigation, subjectId, userId]
+    [navigation, subjectId, userId, chapterThemeData]
   );
-
+  useEffect(() => {
+    navigation.setOptions({
+      title: subjectName.toString(),
+      freezeOnBlur: true,
+      headerRight: () => (
+        <Text style={{ color: "white", fontSize: 18 }}>{subjectPercent}%</Text>
+      ),
+    });
+  }, [navigation]);
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Header */}
-      <Header
-        title={subjectName}
-        onBack={handleGoBack}
-        theme={theme}
-        right={
-          <Text style={{ color: theme.colors.text, fontSize: 20 }}>
-            {subjectPercent}%
-          </Text>
-        }
-      />
-
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
       {isLoading ? (
         <LoadingData />
       ) : isError ? (
         <ErrorData refetch={refetch} />
       ) : (
-        <ScrollView style={styles.content}>
-          {data?.map((chapter) => (
-            <View key={chapter.id}>
-              <Text style={styles.chapterSectionTitle}>
-                {chapter.ordinalNumber}-bob. {chapter.name}
-              </Text>
-
-              {chapter.themes.map((chapterTheme) => (
-                <ThemeItem
-                  key={chapterTheme.id}
-                  chapterTheme={chapterTheme}
-                  onPress={handleThemePress}
-                  theme={theme}
-                  styles={styles}
-                />
-              ))}
-            </View>
-          ))}
-        </ScrollView>
+        <SectionList
+          sections={
+            data?.map((chapter) => ({
+              title: `${chapter.ordinalNumber}-bob. ${chapter.name}`,
+              data: chapter.themes,
+            })) ?? []
+          }
+          keyExtractor={(item, index) => item.id.toString() + index}
+          renderSectionHeader={({ section: { title } }) => (
+            <Text style={styles.chapterSectionTitle}>{title}</Text>
+          )}
+          renderItem={({ item }) => (
+            <ThemeItem
+              key={item.id}
+              chapterTheme={item}
+              onPress={handleThemePress}
+              theme={theme}
+              styles={styles}
+            />
+          )}
+          initialNumToRender={2}
+          maxToRenderPerBatch={2}
+          windowSize={2}
+          scrollEnabled
+          contentContainerStyle={styles.content}
+        />
       )}
+      <NoTestResultsModal
+        visible={noTestResult}
+        onClose={() => setNoTestResult(false)}
+      />
     </SafeAreaView>
   );
 }
-
-/* --- Header Component --- */
-const Header = ({ title, onBack, right, theme }: any) => (
-  <View style={headerStyles(theme).header}>
-    <TouchableOpacity onPress={onBack} style={headerStyles(theme).backButton}>
-      <Ionicons name="chevron-back" size={24} color="white" />
-    </TouchableOpacity>
-    <Text style={headerStyles(theme).headerTitle}>{title}</Text>
-    {right}
-  </View>
-);
-
-const ProfileButton = () => (
-  <TouchableOpacity
-    style={{
-      backgroundColor: "rgba(255,255,255,0.2)",
-      padding: 8,
-      borderRadius: 50,
-    }}
-  >
-    <Ionicons name="person" size={24} color="white" />
-  </TouchableOpacity>
-);
-
 /* --- Theme Item (Memoized) --- */
 const ThemeItem = React.memo(
   ({ chapterTheme, onPress, theme, styles }: any) => (
@@ -159,33 +154,15 @@ const ThemeItem = React.memo(
             {chapterTheme.name}
           </Text>
         </View>
-        <Text style={styles.percentText}>{chapterTheme.percent}%</Text>
+        {chapterTheme.testId && (
+          <Text style={styles.percentText}>{chapterTheme.percent}%</Text>
+        )}
       </View>
     </TouchableOpacity>
   )
 );
 
 /* --- Styles --- */
-const headerStyles = (theme: Theme) =>
-  StyleSheet.create({
-    header: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      backgroundColor: theme.colors.primary,
-      padding: 20,
-      paddingTop: 16,
-    },
-    backButton: {
-      padding: 4,
-    },
-    headerTitle: {
-      fontSize: 20,
-      fontWeight: "bold",
-      color: "white",
-    },
-  });
-
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
@@ -193,7 +170,6 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.background,
     },
     content: {
-      flex: 1,
       paddingHorizontal: 16,
       paddingTop: 5,
     },

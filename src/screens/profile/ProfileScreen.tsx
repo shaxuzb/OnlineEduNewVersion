@@ -1,33 +1,27 @@
-import React, { memo } from "react";
-import {
-  ScrollView,
-  View,
-  Text,
-  TouchableOpacity,
-  Image,
-  Switch,
-  StyleSheet,
-  Alert,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from "@/src/context/AuthContext";
+import { useTheme } from "@/src/context/ThemeContext";
+import { Theme } from "@/src/types";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { useAuth } from "../../context/AuthContext";
-import { useTheme } from "../../context/ThemeContext";
-import { Theme } from "../../types";
-import useDoubleBackExit from "@/src/hooks/useDoubleBackExit";
+import React, { memo, useEffect } from "react";
+import {
+  Alert,
+  Image,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const menuItems = [
   {
     id: 1,
     title: "Shaxsiy ma'lumotlar",
     icon: "person-outline",
-    hasArrow: true,
-  },
-  {
-    id: 2,
-    title: "Xavfsizlik",
-    icon: "shield-outline",
     hasArrow: true,
   },
   {
@@ -42,12 +36,12 @@ const menuItems = [
     icon: "mail-outline",
     hasArrow: true,
   },
-  {
-    id: 5,
-    title: "Dastur haqida",
-    icon: "information-circle-outline",
-    hasArrow: true,
-  },
+  // {
+  //   id: 5,
+  //   title: "Dastur haqida",
+  //   icon: "information-circle-outline",
+  //   hasArrow: true,
+  // },
   {
     id: 6,
     title: "Kurs to'lovlari",
@@ -57,7 +51,6 @@ const menuItems = [
 ];
 
 function ProfileScreen() {
-  useDoubleBackExit();
   const navigation = useNavigation();
   const { theme, themeMode, setThemeMode } = useTheme();
   const { user, logout } = useAuth();
@@ -76,17 +69,16 @@ function ProfileScreen() {
       },
     ]);
   };
-
+  const handleLinkToAdmin = async () => {
+    await Linking.openURL("https://t.me/richdev_1");
+  };
   const handleMenuItemPress = (item: (typeof menuItems)[0]) => {
     if (item.id === 1) {
       // Shaxsiy ma'lumotlar
       (navigation as any).navigate("PersonalInfo");
-    } else if (item.id === 2) {
-      // Xavfsizlik
-      Alert.alert("Ma'lumot", "Xavfsizlik bo'limi hali tayyor emas");
     } else if (item.id === 4) {
       // A'loqa
-      Alert.alert("Ma'lumot", "A'loqa bo'limi hali tayyor emas");
+      handleLinkToAdmin();
     } else if (item.id === 5) {
       // Dastur haqida
       Alert.alert("Ma'lumot", "Dastur haqida bo'limi hali tayyor emas");
@@ -95,17 +87,35 @@ function ProfileScreen() {
       (navigation as any).navigate("PaymentOrders");
     }
   };
-
-  return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profil</Text>
-        <TouchableOpacity>
+  useEffect(() => {
+    navigation.setOptions({
+      title: "Profil",
+      headerRight: () => (
+        <Pressable
+          android_ripple={{
+            foreground: true,
+            color: theme.colors.ripple,
+            borderless: true,
+            radius: 22,
+          }}
+          style={{
+            width: 40,
+            height: 40,
+            alignItems: "center",
+            justifyContent: "center",
+            marginRight: 10,
+          }}
+          onPress={() => (navigation as any).navigate("Chat")}
+        >
           <Ionicons name="chatbox-ellipses-outline" size={24} color="white" />
-        </TouchableOpacity>
-      </View>
-
+        </Pressable>
+      ),
+    });
+  }, [navigation]);
+  return (
+    <SafeAreaView style={styles.container} edges={[]}>
+      {/* Header */}
+      {/* Header */}
       <ScrollView style={styles.content}>
         {/* Profile Section */}
         <View style={styles.profileSection}>
@@ -128,8 +138,12 @@ function ProfileScreen() {
         {/* Menu Items */}
         <View style={styles.menuContainer}>
           {menuItems.map((item, index) => (
-            <TouchableOpacity
+            <Pressable
               key={item.id}
+              android_ripple={{
+                foreground: true,
+                color: theme.colors.ripple,
+              }}
               style={[
                 styles.menuItem,
                 index < menuItems.length - 1 && styles.menuItemBorder,
@@ -171,13 +185,20 @@ function ProfileScreen() {
                   />
                 )
               )}
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
 
         {/* Logout Button */}
         <View style={styles.logoutContainer}>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Pressable
+            android_ripple={{
+              foreground: true,
+              color: theme.colors.ripple,
+            }}
+            style={styles.logoutButton}
+            onPress={handleLogout}
+          >
             <Ionicons
               name="log-out-outline"
               size={20}
@@ -185,7 +206,7 @@ function ProfileScreen() {
               style={styles.logoutIcon}
             />
             <Text style={styles.logoutText}>Tizimdan chiqish</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -251,7 +272,7 @@ const createStyles = (theme: Theme) =>
       alignItems: "center",
       justifyContent: "space-between",
       paddingHorizontal: 20,
-      paddingVertical: 20,
+      paddingVertical: 18,
     },
     menuItemLeft: {
       flexDirection: "row",
@@ -278,14 +299,13 @@ const createStyles = (theme: Theme) =>
     logoutContainer: {
       backgroundColor: theme.colors.card,
       marginTop: 20,
-      paddingHorizontal: 20,
-      paddingVertical: 16,
     },
     logoutButton: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      paddingVertical: 12,
+      paddingHorizontal: 20,
+      paddingVertical: 30,
     },
     logoutIcon: {
       marginRight: 8,

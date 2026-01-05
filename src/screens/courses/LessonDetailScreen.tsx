@@ -1,52 +1,70 @@
-import React, { useState } from "react";
+import PageCard from "@/src/components/ui/cards/PageCard";
+import { lightColors } from "@/src/constants/theme";
+import { useBookmark } from "@/src/context/BookmarkContext";
+import { useTheme } from "@/src/context/ThemeContext";
+import { useThemeDetails } from "@/src/hooks/useThemeDetails";
+import { BookmarkedLesson, Theme } from "@/src/types";
+import { BORDER_RADIUS, FONT_SIZES, SPACING } from "@/src/utils";
+import Test from "@/src/assets/icons/themes/test.svg";
+import Write from "@/src/assets/icons/themes/write.svg";
+import React, { useEffect, useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Dimensions,
+  Pressable,
+  ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  Alert,
-  ActivityIndicator,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import { useTheme } from "../../context/ThemeContext";
-import { SPACING, FONT_SIZES, BORDER_RADIUS } from "../../utils";
-import { useBookmark } from "../../context/BookmarkContext";
-import { BookmarkedLesson, RootStackParamList, Theme } from "../../types";
-import { useThemeDetails } from "@/src/hooks/useThemeDetails";
+import EmptyModal from "@/src/components/exceptions/EmptyModal";
+import Toast from "react-native-toast-message";
+import { moderateScale } from "react-native-size-matters";
 
 const { width } = Dimensions.get("window");
 
-export default function LessonDetailScreen() {
-  const navigation = useNavigation();
-  const route = useRoute();
+export default function LessonDetailScreen({
+  navigation,
+  route,
+}: {
+  navigation: any;
+  route: any;
+}) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { themeId, themeName, themeOrdinalNumber } =
-    route.params as RootStackParamList["LessonDetail"];
+  const { themeId, themeName, themeOrdinalNumber, percent } = route.params;
   const {
     addBookmark,
     removeBookmark,
     isBookmarked: isLessonBookmarked,
   } = useBookmark();
-
+  const [emptyModal, setEmptyModal] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+  }>({
+    open: false,
+    title: "",
+    description: "",
+  });
   // Get lesson data from route params
-  const { data, isLoading, isError, refetch } = useThemeDetails(themeId);
+  const { data, isLoading, isError, refetch } = useThemeDetails(
+    Number(themeId)
+  );
 
   // Check if current lesson is bookmarked
   const isBookmarked = isLessonBookmarked(data?.id ?? 0, "algebra");
-
-  const handleGoBack = () => {
-    navigation.goBack();
-  };
-
   const handleBookmark = async () => {
     try {
       if (isBookmarked) {
         await removeBookmark(data?.id ?? 0, "algebra");
-        Alert.alert("Saqlash", "Dars saqlashdan olib tashlandi!");
+        Toast.show({
+          type: "success",
+          text1: "Dars saqlashdan olib tashlandi!",
+        });
       } else {
         if (data) {
           const bookmarkData: BookmarkedLesson = {
@@ -65,65 +83,84 @@ export default function LessonDetailScreen() {
           };
 
           await addBookmark(bookmarkData);
-          Alert.alert("Saqlash", "Dars muvaffaqiyatli saqlandi!");
+          Toast.show({
+            type: "success",
+            text1: "Dars muvaffaqiyatli saqlandi!",
+          });
         }
       }
     } catch (error) {
-      Alert.alert("Xatolik", "Darsni saqlashda xatolik yuz berdi!");
+      Toast.show({
+        type: "error",
+        text1: "Darsni saqlashda xatolik yuz berdi!",
+      });
     }
   };
 
   const handlePlayVideo = () => {
     // Navigate to video player screen
     if (!data?.video?.fileId) {
-      Alert.alert("Warning", "Video yuklanmagan");
+      setEmptyModal({
+        open: true,
+        title: "Video dars mavjud emas",
+        description: "Ushbu mavzu uchun video dars hali yuklanmagan.",
+      });
     } else {
-      (navigation as any).navigate("VideoPlayer", {
+      navigation.navigate("VideoPlayer", {
         lessonTitle: data?.name,
         videoFileId: data?.video.fileId,
         mavzu: `${data?.ordinalNumber}-mavzu`,
       });
     }
   };
-
+  const handleThemeAbstract = () => {
+    // if (data?.testId) {
+    navigation.navigate("ThemeAbstract", {
+      themeId: data?.id,
+      // percent: percent,
+      // title: "Mashqlar",
+      mavzu: `${data?.ordinalNumber}-mavzu`,
+    });
+    // } else {
+    //   Alert.alert("Warning", "Test biriktirilmagan");
+    // }
+  };
   const handleMashqlar = () => {
     if (data?.testId) {
-      (navigation as any).navigate("QuizScreen", {
+      navigation.navigate("QuizScreen", {
         testId: data?.testId,
+        percent: percent,
         title: "Mashqlar",
         mavzu: `${data?.ordinalNumber}-mavzu`,
       });
     } else {
-      Alert.alert("Warning", "Test biriktirilmagan");
+      setEmptyModal({
+        open: true,
+        title: "Testlar hali mavjud emas",
+        description: "Bu mavzu bo‘yicha testlar hali joylanmagan.",
+      });
     }
   };
-
-  const handleOralQuestions = () => {
-    console.log("Open oral questions");
-    // Navigate to oral questions screen
-  };
+  useEffect(() => {
+    navigation.setOptions({
+      title: themeOrdinalNumber + "-mavzu",
+      freezeOnBlur: true,
+      headerRight: () => (
+        <Text
+          style={{
+            color: "white",
+            fontSize: moderateScale(16),
+            fontWeight: "500",
+          }}
+        >
+          {percent}%
+        </Text>
+      ),
+    });
+  }, [navigation, isBookmarked]);
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleGoBack} style={styles.headerButton}>
-            <Ionicons name="chevron-back" size={24} color="white" />
-          </TouchableOpacity>
-
-          <Text style={styles.headerTitle}>{themeOrdinalNumber}-mavzu</Text>
-
-          <TouchableOpacity
-            onPress={handleBookmark}
-            style={styles.headerButton}
-          >
-            <Ionicons
-              name={isBookmarked ? "bookmark" : "bookmark-outline"}
-              size={24}
-              color="white"
-            />
-          </TouchableOpacity>
-        </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={styles.loadingText}>Yuklanmoqda...</Text>
@@ -135,24 +172,6 @@ export default function LessonDetailScreen() {
   if (isError) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleGoBack} style={styles.headerButton}>
-            <Ionicons name="chevron-back" size={24} color="white" />
-          </TouchableOpacity>
-
-          <Text style={styles.headerTitle}>{themeOrdinalNumber}-mavzu</Text>
-
-          <TouchableOpacity
-            onPress={handleBookmark}
-            style={styles.headerButton}
-          >
-            <Ionicons
-              name={isBookmarked ? "bookmark" : "bookmark-outline"}
-              size={24}
-              color="white"
-            />
-          </TouchableOpacity>
-        </View>
         <View style={styles.loadingContainer}>
           <Text style={styles.errorText}>
             Xatolik yuz berdi. Qayta urinib ko'ring.
@@ -165,75 +184,100 @@ export default function LessonDetailScreen() {
     );
   }
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleGoBack} style={styles.headerButton}>
-          <Ionicons name="chevron-back" size={24} color="white" />
-        </TouchableOpacity>
-
-        <Text style={styles.headerTitle}>{themeOrdinalNumber}-mavzu</Text>
-
-        <TouchableOpacity onPress={handleBookmark} style={styles.headerButton}>
-          <Ionicons
-            name={isBookmarked ? "bookmark" : "bookmark-outline"}
-            size={24}
-            color="white"
-          />
-        </TouchableOpacity>
-      </View>
-
-      {/* Content */}
-      <View style={styles.content}>
-        {/* Lesson Title */}
-        <Text style={styles.lessonTitle}>{themeName}</Text>
-
-        {/* Video Player */}
-        <View style={styles.videoContainer}>
-          <TouchableOpacity
-            style={[styles.videoPlayer]}
-            onPress={handlePlayVideo}
-            activeOpacity={0.8}
+    <SafeAreaView style={styles.container} edges={[]}>
+      <PageCard>
+        <ScrollView style={styles.content}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: SPACING.sm,
+            }}
           >
-            <View style={styles.playButtonContainer}>
-              <View style={styles.playButton}>
-                <Ionicons name="play" size={32} color="white" />
+            <Text style={styles.lessonTitle}>{themeName}</Text>
+            <Pressable
+              android_ripple={{
+                foreground: true,
+                color: lightColors.ripple,
+                borderless: true,
+                radius: 22,
+              }}
+              style={{
+                width: 40,
+                height: 40,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onPress={handleBookmark}
+            >
+              <Ionicons
+                name={isBookmarked ? "bookmark" : "bookmark-outline"}
+                size={moderateScale(24)}
+                color="gray"
+              />
+            </Pressable>
+          </View>
+          <View style={styles.videoContainer}>
+            <Pressable
+              android_ripple={{
+                foreground: true,
+                color: lightColors.ripple,
+              }}
+              style={[styles.videoPlayer]}
+              onPress={handlePlayVideo}
+            >
+              <View style={styles.playButtonContainer}>
+                <View style={styles.playButton}>
+                  <Ionicons name="play" size={moderateScale(32)} color="white" />
+                </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        </View>
+            </Pressable>
+          </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={handleMashqlar}
-          >
-            <View style={styles.actionIconContainer}>
-              <Ionicons
-                name="add-circle"
-                size={24}
-                color={theme.colors.primary}
-              />
-            </View>
-            <Text style={styles.actionButtonText}>Mashqlar</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={handleOralQuestions}
-          >
-            <View style={styles.actionIconContainer}>
-              <Ionicons
-                name="play-circle"
-                size={24}
-                color={theme.colors.primary}
-              />
-            </View>
-            <Text style={styles.actionButtonText}>Og'zaki savol-javob</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+          {/* Action Buttons */}
+          <View style={styles.actionButtons}>
+            <Pressable
+              android_ripple={{
+                foreground: true,
+                color: lightColors.ripple,
+              }}
+              style={styles.actionButton}
+              onPress={handleThemeAbstract}
+            >
+              <View style={styles.actionIconContainer}>
+                <Write width={60} height={60} />
+              </View>
+              <Text style={styles.actionButtonText} numberOfLines={2}>
+                Mavzu konspekt
+              </Text>
+            </Pressable>
+            <Pressable
+              android_ripple={{
+                foreground: true,
+                color: lightColors.ripple,
+              }}
+              style={styles.actionButton}
+              onPress={handleMashqlar}
+            >
+              <View style={styles.actionIconContainer}>
+                <Test width={60} height={60} />
+              </View>
+              <Text style={styles.actionButtonText} numberOfLines={2}>
+                IDS mavzulashtirilgan testlar to'plami
+              </Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </PageCard>
+      <EmptyModal
+        visible={emptyModal.open}
+        onBack={() =>
+          setEmptyModal({ open: false, title: "", description: "" })
+        }
+        title={emptyModal.title}
+        description={emptyModal.description}
+      />
     </SafeAreaView>
   );
 }
@@ -266,12 +310,13 @@ const createStyles = (theme: Theme) =>
       paddingTop: SPACING.xl,
     },
     lessonTitle: {
-      fontSize: FONT_SIZES.xl,
+      fontSize: moderateScale(FONT_SIZES.xl),
       fontWeight: "bold",
       color: theme.colors.text,
       textAlign: "center",
-      marginBottom: SPACING["2xl"],
-      lineHeight: 28,
+      flexWrap: "wrap",
+      flexShrink: 1,
+      flexGrow: 1,
     },
     videoContainer: {
       marginBottom: SPACING["2xl"],
@@ -280,6 +325,7 @@ const createStyles = (theme: Theme) =>
       width: "100%",
       height: width * 0.56, // 16:9 aspect ratio
       backgroundColor: "#000",
+      overflow: "hidden",
       borderRadius: BORDER_RADIUS.base,
       justifyContent: "center",
       alignItems: "center",
@@ -291,9 +337,9 @@ const createStyles = (theme: Theme) =>
       justifyContent: "center",
     },
     playButton: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
+      width: moderateScale(80),
+      height: moderateScale(80),
+      borderRadius: moderateScale(40),
       backgroundColor: "rgba(255, 255, 255, 0.9)",
       justifyContent: "center",
       alignItems: "center",
@@ -316,6 +362,7 @@ const createStyles = (theme: Theme) =>
       alignItems: "center",
       backgroundColor: theme.colors.card,
       padding: SPACING.lg,
+      overflow: "hidden",
       borderRadius: BORDER_RADIUS.base,
       shadowColor: theme.colors.shadow,
       shadowOffset: { width: 0, height: 1 },
@@ -327,9 +374,10 @@ const createStyles = (theme: Theme) =>
       marginRight: SPACING.base,
     },
     actionButtonText: {
-      fontSize: FONT_SIZES.lg,
+      fontSize: moderateScale(FONT_SIZES.lg),
       color: theme.colors.text,
       fontWeight: "500",
+      flexShrink: 1,
     },
     loadingContainer: {
       flex: 1,

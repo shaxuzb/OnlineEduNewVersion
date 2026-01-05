@@ -9,12 +9,14 @@ import React, { SetStateAction, useRef } from "react";
 import LottieView from "lottie-react-native";
 import NetInfo from "@react-native-community/netinfo";
 import { COLORS } from "../utils";
+import { useTheme } from "../context/ThemeContext";
 const windowWidth = Dimensions.get("window").width;
 export default function NoConnection({
   setIsConnected,
 }: {
   setIsConnected: React.Dispatch<SetStateAction<boolean>>;
 }) {
+  const theme = useTheme();
   const animation = useRef<LottieView>(null);
 
   return (
@@ -32,13 +34,19 @@ export default function NoConnection({
       <Text
         style={{
           fontSize: 23,
-          color: "black",
+          color: theme.theme.colors.text,
           fontWeight: "600",
         }}
       >
         Internet aloqasi yo'q
       </Text>
-      <Text style={{ textAlign: "center", marginTop: 10 }}>
+      <Text
+        style={{
+          textAlign: "center",
+          marginTop: 10,
+          color: theme.theme.colors.text,
+        }}
+      >
         Internet aloqangizni tekshiring va keyinroq qayta urinib ko'ring.
       </Text>
 
@@ -58,7 +66,7 @@ export default function NoConnection({
             color: "white",
           }}
         >
-          Takrorlash{" "}
+          Takrorlash
         </Text>
       </TouchableOpacity>
     </View>

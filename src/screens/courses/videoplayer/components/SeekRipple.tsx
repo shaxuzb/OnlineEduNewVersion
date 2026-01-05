@@ -1,13 +1,13 @@
+import Icon from '@expo/vector-icons/Ionicons';
 import React from "react";
+import { StyleSheet, Text } from "react-native";
 import Animated, {
   useAnimatedStyle,
   withTiming,
 } from "react-native-reanimated";
-import { StyleSheet, Text } from "react-native";
-import Icon from "react-native-vector-icons/Ionicons";
 interface SeekRippleProps {
   side: "left" | "right";
-  active: Animated.SharedValue<boolean>;
+  active: any;
   text: string;
 }
 const SeekRipple: React.FC<SeekRippleProps> = ({ side, active, text }) => {

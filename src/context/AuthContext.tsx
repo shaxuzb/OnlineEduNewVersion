@@ -67,6 +67,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<any> => {
     setIsLoginLoading(true);
+    console.log(DeviceInfo.getApplicationName());
+
     try {
       const { data } = await $axiosBase.post<AuthToken>("/account/login", {
         userName: email,

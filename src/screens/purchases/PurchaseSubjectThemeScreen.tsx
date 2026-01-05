@@ -1,33 +1,35 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import ErrorData from "@/src/components/exceptions/ErrorData";
+import LoadingData from "@/src/components/exceptions/LoadingData";
+import { usePurchase } from "@/src/context/PurchaseContext";
+import { useTheme } from "@/src/context/ThemeContext";
+import { useThemes } from "@/src/hooks/useThemes";
+import { ChapterTheme, Theme } from "@/src/types";
+import { COLORS, numberSpacing } from "@/src/utils";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useCallback, useEffect, useMemo } from "react";
 import {
+  InteractionManager,
   ScrollView,
-  View,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  InteractionManager,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import { useTheme } from "../../context/ThemeContext";
-import { ChapterTheme, RootStackParamList, Theme } from "../../types";
-import { useThemes } from "../../hooks/useThemes";
-import LoadingData from "@/src/components/exceptions/LoadingData";
-import ErrorData from "@/src/components/exceptions/ErrorData";
-import { numberSpacing } from "@/src/utils";
-import { usePurchase } from "@/src/context/PurchaseContext";
 import Toast from "react-native-toast-message";
 
-export default function PurchaseSubjectThemeScreen() {
-  const navigation = useNavigation();
-  const route = useRoute<any>();
+export default function PurchaseSubjectThemeScreen({
+  navigation,
+  route,
+}: {
+  navigation: any;
+  route: any;
+}) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { selectedItems, setSelectAll, setSelectedItems } =
-    usePurchase();
-  const { subjectId } = route.params as RootStackParamList["SubjectScreen"];
-  const { data, isLoading, isError, refetch } = useThemes(subjectId);
+  const { selectedItems, setSelectAll, setSelectedItems } = usePurchase();
+  const { subjectId } = route.params;
+  const { data, isLoading, isError, refetch } = useThemes(Number(subjectId));
 
   // 🧩 Flatten all themes
   const allThemes = useMemo(
@@ -66,7 +68,7 @@ export default function PurchaseSubjectThemeScreen() {
         text1: "Mavzu tanlamadingiz!",
       });
     }
-    (navigation as any).navigate("Checkout", { scopeTypeId: 1 });
+    navigation.navigate("Checkout", { scopeTypeId: 1 });
   };
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(refetch);
@@ -87,8 +89,12 @@ export default function PurchaseSubjectThemeScreen() {
           return (
             <TouchableOpacity
               key={theme.id}
-              style={isSelected ? styles.themeCardSelected : styles.themeCard}
+              style={[
+                { overflow: "hidden" },
+                isSelected ? styles.themeCardSelected : styles.themeCard,
+              ]}
               onPress={() => toggleTheme(theme)}
+              disabled={theme.hasAccess}
               activeOpacity={0.8}
             >
               <View style={styles.themeInfo}>
@@ -103,6 +109,23 @@ export default function PurchaseSubjectThemeScreen() {
                   {theme.name}
                 </Text>
               </View>
+              {theme.hasAccess && (
+                <Text
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    backgroundColor: COLORS.primary,
+                    color: "white",
+                    padding: 2,
+                    paddingHorizontal: 9,
+                    borderBottomLeftRadius: 8,
+                    fontSize: 12,
+                    fontWeight: "500",
+                  }}
+                >
+                  Sotib olingan
+                </Text>
+              )}
             </TouchableOpacity>
           );
         })}
@@ -110,24 +133,23 @@ export default function PurchaseSubjectThemeScreen() {
     ),
     [selectedItems, styles, toggleTheme]
   );
-
-  return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-
+  useEffect(() => {
+    navigation.setOptions({
+      headerTitle: () => (
         <Ionicons name="cart-outline" size={38} color="white" />
-
+      ),
+      freezeOnBlur: true,
+      headerRight: () => (
         <TouchableOpacity onPress={toggleSelectAll}>
           <Text style={styles.headerSelectTotal}>
             Barchasini {"\n"} belgilash
           </Text>
         </TouchableOpacity>
-      </View>
-
+      ),
+    });
+  }, [navigation, toggleSelectAll]);
+  return (
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
       {/* Total Price */}
       <View style={styles.priceContainer}>
         <Text style={styles.priceText}>{totalPrice} UZS</Text>
@@ -176,7 +198,7 @@ const createStyles = (theme: Theme) =>
       fontSize: 13,
       fontWeight: "500",
       color: "white",
-      textAlign: "right",
+      textAlign: "center",
     },
 
     priceContainer: {

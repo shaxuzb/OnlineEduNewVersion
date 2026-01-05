@@ -10,19 +10,23 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
-import { $axiosBase } from "@/src/services/AxiosService";
-import { useTheme } from "@/src/context/ThemeContext";
-import { Theme } from "@/src/types";
-import { useNavigation, useRoute } from "@react-navigation/native";
 import Toast from "react-native-toast-message";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "@/src/context/ThemeContext";
+import { $axiosBase, $axiosPrivate } from "@/src/services/AxiosService";
 import { queryClient } from "@/src/utils/helpers/queryClient";
+import { Theme } from "@/src/types";
 
-const OTPCardVerification: React.FC = () => {
-  const navigation = useNavigation();
+const OTPCardVerification = ({
+  navigation,
+  route,
+}: {
+  navigation: any;
+  route: any;
+}) => {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const route = useRoute<any>();
-  const { phoneNumber, orderId } = route.params as any;
+  const { phoneNumber, orderId } = route.params;
   const [otpCode, setOtpCode] = useState(["", "", "", "", "", ""]);
   const [countdown, setCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
@@ -86,7 +90,7 @@ const OTPCardVerification: React.FC = () => {
     setIsVerifying(true);
     try {
       // Simulate OTP verification API call
-      const { data } = await $axiosBase.post(
+      const { data } = await $axiosPrivate.post(
         `transactions/subscribe/card/pay`,
         {
           orderId: orderId,
@@ -94,9 +98,23 @@ const OTPCardVerification: React.FC = () => {
         }
       );
       queryClient.clear();
-      (navigation as any).navigate("MainTabs", {
-        screen: "Courses",
-        params: { screen: "CoursesList" },
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: "MainTabs",
+            state: {
+              routes: [
+                {
+                  name: "Courses",
+                  state: {
+                    routes: [{ name: "CoursesList" }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
       });
       Toast.show({
         type: "success", // 'success' | 'error' | 'info'
@@ -104,8 +122,6 @@ const OTPCardVerification: React.FC = () => {
         text2: `To'lov qilindi`,
       });
     } catch (error: any) {
-      console.log(error.response);
-
       Toast.show({
         type: "error", // 'success' | 'error' | 'info'
         text1: "Xatolik",
@@ -163,98 +179,100 @@ const OTPCardVerification: React.FC = () => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        keyboardShouldPersistTaps="handled"
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <Text style={styles.title}>SMS yuborildi</Text>
-            <Text style={styles.subtitle}>
-              {phoneNumber} raqamiga yuborilgan SMS kodni kiriting
-            </Text>
-          </View>
-
-          {/* OTP Input Fields */}
-          <View style={styles.otpContainer}>
-            {otpCode.map((digit, index) => (
-              <TextInput
-                key={index}
-                ref={(ref) => {
-                  otpRefs.current[index] = ref;
-                }}
-                style={[
-                  styles.otpInput,
-                  digit && styles.otpInputFilled,
-                  isVerifying && styles.otpInputDisabled,
-                ]}
-                value={digit}
-                onChangeText={(value) => handleOtpChange(value, index)}
-                onKeyPress={({ nativeEvent }) =>
-                  handleKeyPress(nativeEvent.key, index)
-                }
-                keyboardType="numeric"
-                maxLength={1}
-                textAlign="center"
-                editable={!isVerifying}
-                selectTextOnFocus
-              />
-            ))}
-          </View>
-
-          {/* Countdown Timer */}
-          <View style={styles.timerContainer}>
-            <Text style={styles.timerText}>{formatTime(countdown)}</Text>
-          </View>
-
-          {/* Manual Verify Button */}
-          <TouchableOpacity
-            style={[
-              styles.verifyButton,
-              (isVerifying || otpCode.join("").length !== 6) &&
-                styles.verifyButtonDisabled,
-            ]}
-            onPress={handleManualVerify}
-            disabled={isVerifying || otpCode.join("").length !== 6}
-          >
-            {isVerifying ? (
-              <ActivityIndicator color="white" size="small" />
-            ) : (
-              <Text style={styles.verifyButtonText}>Tasdiqlash</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Resend Code */}
-          <TouchableOpacity
-            style={[
-              styles.resendButton,
-              !canResend && styles.resendButtonDisabled,
-            ]}
-            onPress={handleResendCode}
-            disabled={!canResend || isResending}
-          >
-            {isResending ? (
-              <ActivityIndicator color={theme.colors.primary} size="small" />
-            ) : (
-              <Text
-                style={[
-                  styles.resendText,
-                  canResend && styles.resendTextActive,
-                ]}
-              >
-                Kodni qayta yuborish
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.content}>
+            <View style={styles.header}>
+              <Text style={styles.title}>SMS yuborildi</Text>
+              <Text style={styles.subtitle}>
+                {phoneNumber} raqamiga yuborilgan SMS kodni kiriting
               </Text>
-            )}
-          </TouchableOpacity>
+            </View>
 
-          {/* Navigation Buttons */}
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            {/* OTP Input Fields */}
+            <View style={styles.otpContainer}>
+              {otpCode.map((digit, index) => (
+                <TextInput
+                  key={index}
+                  ref={(ref) => {
+                    otpRefs.current[index] = ref;
+                  }}
+                  style={[
+                    styles.otpInput,
+                    digit && styles.otpInputFilled,
+                    isVerifying && styles.otpInputDisabled,
+                  ]}
+                  value={digit}
+                  onChangeText={(value) => handleOtpChange(value, index)}
+                  onKeyPress={({ nativeEvent }) =>
+                    handleKeyPress(nativeEvent.key, index)
+                  }
+                  keyboardType="numeric"
+                  maxLength={1}
+                  textAlign="center"
+                  editable={!isVerifying}
+                  selectTextOnFocus
+                />
+              ))}
+            </View>
+
+            {/* Countdown Timer */}
+            <View style={styles.timerContainer}>
+              <Text style={styles.timerText}>{formatTime(countdown)}</Text>
+            </View>
+
+            {/* Manual Verify Button */}
+            <TouchableOpacity
+              style={[
+                styles.verifyButton,
+                (isVerifying || otpCode.join("").length !== 6) &&
+                  styles.verifyButtonDisabled,
+              ]}
+              onPress={handleManualVerify}
+              disabled={isVerifying || otpCode.join("").length !== 6}
+            >
+              {isVerifying ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <Text style={styles.verifyButtonText}>Tasdiqlash</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Resend Code */}
+            <TouchableOpacity
+              style={[
+                styles.resendButton,
+                !canResend && styles.resendButtonDisabled,
+              ]}
+              onPress={handleResendCode}
+              disabled={!canResend || isResending}
+            >
+              {isResending ? (
+                <ActivityIndicator color={theme.colors.primary} size="small" />
+              ) : (
+                <Text
+                  style={[
+                    styles.resendText,
+                    canResend && styles.resendTextActive,
+                  ]}
+                >
+                  Kodni qayta yuborish
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Navigation Buttons */}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 

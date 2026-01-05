@@ -2,6 +2,7 @@ import { View, Text } from "react-native";
 import React, { FC, memo } from "react";
 import { ChatMessage, Theme } from "@/src/types";
 import { Ionicons } from "@expo/vector-icons";
+import LinearGradient from "react-native-linear-gradient";
 interface MessageItemProps {
   msg: ChatMessage;
   styles: any;
@@ -11,8 +12,13 @@ const MessageItem: FC<MessageItemProps> = ({ msg, styles, theme }) => {
   const formatTime = (date: Date) =>
     date.toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" });
   return (
-    <View
+    <LinearGradient
       key={msg.id}
+      colors={
+        msg.senderType === 0 ? ["#3a5dde", "#5e84e6"] : ["#4157c6ff", "#6b6bf8ff"]
+      }
+      start={{ x: 0.5, y: 1.0 }}
+      end={{ x: 0.5, y: 0.0 }}
       style={[
         styles.messageContainer,
         msg.senderType === 0 ? styles.sentMessage : styles.receivedMessage,
@@ -47,7 +53,7 @@ const MessageItem: FC<MessageItemProps> = ({ msg, styles, theme }) => {
           />
         )}
       </View>
-    </View>
+    </LinearGradient>
   );
 };
 export default memo(MessageItem);

@@ -1,79 +1,72 @@
-import React, { useEffect } from "react";
+import { useTheme } from "@/src/context/ThemeContext";
+import { useQuizResults } from "@/src/hooks/useQuiz";
+import { QuizResultsResponse, Theme } from "@/src/types";
+import { BORDER_RADIUS, COLORS, FONT_SIZES, SPACING } from "@/src/utils";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useEffect, useMemo } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   BackHandler,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import { useTheme } from "../../context/ThemeContext";
-import { Theme } from "../../types";
-import { SPACING, FONT_SIZES, BORDER_RADIUS } from "../../utils";
-import { useQuizResults, useThemeTest } from "../../hooks/useQuiz";
+import { moderateScale } from "react-native-size-matters";
 
-export default function QuizResultsScreen() {
-  const navigation = useNavigation();
-  const route = useRoute();
+export default function QuizResultsScreen({
+  navigation,
+  route,
+}: {
+  navigation: any;
+  route: any;
+}) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-
-  const { testId, userId, themeId, mavzu } = (route.params as any) || {};
-
-  // API
+  const { testId, userId, themeId, mavzu } = route.params;
   const {
     data: quizResults,
     isLoading: resultsLoading,
     error: resultsError,
-  } = useQuizResults(userId, themeId);
-  const { data: testData, isLoading: testLoading } = useThemeTest(testId);
+  } = useQuizResults(Number(userId), Number(themeId));
 
-  const latestResult = quizResults?.[0];
-  const totalQuestions = testData?.questionCount || 0;
-  const score = latestResult?.score || 0;
-  const percentage =
-    totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
-  const wrongAnswers = totalQuestions - score;
+  const groupedTestData = useMemo(() => {
+    if (!quizResults) return [];
 
-  // ❌ Find incorrect & unanswered
-  const wrongQuestionNumbers: number[] = [];
-  if (latestResult && testData) {
-    const allQuestions = Array.from(
-      { length: totalQuestions },
-      (_, i) => i + 1
+    return Object.entries(
+      quizResults[0].answers
+        .filter((item) => !item.isCorrect)
+        .reduce((acc: any, key: any) => {
+          const group = acc[key.subTestNo] || [];
+          group.push(key);
+          acc[key.subTestNo] = group;
+          return acc;
+        }, {})
     );
-    const answered = latestResult.answers.map((a) => a.questionNumber);
-    const unanswered = allQuestions.filter((q) => !answered.includes(q));
-    const incorrect = latestResult.answers
-      .filter((a) => {
-        const correct = testData.answerKeys.find(
-          (ak) => ak.questionNumber === a.questionNumber
-        );
-        return correct && correct.correctAnswer !== a.answer;
-      })
-      .map((a) => a.questionNumber);
+  }, [quizResults]);
 
-    wrongQuestionNumbers.push(...incorrect, ...unanswered);
-  }
-
-  const resultsData = {
-    totalQuestions,
-    correctAnswers: score,
-    wrongAnswers,
-    percentage,
-    wrongQuestionNumbers: wrongQuestionNumbers.sort((a, b) => a - b),
-    mavzu: mavzu || "Test",
-  };
-
-  const handleFinish = () =>
-    (navigation as any).navigate("MainTabs", {
-      screen: "Courses",
-      params: { screen: "CoursesList" },
+  const handleFinish = () => {
+    navigation.reset({
+      index: 0,
+      routes: [
+        {
+          name: "MainTabs",
+          state: {
+            routes: [
+              {
+                name: "Courses",
+                state: {
+                  routes: [{ name: "CoursesList" }],
+                },
+              },
+            ],
+          },
+        },
+      ],
     });
-
+  };
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
       "hardwareBackPress",
@@ -84,8 +77,21 @@ export default function QuizResultsScreen() {
     );
     return () => backHandler.remove();
   }, []);
-
-  if (resultsLoading || testLoading)
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: true,
+      title: "IDS mavzulashtirilgan testlar to'plami",
+      headerTitle: () => (
+        <View style={headerRightStyles.container}>
+          <Text style={styles.headerTitle}>IDS mavzulashtirilgan testlar to'plami</Text>
+        </View>
+      ),
+      freezeOnBlur: true,
+      headerRight: () => null,
+      headerLeft: () => <Text></Text>,
+    });
+  }, [navigation]);
+  if (resultsLoading)
     return (
       <SafeAreaView style={styles.centerContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -93,7 +99,7 @@ export default function QuizResultsScreen() {
       </SafeAreaView>
     );
 
-  if (resultsError || !latestResult)
+  if (resultsError || !quizResults)
     return (
       <SafeAreaView style={styles.centerContainer}>
         <Ionicons
@@ -109,82 +115,121 @@ export default function QuizResultsScreen() {
     );
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{resultsData.mavzu}</Text>
-        <Text style={styles.headerSubtitle}>Natija</Text>
-      </View>
-
-      {/* Body */}
-      <View style={styles.content}>
-        {/* Circle */}
-        <View style={styles.percentageCircle}>
-          <Text style={styles.percentageText}>{resultsData.percentage}%</Text>
-        </View>
-
-        {/* Stats */}
-        <View style={styles.statsBox}>
-          <View style={styles.statsRow}>
-            <Text style={styles.statsLabel}>To'g'ri:</Text>
-            <Text style={styles.statsValue}>
-              {resultsData.correctAnswers} ta
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        <View style={styles.content}>
+          {/* Circle */}
+          <View style={styles.percentageCircle}>
+            <Text style={styles.percentageText}>
+              {quizResults[0].percent.toFixed(0)}%
             </Text>
           </View>
-          <View style={styles.statsRow}>
-            <Text style={styles.statsLabel}>Noto'g'ri:</Text>
-            <Text style={styles.statsValue}>{resultsData.wrongAnswers} ta</Text>
+
+          {/* Stats */}
+          <View style={styles.statsBox}>
+            <View style={styles.statsRow}>
+              <Text style={styles.statsLabel}>To'g'ri:</Text>
+              <Text style={styles.statsValue}>{quizResults[0].score} ta</Text>
+            </View>
+            <View style={styles.statsRow}>
+              <Text style={styles.statsLabel}>Noto'g'ri:</Text>
+              <Text style={styles.statsValue}>
+                {quizResults[0].maxScore - quizResults[0].score} ta
+              </Text>
+            </View>
           </View>
-        </View>
 
-        {/* Wrong list */}
-        <View style={styles.wrongBox}>
-          <Text style={styles.wrongTitle}>Xato yoki ishlanmagan misollar:</Text>
-          <View style={styles.wrongNumbers}>
-            {resultsData.wrongQuestionNumbers.map((num) => (
-              <View key={num} style={styles.badge}>
-                <Text style={styles.badgeText}>{num}</Text>
-              </View>
-            ))}
+          {/* Wrong list */}
+          <View style={styles.wrongBox}>
+            <Text style={styles.wrongTitle}>
+              Xato yoki ishlanmagan misollar:
+            </Text>
+            <View style={styles.wrongNumbers}>
+              {groupedTestData.map(([subTestNo, questions]) => {
+                return (
+                  <View key={subTestNo}>
+                    <Text
+                      style={{
+                        fontSize: moderateScale(16),
+                        marginBottom: moderateScale(8),
+                        color: theme.colors.text,
+                      }}
+                    >
+                      Test {subTestNo}
+                    </Text>
+                    <View
+                      style={{ flexDirection: "row", gap: 5, flexWrap: "wrap" }}
+                    >
+                      {(questions as QuizResultsResponse[0]["answers"]).map(
+                        (num, index) => (
+                          <View key={index} style={styles.badge}>
+                            <Text style={styles.badgeText}>
+                              {num.questionNumber}
+                            </Text>
+                          </View>
+                        )
+                      )}
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+            <Text style={styles.encouragement}>
+              Ushbu misollarni qayta yechishni tavsiya qilamiz!
+            </Text>
           </View>
-          <Text style={styles.encouragement}>
-            Ushbu misollarni qayta yechishni tavsiya qilamiz!
-          </Text>
-        </View>
 
-        {/* Buttons */}
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.button, styles.outlineButton]}
-            onPress={() => {
-              (navigation as any).navigate("QuizSolution", {
-                userId,
-                testId,
-                themeId,
-              });
-            }}
-          >
-            <Ionicons
-              name="eye-outline"
-              size={20}
-              color={theme.colors.primary}
-            />
-            <Text style={styles.outlineText}>Natijani ko‘rish</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, styles.primaryButton]}
-            onPress={handleFinish}
-          >
-            <Ionicons name="checkmark-circle" size={20} color="white" />
-            <Text style={styles.primaryText}>Yakunlash</Text>
-          </TouchableOpacity>
+          {/* Buttons */}
         </View>
+      </ScrollView>
+      <View style={styles.actions}>
+        <TouchableOpacity
+          style={[styles.button, styles.outlineButton]}
+          onPress={() => {
+            navigation.navigate("QuizSolution", {
+              userId,
+              testId,
+              themeId,
+              mavzu,
+            });
+            // router.navigate({
+            //   pathname: "/(root)/lesson/lessondetail/quiz/solution",
+            //   params: {
+            //     userId,
+            //     testId,
+            //     themeId,
+            //     mavzu,
+            //   },
+            // });
+          }}
+        >
+          <Ionicons name="eye-outline" size={moderateScale(20)} color={theme.colors.primary} />
+          <Text style={styles.outlineText}>Natijani ko‘rish</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, styles.primaryButton]}
+          onPress={handleFinish}
+        >
+          <Ionicons name="checkmark-circle" size={moderateScale(20)} color="white" />
+          <Text style={styles.primaryText}>Yakunlash</Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
-
+const headerRightStyles = StyleSheet.create({
+  container: {
+    borderRadius: moderateScale(BORDER_RADIUS.sm),
+    minWidth: moderateScale(50),
+    alignItems: "center",
+  },
+  text: {
+    fontSize: moderateScale(FONT_SIZES.sm),
+    color: COLORS.white,
+    fontWeight: "500",
+  },
+});
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
@@ -197,15 +242,11 @@ const createStyles = (theme: Theme) =>
       alignItems: "center",
       backgroundColor: theme.colors.background,
     },
-    header: {
-      alignItems: "center",
-      backgroundColor: theme.colors.primary,
-      paddingVertical: SPACING.base,
-    },
+   
     headerTitle: {
-      fontSize: FONT_SIZES.lg,
-      fontWeight: "bold",
-      color: "white",
+      fontSize: moderateScale(FONT_SIZES.lg),
+      color: COLORS.white,
+      fontWeight: "500",
     },
     headerSubtitle: {
       fontSize: FONT_SIZES.sm,
@@ -218,95 +259,95 @@ const createStyles = (theme: Theme) =>
       padding: SPACING.lg,
     },
     percentageCircle: {
-      width: 150,
-      height: 150,
-      borderRadius: 75,
-      borderWidth: 4,
+      width: moderateScale(150),
+      height: moderateScale(150),
+      borderRadius: moderateScale(75),
+      borderWidth: moderateScale(4),
       borderColor: theme.colors.primary,
       justifyContent: "center",
       alignItems: "center",
       backgroundColor: theme.colors.card,
-      marginBottom: SPACING.xl,
+      marginBottom: moderateScale(SPACING.xl),
     },
     percentageText: {
-      fontSize: 48,
+      fontSize: moderateScale(42),
       fontWeight: "bold",
       color: theme.colors.primary,
     },
     statsBox: {
       backgroundColor: theme.colors.card,
-      borderRadius: BORDER_RADIUS.base,
-      padding: SPACING.lg,
-      marginBottom: SPACING.xl,
+      borderRadius: moderateScale(BORDER_RADIUS.base),
+      padding: moderateScale(SPACING.sm),
+      marginBottom: moderateScale(SPACING.lg),
       width: "100%",
     },
     statsRow: {
       flexDirection: "row",
       justifyContent: "space-between",
-      paddingVertical: SPACING.sm,
+      paddingVertical: moderateScale(SPACING.xs),
     },
     statsLabel: {
-      fontSize: FONT_SIZES.lg,
+      fontSize: moderateScale(FONT_SIZES.base),
       color: theme.colors.text,
     },
     statsValue: {
-      fontSize: FONT_SIZES.lg,
+      fontSize: moderateScale(FONT_SIZES.base),
       fontWeight: "bold",
       color: theme.colors.text,
     },
     wrongBox: {
       backgroundColor: theme.colors.card,
-      borderRadius: BORDER_RADIUS.base,
-      padding: SPACING.lg,
-      marginBottom: SPACING.xl,
+      borderRadius: moderateScale(BORDER_RADIUS.base),
+      padding: moderateScale(SPACING.base),
+      marginBottom: moderateScale(SPACING.lg),
       width: "100%",
     },
     wrongTitle: {
-      fontSize: FONT_SIZES.base,
+      fontSize: moderateScale(FONT_SIZES.base),
       fontWeight: "600",
       color: theme.colors.text,
-      marginBottom: SPACING.base,
+      marginBottom: moderateScale(SPACING.xs),
     },
     wrongNumbers: {
-      flexDirection: "row",
-      flexWrap: "wrap",
+      flexDirection: "column",
       gap: SPACING.xs,
     },
     badge: {
       borderWidth: 1,
       borderColor: theme.colors.error,
       backgroundColor: theme.colors.error + "20",
-      borderRadius: BORDER_RADIUS.sm,
-      paddingHorizontal: SPACING.sm,
-      paddingVertical: SPACING.xs,
+      borderRadius: moderateScale(BORDER_RADIUS.sm),
+      paddingHorizontal: moderateScale(SPACING.sm),
+      paddingVertical: moderateScale(SPACING.xs),
     },
     badgeText: {
-      fontSize: FONT_SIZES.sm,
+      fontSize: moderateScale(FONT_SIZES.xs),
       color: theme.colors.error,
       fontWeight: "600",
     },
     encouragement: {
-      fontSize: FONT_SIZES.base,
+      fontSize: moderateScale(FONT_SIZES.base),
       textAlign: "center",
       color: theme.colors.text,
-      marginTop: SPACING.sm,
+      marginTop: moderateScale(SPACING.sm),
       fontStyle: "italic",
     },
     actions: {
       flexDirection: "row",
+      paddingHorizontal: moderateScale(SPACING.base),
       width: "100%",
       gap: SPACING.base,
-      marginTop: "auto",
-      marginBottom: SPACING.xl,
+      marginTop: moderateScale(12),
+      marginBottom: moderateScale(SPACING.xl),
     },
     button: {
       flex: 1,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      paddingVertical: SPACING.base,
-      borderRadius: BORDER_RADIUS.base,
-      gap: SPACING.xs,
+      paddingVertical: moderateScale(12),
+      borderRadius: moderateScale(BORDER_RADIUS.base),
+      gap: moderateScale(SPACING.xs),
     },
     outlineButton: {
       backgroundColor: theme.colors.card,
@@ -319,20 +360,20 @@ const createStyles = (theme: Theme) =>
     outlineText: {
       color: theme.colors.primary,
       fontWeight: "600",
-      fontSize: FONT_SIZES.base,
+      fontSize: moderateScale(FONT_SIZES.base),
     },
     primaryText: {
       color: "white",
       fontWeight: "600",
-      fontSize: FONT_SIZES.base,
+      fontSize: moderateScale(FONT_SIZES.base),
     },
     loadingText: {
       marginTop: SPACING.base,
-      fontSize: FONT_SIZES.base,
+      fontSize: moderateScale(FONT_SIZES.base),
       color: theme.colors.text,
     },
     errorTitle: {
-      fontSize: FONT_SIZES.xl,
+      fontSize: moderateScale(FONT_SIZES.xl),
       fontWeight: "bold",
       color: theme.colors.text,
       marginTop: SPACING.base,

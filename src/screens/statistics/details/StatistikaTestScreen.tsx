@@ -1,36 +1,51 @@
-import React, { memo, useCallback, useEffect } from "react";
+import { useTheme } from "@/src/context/ThemeContext";
+import { useThemeTestStatistics } from "@/src/hooks/useStatistics";
+import { Theme, ThemeTestStatisticWrongAnswers } from "@/src/types";
+import { BORDER_RADIUS, FONT_SIZES, SPACING } from "@/src/utils";
+import { Ionicons } from "@expo/vector-icons";
+import React, { memo, useCallback, useEffect, useMemo } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   InteractionManager,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import { useThemeTestStatistics } from "@/src/hooks/useStatistics";
-import { useTheme } from "@/src/context/ThemeContext";
-import { Theme } from "@/src/types";
-import { BORDER_RADIUS, FONT_SIZES, SPACING } from "@/src/utils";
 
-function StatistikaTestScreen() {
-  const navigation = useNavigation();
-  const route = useRoute();
+function StatistikaTestScreen({
+  navigation,
+  route,
+}: {
+  navigation: any;
+  route: any;
+}) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
 
   // Get route params
-  const { testId, userId, subjectId, themeName, themePercent } =
-    (route.params as any) || {};
+  const { testId, userId, subjectId, themeName, themeId } = route.params;
 
   // API hooks
   const { data, isLoading, error, refetch } = useThemeTestStatistics(
-    userId,
-    subjectId,
-    testId
+    Number(userId),
+    Number(subjectId),
+    Number(testId)
   );
+  const groupedTestData = useMemo(() => {
+    if (!data) return [];
+
+    return Object.entries(
+      data.wrongOrUnsolvedNumbers.reduce((acc: any, key: any) => {
+        const group = acc[key.subTestNo] || [];
+        group.push(key);
+        acc[key.subTestNo] = group;
+        return acc;
+      }, {})
+    );
+  }, [data]);
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() => {
       refetch();
@@ -40,30 +55,29 @@ function StatistikaTestScreen() {
   const handleGoBack = useCallback(() => {
     navigation.goBack();
   }, []);
-
-  const handleRetry = useCallback(() => {
-    navigation.goBack();
-  }, []);
-
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleGoBack} style={styles.headerButton}>
-          <Ionicons name="chevron-back" size={24} color="white" />
-        </TouchableOpacity>
-
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>{themeName}</Text>
+  useEffect(() => {
+    navigation.setOptions({
+      title: themeName.toString(),
+      headerTitle: ({ children }: { children: any }) => (
+        <View
+          style={{
+            alignItems: "center",
+            paddingBottom: 5,
+          }}
+        >
+          <Text style={styles.headerTitle}>{children}</Text>
           <Text style={styles.headerSubtitle}>Natija</Text>
         </View>
-
-        <TouchableOpacity onPress={handleGoBack} style={styles.headerButton}>
-          <Ionicons name="close" size={24} color="white" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Content */}
+      ),
+      headerRight: () => <Text style={{ width: 55 }}></Text>,
+      headerTintColor: "white",
+      headerStyle: {
+        backgroundColor: theme.colors.primary,
+      },
+    });
+  }, [navigation]);
+  return (
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -85,48 +99,105 @@ function StatistikaTestScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <View style={styles.content}>
+        <View style={{ flex: 1 }}>
           {/* Percentage Circle */}
-          <View style={styles.percentageContainer}>
-            <View style={styles.percentageCircle}>
-              <Text style={styles.percentageText}>{themePercent}%</Text>
-            </View>
-          </View>
-
-          {/* Statistics */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statsRow}>
-              <Text style={styles.statsLabel}>To'g'ri:</Text>
-              <Text style={styles.statsValue}>{data?.correct} ta</Text>
-            </View>
-            <View style={styles.statsRow}>
-              <Text style={styles.statsLabel}>Noto'g'ri:</Text>
-              <Text style={styles.statsValue}>{data?.wrong} ta</Text>
-            </View>
-          </View>
-
-          {/* Wrong Answers Section */}
-          <View style={styles.wrongAnswersSection}>
-            <Text style={styles.wrongAnswersTitle}>
-              Xato ishlangan yoki ishlanmagan misol nomerlari:
-            </Text>
-
-            <View style={styles.wrongNumbersContainer}>
-              {data?.wrongOrUnsolvedNumbers.map((number, index) => (
-                <View key={index} style={styles.wrongNumberBadge}>
-                  <Text style={styles.wrongNumberText}>{number}</Text>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+            <View style={styles.content}>
+              <View style={styles.percentageContainer}>
+                <View style={styles.percentageCircle}>
+                  <Text style={styles.percentageText}>{data?.percent}%</Text>
                 </View>
-              ))}
-            </View>
+              </View>
 
-            <Text style={styles.encouragementText}>
-              Ushbu misollari qayta hal qilishni tavsiya qilamiz!
-            </Text>
-          </View>
+              {/* Statistics */}
+              <View style={styles.statsContainer}>
+                <View style={styles.statsRow}>
+                  <Text style={styles.statsLabel}>To'g'ri:</Text>
+                  <Text style={styles.statsValue}>{data?.correct} ta</Text>
+                </View>
+                <View style={styles.statsRow}>
+                  <Text style={styles.statsLabel}>Noto'g'ri:</Text>
+                  <Text style={styles.statsValue}>{data?.wrong} ta</Text>
+                </View>
+              </View>
+
+              {/* Wrong Answers Section */}
+              <View style={styles.wrongAnswersSection}>
+                <Text style={styles.wrongAnswersTitle}>
+                  Xato ishlangan yoki ishlanmagan misol nomerlari:
+                </Text>
+
+                <View style={styles.wrongNumbersContainer}>
+                  {groupedTestData.map(([subTestNo, questions]) => {
+                    return (
+                      <View key={subTestNo}>
+                        <Text
+                          style={{
+                            fontSize: 16,
+                            marginBottom: 8,
+                            color: theme.colors.text,
+                          }}
+                        >
+                          Test {subTestNo}
+                        </Text>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            gap: 5,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          {(questions as ThemeTestStatisticWrongAnswers[]).map(
+                            (num, index) => (
+                              <View key={index} style={styles.wrongNumberBadge}>
+                                <Text style={styles.wrongNumberText}>
+                                  {num.questionNumber}
+                                </Text>
+                              </View>
+                            )
+                          )}
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+
+                <Text style={styles.encouragementText}>
+                  Ushbu misollari qayta hal qilishni tavsiya qilamiz!
+                </Text>
+              </View>
+            </View>
+          </ScrollView>
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
-
+            <TouchableOpacity
+              style={[styles.button, styles.outlineButton]}
+              onPress={() => {
+                navigation.navigate("QuizSolution", {
+                  userId,
+                  testId,
+                  themeId: themeId,
+                  percent: data?.percent,
+                });
+                // router.navigate({
+                //   pathname: "/(root)/lesson/lessondetail/quiz/solution",
+                //   params: {
+                //     userId,
+                //     testId,
+                //     themeId,
+                //     mavzu,
+                //   },
+                // });
+              }}
+            >
+              <Ionicons
+                name="eye-outline"
+                size={20}
+                color={theme.colors.primary}
+              />
+              <Text style={styles.outlineText}>Natijani ko‘rish</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionButton, styles.finishButton]}
               onPress={handleGoBack}
@@ -252,8 +323,7 @@ const createStyles = (theme: Theme) =>
       lineHeight: 22,
     },
     wrongNumbersContainer: {
-      flexDirection: "row",
-      flexWrap: "wrap",
+      flexDirection: "column",
       gap: SPACING.xs,
       marginBottom: SPACING.base,
     },
@@ -283,8 +353,10 @@ const createStyles = (theme: Theme) =>
       flexDirection: "row",
       gap: SPACING.base,
       width: "100%",
+      paddingHorizontal: SPACING.lg,
       marginTop: "auto",
-      marginBottom: SPACING.xl,
+      paddingTop: SPACING.sm,
+      marginBottom: SPACING.sm,
     },
     actionButton: {
       flex: 1,
@@ -294,6 +366,24 @@ const createStyles = (theme: Theme) =>
       paddingVertical: SPACING.base,
       borderRadius: BORDER_RADIUS.base,
       gap: SPACING.xs,
+    },
+    button: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 12,
+      borderRadius: BORDER_RADIUS.base,
+      gap: SPACING.xs,
+    },
+    outlineButton: {
+      backgroundColor: theme.colors.card,
+      borderWidth: 2,
+      borderColor: theme.colors.primary,
+    },
+    outlineText: {
+      color: theme.colors.primary,
+      fontWeight: "600",
+      fontSize: FONT_SIZES.base,
     },
     retryButton: {
       backgroundColor: theme.colors.card,

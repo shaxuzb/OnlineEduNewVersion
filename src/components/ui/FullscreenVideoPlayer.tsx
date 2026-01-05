@@ -34,7 +34,7 @@ export default function FullscreenVideoPlayer({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
-  const videoRef = useRef<Video>(null);
+  const videoRef = useRef<any>(null);
 
   const handlePlayPause = () => {
     setPaused(!paused);

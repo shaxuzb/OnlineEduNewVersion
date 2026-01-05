@@ -40,6 +40,8 @@ export const lightColors: ThemeColors = {
   tabBarBackground: "#ffffff",
   tabBarActive: "#3b82f6",
   tabBarInactive: "#6b7280",
+  
+  ripple: "#0000001F",
 };
 
 // Dark theme colors
@@ -82,6 +84,8 @@ export const darkColors: ThemeColors = {
   tabBarBackground: "#1f2937",
   tabBarActive: "#60a5fa",
   tabBarInactive: "#9ca3af",
+
+  ripple: "#FFFFFF3D",
 };
 
 // Theme objects
