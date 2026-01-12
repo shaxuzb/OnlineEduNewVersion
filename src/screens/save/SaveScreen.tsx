@@ -15,6 +15,7 @@ import { useTheme } from "../../context/ThemeContext";
 import { SPACING, FONT_SIZES } from "../../utils";
 import { BookmarkedLesson, Theme } from "../../types";
 import PageCard from "@/src/components/ui/cards/PageCard";
+import { moderateScale } from "react-native-size-matters";
 
 export default function SaveScreen() {
   const navigation = useNavigation();
@@ -95,7 +96,7 @@ export default function SaveScreen() {
                       <View style={styles.lessonIcon}>
                         <Ionicons
                           name="lock-closed"
-                          size={16}
+                          size={moderateScale(16)}
                           color={theme.colors.success}
                         />
                       </View>
@@ -114,7 +115,7 @@ export default function SaveScreen() {
                       >
                         <Ionicons
                           name="close"
-                          size={16}
+                          size={moderateScale(16)}
                           color={theme.colors.textMuted}
                         />
                       </TouchableOpacity>
@@ -138,38 +139,7 @@ const createStyles = (theme: Theme) =>
       flex: 1,
       backgroundColor: theme.colors.background,
     },
-    header: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      backgroundColor: theme.colors.primary,
-      paddingHorizontal: SPACING.lg,
-      paddingVertical: SPACING.base,
-      minHeight: 60,
-    },
-    menuButton: {
-      padding: SPACING.xs,
-      width: 40,
-      alignItems: "flex-start",
-    },
-    headerTitle: {
-      fontSize: FONT_SIZES.xl,
-      fontWeight: "bold",
-      color: "white",
-      flex: 1,
-      textAlign: "center",
-    },
-    headerIndicator: {
-      width: 40,
-      alignItems: "flex-end",
-      paddingRight: SPACING.xs,
-    },
-    dotIndicator: {
-      width: 12,
-      height: 12,
-      borderRadius: 6,
-      backgroundColor: "white",
-    },
+
     loadingContainer: {
       flex: 1,
       justifyContent: "center",
@@ -187,14 +157,14 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: SPACING.xl,
     },
     emptyTitle: {
-      fontSize: FONT_SIZES.xl,
+      fontSize: moderateScale(FONT_SIZES.lg),
       fontWeight: "bold",
       color: theme.colors.text,
-      marginTop: SPACING.base,
+      marginTop: moderateScale(SPACING.sm),
       textAlign: "center",
     },
     emptySubtitle: {
-      fontSize: FONT_SIZES.base,
+      fontSize: moderateScale(FONT_SIZES.sm),
       color: theme.colors.textSecondary,
       textAlign: "center",
       marginTop: SPACING.xs,
@@ -205,14 +175,14 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.card,
     },
     categorySection: {
-      marginTop: SPACING.sm,
+      marginTop: moderateScale(SPACING.xs),
     },
     categoryTitle: {
-      fontSize: FONT_SIZES.lg,
+      fontSize: moderateScale(FONT_SIZES.base),
       fontWeight: "bold",
       color: theme.colors.text,
-      paddingHorizontal: SPACING.lg,
-      paddingBottom: SPACING.sm,
+      paddingHorizontal: moderateScale(SPACING.base),
+      paddingBottom: moderateScale(SPACING.xs),
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
       marginBottom: SPACING.base,
@@ -221,33 +191,33 @@ const createStyles = (theme: Theme) =>
       flexDirection: "row",
       alignItems: "center",
       backgroundColor: theme.colors.card,
-      paddingHorizontal: SPACING.lg,
-      paddingVertical: SPACING.base,
+      paddingHorizontal: moderateScale(SPACING.base),
+      paddingVertical: moderateScale(SPACING.sm),
       borderBottomWidth: 0.5,
       borderBottomColor: theme.colors.border,
     },
     lessonIcon: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: moderateScale(30),
+      height: moderateScale(30),
+      borderRadius: moderateScale(14),
       backgroundColor: theme.colors.success + "20", // 20% opacity
       justifyContent: "center",
       alignItems: "center",
-      marginRight: SPACING.base,
+      marginRight: moderateScale(SPACING.sm),
     },
     lessonContent: {
       flex: 1,
     },
     lessonTitle: {
-      fontSize: FONT_SIZES.base,
+      fontSize: moderateScale(FONT_SIZES.sm),
       fontWeight: "600",
       color: theme.colors.text,
       marginBottom: 2,
     },
     lessonSubtitle: {
-      fontSize: FONT_SIZES.sm,
+      fontSize: moderateScale(FONT_SIZES.xs-1),
       color: theme.colors.textSecondary,
-      lineHeight: 18,
+      lineHeight: moderateScale(16),
     },
     removeButton: {
       padding: SPACING.xs,

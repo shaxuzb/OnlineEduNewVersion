@@ -28,6 +28,7 @@ import Video from "react-native-video";
 import SeekRipple from "./components/SeekRipple";
 import VideoControls from "./components/VideoControls";
 import { SettingsDropdown } from "./components/SettingsDropdown";
+import { moderateScale } from "react-native-size-matters";
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -409,7 +410,7 @@ const styles = StyleSheet.create({
   },
   dropdownTitle: {
     color: "#FFF",
-    fontSize: 18,
+    fontSize: moderateScale(16),
     fontWeight: "600",
   },
   playbackRatesContainer: {
@@ -419,9 +420,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    paddingVertical: moderateScale(10),
+    paddingHorizontal: moderateScale(14),
+    borderRadius: moderateScale(6),
     backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
   playbackRateButtonActive: {
@@ -429,7 +430,7 @@ const styles = StyleSheet.create({
   },
   playbackRateText: {
     color: "#FFF",
-    fontSize: 16,
+    fontSize: moderateScale(14),
     fontWeight: "500",
   },
   playbackRateTextActive: {

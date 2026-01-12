@@ -1,17 +1,13 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-
 import HomeScreen from "../screens/courses/HomeScreen";
 import SubjectScreen from "../screens/courses/SubjectScreen";
 import { RootStackParamList } from "../types";
-// import PurchaseSubjectScreen from "../screens/purchases/PurchaseSubjectScreen";
-// import PurchaseSubjectThemeScreen from "../screens/purchases/PurchaseSubjectThemeScreen";
-// import CheckoutScreen from "../screens/purchases/CheckoutScreen";
-// import { PurchaseProvider } from "../context/PurchaseContext";
-// import CreditCardScreen from "../screens/purchases/CreditCardScreen";
-// import OTPCardVerification from "../screens/purchases/OTPCardVerification";
 import LinearGradient from "react-native-linear-gradient";
+import { moderateScale } from "react-native-size-matters";
+import DeviceInfo from "react-native-device-info";
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const isTablet = DeviceInfo.isTablet();
 
 export function CoursesStackNavigator() {
   return (
@@ -25,12 +21,15 @@ export function CoursesStackNavigator() {
     >
       <Stack.Screen
         name="CoursesList"
-        options={{ headerShown: false,statusBarStyle: "inverted" }}
+        options={{ headerShown: false, statusBarStyle: "inverted" }}
         component={HomeScreen}
       />
       <Stack.Screen
         name="SubjectScreen"
         options={{
+          headerStyle: {
+            backgroundColor: isTablet ? "#3a5dde" : undefined,
+          },
           headerBackground() {
             return (
               <LinearGradient
@@ -41,10 +40,12 @@ export function CoursesStackNavigator() {
               />
             );
           },
+          headerTitleStyle: {
+            fontSize: +moderateScale(18).toFixed(0),
+          },
         }}
         component={SubjectScreen}
       />
-     
     </Stack.Navigator>
   );
 }

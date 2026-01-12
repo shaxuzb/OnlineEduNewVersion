@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { moderateScale } from "react-native-size-matters";
 
 function StatistikaScreen({ navigation }: { navigation: any }) {
   const userId = useCurrentUserId();
@@ -249,7 +250,7 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
                   <View style={styles.courseStatArrow}>
                     <Ionicons
                       name="chevron-forward"
-                      size={20}
+                      size={moderateScale(20)}
                       color={theme.colors.textMuted}
                     />
                   </View>
@@ -291,51 +292,18 @@ const createStyles = (theme: Theme) =>
       flex: 1,
       backgroundColor: theme.colors.background,
     },
-    header: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      backgroundColor: theme.colors.primary,
-      paddingHorizontal: SPACING.lg,
-      paddingVertical: SPACING.base,
-      minHeight: 60,
-    },
-
-    backButton: {
-      padding: SPACING.xs,
-      width: 40,
-      alignItems: "flex-start",
-    },
-    headerTitle: {
-      fontSize: FONT_SIZES.xl,
-      fontWeight: "bold",
-      color: "white",
-      flex: 1,
-      textAlign: "center",
-    },
-    headerIndicator: {
-      width: 40,
-      alignItems: "flex-end",
-      paddingRight: SPACING.xs,
-    },
-    dotIndicator: {
-      width: 12,
-      height: 12,
-      borderRadius: 6,
-      backgroundColor: "white",
-    },
     content: {
       flex: 1,
       backgroundColor: theme.colors.background,
     },
     chartSection: {
-      paddingVertical: SPACING["2xl"],
-      paddingHorizontal: SPACING.lg,
+      paddingVertical: moderateScale(SPACING["2xl"]),
+      paddingHorizontal: moderateScale(SPACING.lg),
     },
     chartCard: {
       backgroundColor: theme.colors.card,
-      borderRadius: BORDER_RADIUS.lg,
-      padding: SPACING["2xl"],
+      borderRadius: moderateScale(BORDER_RADIUS.lg),
+      padding: moderateScale(SPACING["xl"]),
       alignItems: "center",
       shadowColor: theme.colors.shadow,
       shadowOffset: { width: 0, height: 4 },
@@ -348,52 +316,52 @@ const createStyles = (theme: Theme) =>
     pieChartContainer: {
       alignItems: "center",
       justifyContent: "center",
-      marginBottom: SPACING.lg,
+      marginBottom: moderateScale(SPACING.lg),
     },
     pieChartWrapper: {
-      width: 200,
-      height: 200,
+      width: moderateScale(180),
+      height: moderateScale(180),
       position: "relative",
       alignItems: "center",
       justifyContent: "center",
     },
     outerRing: {
       position: "absolute",
-      width: 200,
-      height: 200,
-      borderRadius: 100,
+      width: moderateScale(180),
+      height: moderateScale(180),
+      borderRadius: moderateScale(100),
       borderWidth: 2,
     },
     pieBase: {
-      width: 160,
-      height: 160,
-      borderRadius: 80,
+      width: moderateScale(140),
+      height: moderateScale(140),
+      borderRadius: moderateScale(80),
       position: "relative",
       overflow: "hidden",
     },
     completedSegment: {
       position: "absolute",
-      width: 160,
-      height: 160,
-      borderRadius: 80,
-      borderWidth: 20,
+      width: moderateScale(140),
+      height: moderateScale(140),
+      borderRadius: moderateScale(80),
+      borderWidth: moderateScale(20),
       borderColor: "transparent",
       borderTopColor: theme.colors.primary,
       borderRightColor: theme.colors.primary,
     },
     remainingSegment: {
       position: "absolute",
-      width: 160,
-      height: 160,
-      borderRadius: 80,
-      borderWidth: 20,
+      width: moderateScale(140),
+      height: moderateScale(140),
+      borderRadius: moderateScale(80),
+      borderWidth: moderateScale(20),
       borderColor: "transparent",
     },
     centerCircle: {
       position: "absolute",
-      width: 120,
-      height: 120,
-      borderRadius: 60,
+      width: moderateScale(120),
+      height: moderateScale(120),
+      borderRadius: moderateScale(60),
       shadowColor: theme.colors.shadow,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.15,
@@ -407,12 +375,12 @@ const createStyles = (theme: Theme) =>
       justifyContent: "center",
     },
     centerPercentage: {
-      fontSize: 32,
+      fontSize: moderateScale(30),
       fontWeight: "bold",
-      marginBottom: 2,
+      marginBottom: moderateScale(2),
     },
     centerLabel: {
-      fontSize: FONT_SIZES.sm,
+      fontSize: moderateScale(FONT_SIZES.xs),
       color: theme.colors.textMuted,
       fontWeight: "500",
     },
@@ -428,38 +396,38 @@ const createStyles = (theme: Theme) =>
       alignItems: "center",
     },
     progressTitle: {
-      fontSize: FONT_SIZES.xl,
+      fontSize: moderateScale(FONT_SIZES.lg),
       fontWeight: "700",
       color: theme.colors.text,
-      marginBottom: SPACING.xs,
+      marginBottom: moderateScale(SPACING.xs),
       textAlign: "center",
     },
     progressSubtitle: {
-      fontSize: FONT_SIZES.base,
+      fontSize: moderateScale(FONT_SIZES.sm),
       color: theme.colors.textMuted,
       textAlign: "center",
     },
     courseStatsSection: {
-      paddingHorizontal: SPACING.lg,
-      paddingBottom: SPACING["2xl"],
+      paddingHorizontal: moderateScale(SPACING.base),
+      paddingBottom: moderateScale(SPACING["xl"]),
     },
     sectionTitle: {
-      fontSize: FONT_SIZES.lg,
+      fontSize: moderateScale(FONT_SIZES.lg),
       fontWeight: "700",
       color: theme.colors.text,
-      marginBottom: SPACING.lg,
-      paddingHorizontal: SPACING.xs,
+      marginBottom: moderateScale(SPACING.lg),
+      paddingHorizontal: moderateScale(SPACING.xs),
     },
     skeletonContainer: {
-      marginBottom: SPACING.base,
+      marginBottom: moderateScale(SPACING.base),
     },
     courseStatItem: {
       flexDirection: "row",
       alignItems: "center",
-      paddingHorizontal: SPACING.lg,
-      paddingVertical: SPACING.lg,
-      marginBottom: SPACING.base,
-      borderRadius: BORDER_RADIUS.lg,
+      paddingHorizontal: moderateScale(SPACING.base),
+      paddingVertical: moderateScale(SPACING.base),
+      marginBottom: moderateScale(SPACING.sm),
+      borderRadius: moderateScale(BORDER_RADIUS.base),
       shadowColor: theme.colors.shadow,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: theme.isDark ? 0.2 : 0.08,
@@ -468,56 +436,56 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
     },
     subjectIcon: {
-      width: 56,
-      height: 56,
-      borderRadius: 16,
+      width: moderateScale(52),
+      height: moderateScale(52),
+      borderRadius: moderateScale(14),
       alignItems: "center",
       justifyContent: "center",
       marginRight: SPACING.base,
     },
     subjectIconInner: {
-      width: 40,
-      height: 40,
-      borderRadius: 12,
+      width: moderateScale(36),
+      height: moderateScale(36),
+      borderRadius: moderateScale(10),
       alignItems: "center",
       justifyContent: "center",
     },
     subjectIconText: {
-      fontSize: FONT_SIZES.lg,
+      fontSize: moderateScale(FONT_SIZES.base),
       fontWeight: "bold",
       color: "white",
     },
     courseStatContent: {
       flex: 1,
-      paddingRight: SPACING.base,
+      paddingRight: moderateScale(SPACING.base),
     },
     courseStatHeader: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      marginBottom: SPACING.xs,
+      marginBottom: moderateScale(SPACING.xs),
     },
     courseStatName: {
-      fontSize: FONT_SIZES.lg,
+      fontSize: moderateScale(FONT_SIZES.base),
       fontWeight: "600",
       color: theme.colors.text,
       flex: 1,
     },
     percentageBadge: {
-      paddingHorizontal: SPACING.base,
-      paddingVertical: SPACING.xs / 2,
-      borderRadius: BORDER_RADIUS.base,
-      marginLeft: SPACING.base,
+      paddingHorizontal: moderateScale(SPACING.sm),
+      paddingVertical: moderateScale(SPACING.xs / 2),
+      borderRadius: moderateScale(BORDER_RADIUS.sm),
+      marginLeft: moderateScale(SPACING.sm),
     },
     percentageText: {
-      fontSize: FONT_SIZES.sm,
+      fontSize: moderateScale(FONT_SIZES.xs),
       fontWeight: "bold",
     },
     courseStatDetails: {
       gap: SPACING.xs,
     },
     courseStatSubtext: {
-      fontSize: FONT_SIZES.sm,
+      fontSize: moderateScale(FONT_SIZES.xs),
       color: theme.colors.textMuted,
     },
     progressBarContainer: {

@@ -19,10 +19,12 @@ import ResetPasswordScreen from "./ResetPasswordScreen";
 import { Ionicons } from "@expo/vector-icons";
 import SupportModal from "./SupportModal";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Logo from "@/src/assets/icons/logo/logobrand.svg";
 import {
   KeyboardAwareScrollView,
   KeyboardProvider,
 } from "react-native-keyboard-controller";
+import { moderateScale } from "react-native-size-matters";
 const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -74,8 +76,9 @@ const LoginScreen: React.FC = () => {
             <View style={styles.content}>
               {/* Logo Section */}
               <View style={styles.logoContainer}>
-                <Text style={styles.logoText}>MATH</Text>
-                <Text style={styles.logoSubtext}>me</Text>
+                <Logo width={moderateScale(140)} />
+                {/* <Text style={styles.logoText}>MATH</Text>
+                <Text style={styles.logoSubtext}>me</Text> */}
               </View>
               {/* Login Form */}
               <View style={styles.formContainer}>

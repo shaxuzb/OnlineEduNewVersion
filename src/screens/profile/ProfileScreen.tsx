@@ -1,5 +1,8 @@
+import { alertService } from "@/src/components/modals/customalert/alertService";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
+import { useGeo } from "@/src/hooks/useGeo";
+import { useSession } from "@/src/hooks/useSession";
 import { Theme } from "@/src/types";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -16,6 +19,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { moderateScale } from "react-native-size-matters";
 
 const menuItems = [
   {
@@ -55,19 +59,26 @@ function ProfileScreen() {
   const { theme, themeMode, setThemeMode } = useTheme();
   const { user, logout } = useAuth();
   const styles = createStyles(theme);
-
+  const { isSuperAdmin } = useSession();
+  const { countryCode } = useGeo();
   const handleLogout = () => {
-    Alert.alert("Chiqish", "Rostdan ham tizimdan chiqmoqchimisiz?", [
-      {
-        text: "Bekor qilish",
-        style: "cancel",
-      },
-      {
-        text: "Chiqish",
-        style: "destructive",
-        onPress: logout,
-      },
-    ]);
+    alertService.open({
+      title: "Chiqish",
+      description: "Rostdan ham tizimdan chiqmoqchimisiz?",
+      okText: "Chiqish",
+      onOk: logout,
+    });
+    // Alert.alert("Chiqish", "Rostdan ham tizimdan chiqmoqchimisiz?", [
+    //   {
+    //     text: "Bekor qilish",
+    //     style: "cancel",
+    //   },
+    //   {
+    //     text: "Chiqish",
+    //     style: "destructive",
+    //     onPress: logout,
+    //   },
+    // ]);
   };
   const handleLinkToAdmin = async () => {
     await Linking.openURL("https://t.me/richdev_1");
@@ -96,18 +107,22 @@ function ProfileScreen() {
             foreground: true,
             color: theme.colors.ripple,
             borderless: true,
-            radius: 22,
+            radius: moderateScale(22),
           }}
           style={{
-            width: 40,
-            height: 40,
+            width: moderateScale(40),
+            height: moderateScale(40),
             alignItems: "center",
             justifyContent: "center",
-            marginRight: 10,
+            marginRight: moderateScale(10),
           }}
           onPress={() => (navigation as any).navigate("Chat")}
         >
-          <Ionicons name="chatbox-ellipses-outline" size={24} color="white" />
+          <Ionicons
+            name="chatbox-ellipses-outline"
+            size={moderateScale(20)}
+            color="white"
+          />
         </Pressable>
       ),
     });
@@ -137,56 +152,62 @@ function ProfileScreen() {
 
         {/* Menu Items */}
         <View style={styles.menuContainer}>
-          {menuItems.map((item, index) => (
-            <Pressable
-              key={item.id}
-              android_ripple={{
-                foreground: true,
-                color: theme.colors.ripple,
-              }}
-              style={[
-                styles.menuItem,
-                index < menuItems.length - 1 && styles.menuItemBorder,
-              ]}
-              onPress={() => handleMenuItemPress(item)}
-              disabled={item.hasToggle}
-            >
-              <View style={styles.menuItemLeft}>
-                <Ionicons
-                  name={item.icon as any}
-                  size={20}
-                  color={theme.colors.primary}
-                  style={styles.menuItemIcon}
-                />
-                <Text style={styles.menuItemText}>{item.title}</Text>
-              </View>
-              {item.hasToggle ? (
-                <Switch
-                  value={themeMode === "dark"}
-                  onValueChange={(e) => {
-                    if (e) {
-                      setThemeMode("dark");
-                    } else {
-                      setThemeMode("light");
-                    }
+          {menuItems
+            .filter(
+              (item) => !(item.id === 6 && isSuperAdmin && countryCode !== "UZ")
+            )
+            .map((item, index) => {
+              return (
+                <Pressable
+                  key={item.id}
+                  android_ripple={{
+                    foreground: true,
+                    color: theme.colors.ripple,
                   }}
-                  trackColor={{
-                    false: theme.colors.border,
-                    true: theme.colors.primary,
-                  }}
-                  thumbColor={themeMode === "dark" ? "#ffffff" : "#f4f3f4"}
-                />
-              ) : (
-                item.hasArrow && (
-                  <Ionicons
-                    name="chevron-forward"
-                    size={20}
-                    color={theme.colors.textMuted}
-                  />
-                )
-              )}
-            </Pressable>
-          ))}
+                  style={[
+                    styles.menuItem,
+                    index < menuItems.length - 1 && styles.menuItemBorder,
+                  ]}
+                  onPress={() => handleMenuItemPress(item)}
+                  disabled={item.hasToggle}
+                >
+                  <View style={styles.menuItemLeft}>
+                    <Ionicons
+                      name={item.icon as any}
+                      size={moderateScale(20)}
+                      color={theme.colors.primary}
+                      style={styles.menuItemIcon}
+                    />
+                    <Text style={styles.menuItemText}>{item.title}</Text>
+                  </View>
+                  {item.hasToggle ? (
+                    <Switch
+                      value={themeMode === "dark"}
+                      onValueChange={(e) => {
+                        if (e) {
+                          setThemeMode("dark");
+                        } else {
+                          setThemeMode("light");
+                        }
+                      }}
+                      trackColor={{
+                        false: theme.colors.border,
+                        true: theme.colors.primary,
+                      }}
+                      thumbColor={themeMode === "dark" ? "#ffffff" : "#f4f3f4"}
+                    />
+                  ) : (
+                    item.hasArrow && (
+                      <Ionicons
+                        name="chevron-forward"
+                        size={moderateScale(20)}
+                        color={theme.colors.textMuted}
+                      />
+                    )
+                  )}
+                </Pressable>
+              );
+            })}
         </View>
 
         {/* Logout Button */}
@@ -201,7 +222,7 @@ function ProfileScreen() {
           >
             <Ionicons
               name="log-out-outline"
-              size={20}
+              size={moderateScale(20)}
               color={theme.colors.error}
               style={styles.logoutIcon}
             />
@@ -221,45 +242,40 @@ const createStyles = (theme: Theme) =>
     },
     header: {
       backgroundColor: theme.colors.primary,
-      paddingHorizontal: 20,
-      paddingVertical: 16,
+      paddingHorizontal: moderateScale(20),
+      paddingVertical: moderateScale(16),
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-    },
-    headerTitle: {
-      color: "white",
-      fontSize: 20,
-      fontWeight: "600",
     },
     content: {
       flex: 1,
     },
     profileSection: {
       backgroundColor: theme.colors.card,
-      paddingVertical: 32,
+      paddingVertical: moderateScale(32),
       alignItems: "center",
       marginBottom: 1,
     },
     profileHeader: {
       alignItems: "center",
-      marginBottom: 16,
+      marginBottom: moderateScale(16),
     },
     avatarContainer: {
-      width: 100,
-      height: 100,
-      borderRadius: 50,
+      width: moderateScale(100),
+      height: moderateScale(100),
+      borderRadius: moderateScale(50),
       backgroundColor: theme.colors.primaryDark,
       justifyContent: "center",
       alignItems: "center",
     },
     avatar: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
+      width: moderateScale(80),
+      height: moderateScale(80),
+      borderRadius: moderateScale(40),
     },
     userName: {
-      fontSize: 24,
+      fontSize: moderateScale(20),
       fontWeight: "bold",
       color: theme.colors.text,
       textAlign: "center",
@@ -271,47 +287,47 @@ const createStyles = (theme: Theme) =>
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      paddingHorizontal: 20,
-      paddingVertical: 18,
+      paddingHorizontal: moderateScale(20),
+      paddingVertical: moderateScale(14),
     },
     menuItemLeft: {
       flexDirection: "row",
       alignItems: "center",
     },
     menuItemIcon: {
-      marginRight: 12,
+      marginRight: moderateScale(12),
     },
     menuItemBorder: {
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
     },
     menuItemText: {
-      fontSize: 16,
+      fontSize: moderateScale(14),
       color: theme.colors.text,
       fontWeight: "500",
     },
     userEmail: {
-      fontSize: 16,
+      fontSize: moderateScale(14),
       color: theme.colors.textSecondary,
-      marginTop: 4,
+      marginTop: moderateScale(4),
       textAlign: "center",
     },
     logoutContainer: {
       backgroundColor: theme.colors.card,
-      marginTop: 20,
+      marginTop: moderateScale(20),
     },
     logoutButton: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      paddingHorizontal: 20,
-      paddingVertical: 30,
+      paddingHorizontal: moderateScale(20),
+      paddingVertical: moderateScale(22),
     },
     logoutIcon: {
-      marginRight: 8,
+      marginRight: moderateScale(8),
     },
     logoutText: {
-      fontSize: 16,
+      fontSize: moderateScale(14),
       color: theme.colors.error,
       fontWeight: "500",
     },

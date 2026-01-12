@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef } from "react";
 import { Animated, Modal, Text, TouchableOpacity, View } from "react-native";
+import { moderateScale } from "react-native-size-matters";
 
 export const SettingsDropdown: React.FC<{
   visible: boolean;
@@ -70,7 +71,7 @@ export const SettingsDropdown: React.FC<{
           <View style={styles.dropdownHeader}>
             <Text style={styles.dropdownTitle}>Tezlik</Text>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color="#FFF" />
+              <Ionicons name="close" size={moderateScale(22)} color="#FFF" />
             </TouchableOpacity>
           </View>
 
@@ -98,7 +99,7 @@ export const SettingsDropdown: React.FC<{
                   {rate.label}
                 </Text>
                 {playbackRate === rate.value && (
-                  <Ionicons name="checkmark" size={20} color="#007AFF" />
+                  <Ionicons name="checkmark" size={moderateScale(18)} color="#007AFF" />
                 )}
               </TouchableOpacity>
             ))}

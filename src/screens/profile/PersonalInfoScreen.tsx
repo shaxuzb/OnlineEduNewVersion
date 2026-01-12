@@ -1,27 +1,35 @@
+import { alertService } from "@/src/components/modals/customalert/alertService";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
+import { $axiosPrivate } from "@/src/services/AxiosService";
 import { Theme } from "@/src/types";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { useMutation } from "@tanstack/react-query";
 import React, { memo, useState } from "react";
 import {
-    ActivityIndicator,
-    Image,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Image,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { moderateScale } from "react-native-size-matters";
 
 function UserDetailScreen() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = createStyles(theme);
-
-  const { user } = useAuth();
+  const mutation = useMutation({
+    mutationFn: async () => {
+      await $axiosPrivate.delete("/account/my-account");
+    },
+  });
+  const { user, logout } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
@@ -31,6 +39,20 @@ function UserDetailScreen() {
   const refetch = async () => {
     // User ma'lumotlari AuthContext dan keladi, qayta yuklash kerak emas
     setIsLoading(false);
+  };
+  const deleteAccount = () => {
+    mutation.mutate(undefined, {
+      onSuccess: () => {
+        logout();
+      },
+      onError: (err: any) => {
+        alertService.open({
+          title: "Xatolik",
+          description:
+            "Hisobni o'chirishda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.",
+        });
+      },
+    });
   };
 
   // Ma'lumotlar strukturasi
@@ -57,7 +79,7 @@ function UserDetailScreen() {
           <ActivityIndicator
             size="large"
             color={theme.colors.primary}
-            style={{ marginBottom: 20 }}
+            style={{ marginBottom: moderateScale(20) }}
           />
           <Text
             style={[styles.loadingText, { color: theme.colors.textSecondary }]}
@@ -74,16 +96,6 @@ function UserDetailScreen() {
       <View
         style={[styles.container, { backgroundColor: theme.colors.background }]}
       >
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Shaxsiy ma'lumotlar</Text>
-          <View style={styles.placeholder} />
-        </View>
         <View style={styles.errorContainer}>
           <View
             style={[
@@ -125,7 +137,7 @@ function UserDetailScreen() {
     >
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: moderateScale(100) }}
         showsVerticalScrollIndicator={false}
         snapToEnd
         snapToStart={false}
@@ -169,9 +181,9 @@ function UserDetailScreen() {
             <View style={styles.cardHeader}>
               <Ionicons
                 name="person-circle"
-                size={24}
+                size={moderateScale(20)}
                 color={theme.colors.primary}
-                style={{ marginRight: 12 }}
+                style={{ marginRight: moderateScale(12) }}
               />
               <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
                 Asosiy ma'lumotlar
@@ -198,7 +210,7 @@ function UserDetailScreen() {
               <View style={styles.infoWithIcon}>
                 <Ionicons
                   name="at"
-                  size={18}
+                  size={moderateScale(14)}
                   color={theme.colors.primary}
                   style={{ marginRight: 8 }}
                 />
@@ -225,9 +237,9 @@ function UserDetailScreen() {
             <View style={styles.cardHeader}>
               <Ionicons
                 name="call"
-                size={24}
+                size={moderateScale(20)}
                 color={theme.colors.primary}
-                style={{ marginRight: 12 }}
+                style={{ marginRight: moderateScale(12) }}
               />
               <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
                 Aloqa ma'lumotlari
@@ -243,9 +255,9 @@ function UserDetailScreen() {
               <View style={styles.infoWithIcon}>
                 <Ionicons
                   name="call"
-                  size={18}
+                  size={moderateScale(14)}
                   color={theme.colors.primary}
-                  style={{ marginRight: 8 }}
+                  style={{ marginRight: moderateScale(8) }}
                 />
                 <Text style={[styles.infoValue, { color: theme.colors.text }]}>
                   {userData?.phoneNumber || "Ma'lumot yo'q"}
@@ -262,9 +274,9 @@ function UserDetailScreen() {
               <View style={styles.infoWithIcon}>
                 <Ionicons
                   name="location"
-                  size={18}
+                  size={moderateScale(14)}
                   color={theme.colors.primary}
-                  style={{ marginRight: 8 }}
+                  style={{ marginRight: moderateScale(8) }}
                 />
                 <Text style={[styles.infoValue, { color: theme.colors.text }]}>
                   {userData?.state || "Ma'lumot yo'q"}
@@ -278,9 +290,9 @@ function UserDetailScreen() {
             <View style={styles.cardHeader}>
               <Ionicons
                 name="shield-checkmark"
-                size={24}
+                size={moderateScale(20)}
                 color={theme.colors.primary}
-                style={{ marginRight: 12 }}
+                style={{ marginRight: moderateScale(12) }}
               />
               <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
                 Hisob ma'lumotlari
@@ -308,7 +320,37 @@ function UserDetailScreen() {
           </View>
 
           {/* Ruxsatlar va Modullar */}
-
+          <TouchableOpacity
+            disabled={mutation.isPending}
+            onPress={() => {
+              alertService.open({
+                title: "Hisobni o‘chirish",
+                description:
+                  "Hisobingiz butunlay o‘chiriladi. Bu amalni ortga qaytarib bo‘lmaydi!",
+                okText: "O‘chirish",
+                onOk: deleteAccount,
+              });
+            }}
+            style={[styles.deleteButtonLarge, { opacity: isLoading ? 0.7 : 1 }]}
+          >
+            <View style={styles.refreshButtonContent}>
+              {mutation.isPending ? (
+                <ActivityIndicator
+                  size="small"
+                  color="white"
+                  style={{ marginRight: moderateScale(8) }}
+                />
+              ) : (
+                <Ionicons
+                  name="trash"
+                  size={moderateScale(18)}
+                  color="white"
+                  style={{ marginRight: moderateScale(8) }}
+                />
+              )}
+              <Text style={styles.refreshButtonText}>Hisobni o'chirish</Text>
+            </View>
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => refetch()}
             disabled={isLoading}
@@ -322,14 +364,14 @@ function UserDetailScreen() {
                 <ActivityIndicator
                   size="small"
                   color="white"
-                  style={{ marginRight: 8 }}
+                  style={{ marginRight: moderateScale(8) }}
                 />
               ) : (
                 <Ionicons
                   name="refresh"
-                  size={20}
+                  size={moderateScale(18)}
                   color="white"
-                  style={{ marginRight: 8 }}
+                  style={{ marginRight: moderateScale(8) }}
                 />
               )}
               <Text style={styles.refreshButtonText}>
@@ -352,8 +394,8 @@ const createStyles = (theme: Theme) =>
     // Header styles
     header: {
       backgroundColor: theme.colors.primary,
-      paddingHorizontal: 20,
-      paddingVertical: 16,
+      paddingHorizontal: moderateScale(20),
+      paddingVertical: moderateScale(16),
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
@@ -362,7 +404,7 @@ const createStyles = (theme: Theme) =>
       marginLeft: 0,
     },
     headerTitle: {
-      fontSize: 20,
+      fontSize: moderateScale(20),
       color: "white",
       fontWeight: "600",
     },
@@ -373,59 +415,58 @@ const createStyles = (theme: Theme) =>
     // Profile header styles
     profileHeader: {
       backgroundColor: "#3a5dde",
-      paddingTop: 40,
-      paddingBottom: 60,
-      borderBottomLeftRadius: 30,
-      borderBottomRightRadius: 30,
+      paddingTop: moderateScale(20),
+      paddingBottom: moderateScale(40),
+      borderBottomLeftRadius: moderateScale(30),
+      borderBottomRightRadius: moderateScale(30),
       alignItems: "center",
-      marginBottom: -30,
     },
     profileImageContainer: {
-      width: 120,
-      height: 120,
-      borderRadius: 60,
+      width: moderateScale(120),
+      height: moderateScale(120),
+      borderRadius: moderateScale(60),
       backgroundColor: "rgba(255,255,255,0.2)",
       justifyContent: "center",
       alignItems: "center",
-      marginBottom: 20,
-      borderWidth: 4,
+      marginBottom: moderateScale(20),
+      borderWidth: moderateScale(4),
       borderColor: "rgba(255,255,255,0.3)",
     },
     profileImage: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
+      width: moderateScale(80),
+      height: moderateScale(80),
+      borderRadius: moderateScale(40),
     },
     profileName: {
-      fontSize: 26,
+      fontSize: moderateScale(24),
       fontWeight: "700",
       color: "white",
-      marginBottom: 8,
+      marginBottom: moderateScale(8),
       textAlign: "center",
     },
     roleBadge: {
       backgroundColor: "rgba(255,255,255,0.2)",
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 20,
+      paddingHorizontal: moderateScale(16),
+      paddingVertical: moderateScale(4),
+      borderRadius: moderateScale(20),
     },
     roleText: {
-      fontSize: 14,
+      fontSize: moderateScale(12),
       color: "white",
       fontWeight: "500",
     },
 
     // Cards container
     cardsContainer: {
-      padding: 20,
-      marginTop: 30,
+      padding: moderateScale(15),
+      marginTop: moderateScale(5),
     },
 
     // Card styles
     card: {
-      borderRadius: 20,
-      padding: 24,
-      marginBottom: 20,
+      borderRadius: moderateScale(20),
+      padding: moderateScale(20),
+      marginBottom: moderateScale(14),
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.1,
@@ -435,29 +476,29 @@ const createStyles = (theme: Theme) =>
     cardHeader: {
       flexDirection: "row",
       alignItems: "center",
-      marginBottom: 20,
+      marginBottom: moderateScale(10),
       backgroundColor: "transparent",
     },
     cardTitle: {
-      fontSize: 20,
+      fontSize: moderateScale(18),
       fontWeight: "700",
     },
 
     // Info row styles
     infoRow: {
-      marginBottom: 16,
+      marginBottom: moderateScale(14),
       backgroundColor: "transparent",
     },
     infoRowLast: {
       backgroundColor: "transparent",
     },
     infoLabel: {
-      fontSize: 14,
+      fontSize: moderateScale(12),
       marginBottom: 4,
       fontWeight: "500",
     },
     infoValue: {
-      fontSize: 16,
+      fontSize: moderateScale(14),
       fontWeight: "600",
     },
     infoWithIcon: {
@@ -468,10 +509,10 @@ const createStyles = (theme: Theme) =>
 
     // Status dot
     statusDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      marginRight: 8,
+      width: moderateScale(6),
+      height: moderateScale(6),
+      borderRadius: moderateScale(2),
+      marginRight: moderateScale(6),
     },
 
     // Loading styles
@@ -481,7 +522,7 @@ const createStyles = (theme: Theme) =>
       alignItems: "center",
     },
     loadingText: {
-      fontSize: 18,
+      fontSize: moderateScale(16),
       fontWeight: "500",
     },
 
@@ -531,58 +572,25 @@ const createStyles = (theme: Theme) =>
       fontSize: 16,
     },
 
-    // Permissions and modules
-    section: {
-      borderRadius: 20,
-      padding: 24,
-      marginBottom: 20,
+    // Refresh button
+    deleteButtonLarge: {
+      backgroundColor: theme.colors.error,
+      borderRadius: moderateScale(14),
+      padding: moderateScale(14),
+      alignItems: "center",
+      marginTop: moderateScale(10),
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.1,
-      shadowRadius: 12,
-      elevation: 5,
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 4,
     },
-    sectionTitle: {
-      fontSize: 20,
-      fontWeight: "700",
-      marginBottom: 16,
-    },
-    permissionsContainer: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 8,
-    },
-    permissionChip: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 8,
-    },
-    permissionText: {
-      fontSize: 14,
-      fontWeight: "500",
-    },
-    modulesContainer: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 8,
-    },
-    moduleChip: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 8,
-    },
-    moduleText: {
-      fontSize: 14,
-      fontWeight: "500",
-    },
-
-    // Refresh button
     refreshButtonLarge: {
       backgroundColor: theme.colors.primary,
-      borderRadius: 16,
-      padding: 18,
+      borderRadius: moderateScale(14),
+      padding: moderateScale(14),
       alignItems: "center",
-      marginTop: 10,
+      marginTop: moderateScale(10),
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.15,
@@ -596,7 +604,7 @@ const createStyles = (theme: Theme) =>
     },
     refreshButtonText: {
       color: "white",
-      fontSize: 16,
+      fontSize: moderateScale(14),
       fontWeight: "700",
     },
   });

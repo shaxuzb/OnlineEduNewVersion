@@ -1,5 +1,5 @@
 import "./src/utils/suppressWarnings";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import AppNavigation from "./src/navigation/AppNavigation";
 import { AuthProvider } from "./src/context/AuthContext";
 import { BookmarkProvider } from "./src/context/BookmarkContext";
@@ -8,14 +8,13 @@ import { QueryProvider } from "./src/providers/QueryProvider";
 import * as SplashScreen from "expo-splash-screen";
 import { UpdateNotificationSheet } from "./src/components";
 import { useVersionCheck } from "./src/hooks/useVersionCheck";
-import NetInfo from "@react-native-community/netinfo";
-import NoConnection from "./src/components/NoConnection";
 import Toast, {
   BaseToast,
   ErrorToast,
   ToastConfig,
 } from "react-native-toast-message";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import AlertHost from "./src/components/modals/customalert/AlertHost";
 SplashScreen.preventAutoHideAsync();
 
 const toastConfig: ToastConfig = {
@@ -65,14 +64,7 @@ const toastConfig: ToastConfig = {
 export default function App() {
   const { versionInfo, showUpdateSheet, setShowUpdateSheet, dismissUpdate } =
     useVersionCheck();
-  const [isConnected, setIsConnected] = useState(true);
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      setIsConnected(!!state.isConnected);
-    });
-
-    return () => unsubscribe();
-  }, []);
+ 
   useEffect(() => {
     const prepare = async () => {
       try {
@@ -90,9 +82,6 @@ export default function App() {
   useEffect(() => {
     SplashScreen.hideAsync();
   }, []);
-  if (!isConnected) {
-    return <NoConnection setIsConnected={setIsConnected} />;
-  }
   return (
     <QueryProvider>
       <ThemeProvider>
@@ -100,7 +89,7 @@ export default function App() {
           <BookmarkProvider>
             <SafeAreaProvider>
               <AppNavigation />
-
+               <AlertHost />
               <Toast config={toastConfig} topOffset={30} />
               {/* Update Notification Bottom Sheet */}
               {versionInfo && (

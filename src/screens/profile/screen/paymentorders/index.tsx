@@ -8,6 +8,7 @@ import React from "react";
 import { FlatList, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import PaymentOrderCard from "./components/PaymentOrderCard";
+import { moderateScale } from "react-native-size-matters";
 const PaymentOrders = () => {
   const { theme } = useTheme();
   const styles = createStyles(theme);
@@ -44,15 +45,15 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      paddingBottom: 50,
+      paddingBottom: moderateScale(50),
       backgroundColor: theme.colors.background,
     },
 
     card: {
       backgroundColor: theme.colors.card,
-      borderRadius: 16,
-      padding: 16,
-      marginBottom: 16,
+      borderRadius: moderateScale(14),
+      padding: moderateScale(14),
+      marginBottom: moderateScale(14),
       shadowColor: theme.colors.shadow,
       shadowOpacity: 0.05,
       shadowRadius: 6,
@@ -60,28 +61,28 @@ const createStyles = (theme: Theme) =>
       elevation: 2,
     },
     subject: {
-      fontSize: 16,
+      fontSize: moderateScale(14),
       fontWeight: "600",
       color: theme.colors.text,
     },
     date: {
       color: theme.colors.textMuted,
-      marginTop: 2,
-      fontSize: 14,
+      marginTop: moderateScale(2),
+      fontSize: moderateScale(12),
     },
     row: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      marginTop: 12,
+      marginTop: moderateScale(10),
     },
     price: {
-      fontSize: 18,
+      fontSize: moderateScale(16),
       fontWeight: "700",
       color: theme.colors.text,
     },
     status: {
-      fontSize: 16,
+      fontSize: moderateScale(14),
       fontWeight: "600",
     },
     pending: {
@@ -95,15 +96,15 @@ const createStyles = (theme: Theme) =>
     },
     payButton: {
       backgroundColor: "#007BFF",
-      paddingVertical: 10,
-      borderRadius: 10,
-      marginTop: 12,
+      paddingVertical: moderateScale(10),
+      borderRadius: moderateScale(10),
+      marginTop: moderateScale(12),
     },
     payButtonText: {
       color: "#fff",
       textAlign: "center",
       fontWeight: "600",
-      fontSize: 16,
+      fontSize: moderateScale(14),
     },
   });
 

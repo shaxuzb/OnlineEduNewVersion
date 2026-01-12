@@ -14,7 +14,6 @@ export const useStatistics = (userId: number) => {
     queryKey: ["statistics", "subjects"],
     queryFn: () => statisticsService.getSubjectStatistics(userId),
     staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: false,
   });
 };
 export const useThemeStatistics = (userId: number, subjectId: number) => {

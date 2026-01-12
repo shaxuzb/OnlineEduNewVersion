@@ -368,9 +368,9 @@ export default function SolutionScreen({
                 <FontAwesome
                   name="play-circle"
                   color={theme.colors.text}
-                  size={30}
+                  size={moderateScale(28)}
                 />
-                <Text style={{ color: theme.colors.text }}>Video yechim</Text>
+                <Text style={{ color: theme.colors.text,fontSize: moderateScale(12) }}>Video yechim</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.solutionViewImageContainer}>
@@ -438,10 +438,10 @@ export default function SolutionScreen({
             >
               <Ionicons
                 name="chevron-back"
-                size={20}
+                size={moderateScale(20)}
                 style={{
                   flexGrow: 1,
-                  width: 30,
+                  width: moderateScale(30),
                 }}
                 onPress={() => {
                   setShowTestIndex((prev) => prev - 1);
@@ -449,12 +449,12 @@ export default function SolutionScreen({
                 disabled={showTestIndex === 1}
                 color={showTestIndex === 1 ? COLORS.textMuted : COLORS.primary}
               />
-              <Text style={{ color: theme.colors.text }}>
+              <Text style={{ color: theme.colors.text, fontSize: moderateScale(14) }}>
                 {showTestIndex}-test
               </Text>
               <Ionicons
                 name="chevron-forward"
-                size={20}
+                size={moderateScale(20)}
                 color={
                   showTestIndex === groupedSubTest.length
                     ? COLORS.textMuted
@@ -466,7 +466,7 @@ export default function SolutionScreen({
                 disabled={showTestIndex === groupedSubTest.length}
                 style={{
                   flexGrow: 1,
-                  width: 30,
+                  width: moderateScale(30),
                   textAlign: "right",
                 }}
               />
@@ -931,7 +931,7 @@ const createStyles = (theme: Theme) =>
     testGridItem: {
       width: (30 / 400) * width,
       aspectRatio: 1 / 1,
-      borderRadius: 10,
+      borderRadius: moderateScale(10),
       backgroundColor: theme.colors.border,
       borderColor: theme.colors.border,
       justifyContent: "center",
@@ -946,68 +946,47 @@ const createStyles = (theme: Theme) =>
       borderColor: "#fc8b00",
     },
     testGridItemText: {
-      fontSize: FONT_SIZES.sm,
+      fontSize: moderateScale(FONT_SIZES.sm),
       fontWeight: "700",
       color: theme.colors.text,
     },
     testGridItemTextActive: {
       color: COLORS.white,
     },
-    textInputContainer: {
-      marginBottom: SPACING.base,
-    },
-    textInputLabel: {
-      fontSize: FONT_SIZES.base,
-      fontWeight: "500",
-      color: COLORS.text,
-      marginBottom: SPACING.xs,
-    },
-    textInput: {
-      borderWidth: 1,
-      borderColor: COLORS.gray,
-      borderRadius: BORDER_RADIUS.sm,
-      padding: SPACING.sm,
-      fontSize: FONT_SIZES.base,
-      color: COLORS.text,
-      backgroundColor: COLORS.white,
-      minHeight: 80,
-      textAlignVertical: "top",
-    },
-
     answerViewContainer: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      marginBottom: SPACING.sm,
+      marginBottom: moderateScale(SPACING.sm),
     },
     answerViewText: {
-      fontSize: FONT_SIZES.xl,
+      fontSize: moderateScale(FONT_SIZES.lg),
       color: theme.colors.text,
     },
     solutionViewContainer: {
       flex: 1,
       backgroundColor: theme.colors.card,
-      paddingTop: SPACING.xl,
+      paddingTop: moderateScale(SPACING.lg),
     },
     solutionViewHeader: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
 
-      padding: SPACING.sm,
+      padding: moderateScale(SPACING.sm),
     },
     solutionViewTitle: {
-      fontSize: FONT_SIZES.xl,
+      fontSize: moderateScale(FONT_SIZES.lg),
       color: theme.colors.text,
       fontWeight: "700",
     },
     solutionViewactionButton: {
       paddingVertical: 0,
-      paddingHorizontal: SPACING.sm,
+      paddingHorizontal: moderateScale(SPACING.sm),
       flexDirection: "row",
-      gap: SPACING.sm,
+      gap: moderateScale(SPACING.sm),
       backgroundColor: theme.colors.card,
-      borderRadius: BORDER_RADIUS.lg,
+      borderRadius: moderateScale(BORDER_RADIUS.lg),
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 1,

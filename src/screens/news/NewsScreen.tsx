@@ -15,6 +15,7 @@ import { NewsItem, Theme } from "../../types";
 import { useNews } from "@/src/hooks/useNews";
 import { useTheme } from "../../context/ThemeContext";
 import { lightColors } from "@/src/constants/theme";
+import { moderateScale } from "react-native-size-matters";
 
 export default function NewsScreen({ navigation }: { navigation: any }) {
   const { theme } = useTheme();
@@ -93,7 +94,7 @@ export default function NewsScreen({ navigation }: { navigation: any }) {
           >
             <Ionicons
               name={getNewsTypeIcon(item.newsType)}
-              size={16}
+              size={moderateScale(16)}
               color={getNewsTypeColor(item.newsType)}
             />
           </View>
@@ -108,7 +109,7 @@ export default function NewsScreen({ navigation }: { navigation: any }) {
               {item.isPinned && (
                 <Ionicons
                   name="pin"
-                  size={14}
+                  size={moderateScale(14)}
                   color={theme.colors.primary}
                   style={styles.pinIcon}
                 />
@@ -144,17 +145,17 @@ export default function NewsScreen({ navigation }: { navigation: any }) {
             foreground: true,
             color: lightColors.ripple,
             borderless: true,
-            radius: 30,
+            radius: moderateScale(30),
           }}
           style={{
-            width: 40,
-            height: 40,
+            width: moderateScale(40),
+            height: moderateScale(40),
             alignItems: "center",
             justifyContent: "center",
           }}
           onPress={() => refetch()}
         >
-          <Ionicons name="reload" size={20} color="white" />
+          <Ionicons name="reload" size={moderateScale(18)} color="white" />
         </Pressable>
       ),
     });
@@ -182,7 +183,7 @@ export default function NewsScreen({ navigation }: { navigation: any }) {
         style={[styles.container, { backgroundColor: theme.colors.background }]}
       >
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={64} color={theme.colors.error} />
+          <Ionicons name="alert-circle" size={moderateScale(56)} color={theme.colors.error} />
           <Text style={[styles.errorTitle, { color: theme.colors.text }]}>
             Xatolik yuz berdi
           </Text>
@@ -207,26 +208,6 @@ export default function NewsScreen({ navigation }: { navigation: any }) {
       style={[styles.container, { backgroundColor: theme.colors.background }]}
       edges={["bottom"]}
     >
-      {/* <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: theme.colors.background,
-            borderBottomColor: theme.colors.border,
-          },
-        ]}
-      >
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-          Yangiliklar
-        </Text>
-        <TouchableOpacity
-          onPress={() => refetch()}
-          style={styles.refreshButton}
-        >
-          <Ionicons name="refresh" size={24} color={theme.colors.primary} />
-        </TouchableOpacity>
-      </View> */}
-
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -244,7 +225,7 @@ export default function NewsScreen({ navigation }: { navigation: any }) {
           <View style={styles.emptyContainer}>
             <Ionicons
               name="newspaper-outline"
-              size={64}
+              size={moderateScale(56)}
               color={theme.colors.textMuted}
             />
             <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
@@ -276,32 +257,17 @@ const createStyles = (theme: Theme) =>
     container: {
       flex: 1,
     },
-    header: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderBottomWidth: 1,
-    },
-    headerTitle: {
-      fontSize: 24,
-      fontWeight: "bold",
-    },
-    refreshButton: {
-      padding: 4,
-    },
     scrollView: {
       flex: 1,
     },
     scrollContent: {
-      paddingHorizontal: 16,
-      paddingTop: 16,
+      paddingHorizontal: moderateScale(14),
+      paddingTop: moderateScale(14),
     },
     newsItem: {
-      padding: 16,
-      marginBottom: 8,
-      borderRadius: 12,
+      padding: moderateScale(14),
+      marginBottom: moderateScale(6),
+      borderRadius: moderateScale(10),
       borderWidth: 1,
       shadowColor: "#000",
       shadowOffset: {
@@ -316,7 +282,7 @@ const createStyles = (theme: Theme) =>
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "flex-start",
-      marginBottom: 8,
+      marginBottom: moderateScale(6),
     },
     newsHeaderLeft: {
       flexDirection: "row",
@@ -324,12 +290,12 @@ const createStyles = (theme: Theme) =>
       flex: 1,
     },
     newsTypeIcon: {
-      width: 32,
-      height: 32,
-      borderRadius: 8,
+      width: moderateScale(30),
+      height: moderateScale(30),
+      borderRadius: moderateScale(8),
       justifyContent: "center",
       alignItems: "center",
-      marginRight: 8,
+      marginRight: moderateScale(8),
     },
     newsTitleContainer: {
       flex: 1,
@@ -340,32 +306,32 @@ const createStyles = (theme: Theme) =>
       marginBottom: 2,
     },
     newsTitle: {
-      fontSize: 18,
+      fontSize: moderateScale(15),
       fontWeight: "600",
       flex: 1,
     },
     pinIcon: {
-      marginLeft: 4,
+      marginLeft: moderateScale(4),
     },
     newsDate: {
-      fontSize: 14,
+      fontSize: moderateScale(10),
     },
     statusBadge: {
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 8,
+      paddingHorizontal: moderateScale(8),
+      paddingVertical: moderateScale(4),
+      borderRadius: moderateScale(6),
     },
     draftBadge: {
       backgroundColor: theme.colors.warning + "20",
     },
     statusBadgeText: {
-      fontSize: 12,
+      fontSize: moderateScale(10),
       fontWeight: "500",
       color: theme.colors.warning,
     },
     newsBody: {
-      fontSize: 16,
-      lineHeight: 22,
+      fontSize: moderateScale(14),
+      lineHeight: moderateScale(20),
     },
     loadingContainer: {
       flex: 1,
@@ -401,7 +367,7 @@ const createStyles = (theme: Theme) =>
     },
     retryButtonText: {
       color: "white",
-      fontSize: 16,
+      fontSize: moderateScale(14),
       fontWeight: "600",
     },
     emptyContainer: {
@@ -411,15 +377,15 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 40,
     },
     emptyTitle: {
-      fontSize: 24,
+      fontSize: moderateScale(22),
       fontWeight: "bold",
-      marginTop: 16,
-      marginBottom: 8,
+      marginTop: moderateScale(16),
+      marginBottom: moderateScale(8),
     },
     emptyMessage: {
-      fontSize: 16,
+      fontSize: moderateScale(14),
       textAlign: "center",
-      paddingHorizontal: 24,
+      paddingHorizontal: moderateScale(24),
     },
     bottomSpacing: {
       height: 24,

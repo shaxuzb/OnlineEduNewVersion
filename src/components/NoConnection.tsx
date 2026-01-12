@@ -20,7 +20,12 @@ export default function NoConnection({
   const animation = useRef<LottieView>(null);
 
   return (
-    <View style={style.container}>
+    <View
+      style={[
+        style.container,
+        { backgroundColor: theme.theme.colors.background },
+      ]}
+    >
       <LottieView
         autoPlay
         ref={animation}

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   DefaultTheme,
   NavigationContainer,
@@ -26,7 +26,7 @@ import { useAuth } from "../context/AuthContext";
 import SystemNavigationBar from "react-native-system-navigation-bar";
 import StatistikaSubjectScreen from "../screens/statistics/details/StatistikaSubjectScreen";
 import StatistikaTestScreen from "../screens/statistics/details/StatistikaTestScreen";
-import { StatusBar, TouchableOpacity, View } from "react-native";
+import { StatusBar, TouchableOpacity } from "react-native";
 import PaymentOrders from "../screens/profile/screen/paymentorders";
 import SolutionScreen from "../screens/courses/SolutionScreen";
 import VideoPlayerScreen from "../screens/courses/videoplayer";
@@ -40,12 +40,21 @@ import PurchaseSubjectThemeScreen from "../screens/purchases/PurchaseSubjectThem
 import EmptyScreen from "../screens/empty";
 import ThemeAbstractScreen from "../screens/courses/ThemeAbstractScreen";
 import { useSession } from "../hooks/useSession";
+import { moderateScale } from "react-native-size-matters";
+import DeviceInfo from "react-native-device-info";
+import NoConnection from "../components/NoConnection";
+
+import NetInfo from "@react-native-community/netinfo";
+import { useGeo } from "../hooks/useGeo";
+
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
-
+const isTablet = DeviceInfo.isTablet();
 const MainTabNavigator = () => {
   const { theme } = useTheme();
   const { isSuperAdmin } = useSession();
+  const { countryCode } = useGeo();
+  
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -69,13 +78,13 @@ const MainTabNavigator = () => {
         tabBarStyle: {
           backgroundColor: theme.colors.tabBarBackground,
           borderTopColor: "red",
-          borderWidth: 2,
+          borderWidth: moderateScale(2),
           borderColor: theme.colors.border,
-          borderTopLeftRadius: 20,
-          borderTopEndRadius: 20,
+          borderTopLeftRadius: moderateScale(20),
+          borderTopEndRadius: moderateScale(20),
           zIndex: 10,
           paddingTop: 0,
-          borderTopWidth: 1,
+          borderTopWidth: moderateScale(1),
         },
         tabBarButton: (props) => {
           const filteredProps = Object.fromEntries(
@@ -91,14 +100,24 @@ const MainTabNavigator = () => {
       <Tab.Screen
         name="Courses"
         component={CoursesStackNavigator}
-        options={{ tabBarLabel: "Kurslar" }}
+        options={{
+          tabBarLabel: "Kurslar",
+          tabBarLabelStyle: {
+            fontSize: +moderateScale(10).toFixed(0),
+          },
+        }}
       />
       <Tab.Screen
         name="Statistika"
         component={StatistikaScreen}
-        options={{ tabBarLabel: "Statistika" }}
+        options={{
+          tabBarLabel: "Statistika",
+          tabBarLabelStyle: {
+            fontSize: +moderateScale(10).toFixed(0),
+          },
+        }}
       />
-      {!isSuperAdmin && (
+      {!isSuperAdmin && countryCode === 'UZ' && (
         <Tab.Screen
           name="Payment"
           component={EmptyScreen}
@@ -112,6 +131,9 @@ const MainTabNavigator = () => {
           })}
           options={{
             tabBarLabel: "Sotib olish",
+            tabBarLabelStyle: {
+              fontSize: +moderateScale(10).toFixed(0),
+            },
             tabBarIcon: () => (
               <LinearGradient
                 colors={["#3a5dde", "#5e84e6"]}
@@ -139,6 +161,12 @@ const MainTabNavigator = () => {
           headerShown: true,
           headerTitleAlign: "center",
           headerTintColor: "white",
+          tabBarLabelStyle: {
+            fontSize: +moderateScale(10).toFixed(0),
+          },
+          headerStyle: {
+            backgroundColor: isTablet ? "#3a5dde" : undefined,
+          },
           headerBackground() {
             return (
               <LinearGradient
@@ -149,6 +177,9 @@ const MainTabNavigator = () => {
               />
             );
           },
+          headerTitleStyle: {
+            fontSize: +moderateScale(18).toFixed(0),
+          },
         }}
       />
       <Tab.Screen
@@ -156,7 +187,10 @@ const MainTabNavigator = () => {
         component={EmptyScreen}
         options={{
           tabBarLabel: "Chat",
-        freezeOnBlur:true,
+          freezeOnBlur: true,
+          tabBarLabelStyle: {
+            fontSize: +moderateScale(10).toFixed(0),
+          },
         }}
         listeners={({ navigation }) => ({
           tabPress: (e) => {
@@ -188,6 +222,9 @@ const MainStackNavigator = () => (
       name="Chat"
       component={ChatScreen}
       options={{
+        headerStyle: {
+          backgroundColor: isTablet ? "#3a5dde" : undefined,
+        },
         headerShown: true,
         freezeOnBlur: true,
         headerTintColor: "white",
@@ -209,6 +246,9 @@ const MainStackNavigator = () => (
       name="News"
       component={NewsScreen}
       options={{
+        headerStyle: {
+          backgroundColor: isTablet ? "#3a5dde" : undefined,
+        },
         headerBackground() {
           return (
             <LinearGradient
@@ -220,6 +260,9 @@ const MainStackNavigator = () => (
           );
         },
         freezeOnBlur: true,
+        headerTitleStyle: {
+          fontSize: +moderateScale(18).toFixed(0),
+        },
       }}
       // options={{ animation: "ios_from_left" }}
     />
@@ -227,6 +270,9 @@ const MainStackNavigator = () => (
       name="StatistikaDetail"
       component={StatistikaSubjectScreen}
       options={{
+        headerStyle: {
+          backgroundColor: isTablet ? "#3a5dde" : undefined,
+        },
         headerBackground() {
           return (
             <LinearGradient
@@ -238,12 +284,18 @@ const MainStackNavigator = () => (
           );
         },
         freezeOnBlur: true,
+        headerTitleStyle: {
+          fontSize: +moderateScale(18).toFixed(0),
+        },
       }}
     />
     <Stack.Screen
       name="StatistikaDetailTest"
       component={StatistikaTestScreen}
       options={{
+        headerStyle: {
+          backgroundColor: isTablet ? "#3a5dde" : undefined,
+        },
         headerBackground() {
           return (
             <LinearGradient
@@ -255,12 +307,18 @@ const MainStackNavigator = () => (
           );
         },
         freezeOnBlur: true,
+        headerTitleStyle: {
+          fontSize: +moderateScale(18).toFixed(0),
+        },
       }}
     />
     <Stack.Screen
       name="LessonDetail"
       component={LessonDetailScreen}
       options={{
+        headerStyle: {
+          backgroundColor: isTablet ? "#3a5dde" : undefined,
+        },
         headerBackground() {
           return (
             <LinearGradient
@@ -272,6 +330,9 @@ const MainStackNavigator = () => (
           );
         },
         freezeOnBlur: true,
+        headerTitleStyle: {
+          fontSize: +moderateScale(18).toFixed(0),
+        },
       }}
     />
     <Stack.Screen
@@ -283,6 +344,9 @@ const MainStackNavigator = () => (
       name="ThemeAbstract"
       component={ThemeAbstractScreen}
       options={{
+        headerStyle: {
+          backgroundColor: isTablet ? "#3a5dde" : undefined,
+        },
         headerBackground() {
           return (
             <LinearGradient
@@ -293,13 +357,19 @@ const MainStackNavigator = () => (
             />
           );
         },
-        freezeOnBlur:true,
+        freezeOnBlur: true,
+        headerTitleStyle: {
+          fontSize: +moderateScale(18).toFixed(0),
+        },
       }}
     />
     <Stack.Screen
       name="QuizScreen"
       component={QuizScreen}
       options={{
+        headerStyle: {
+          backgroundColor: isTablet ? "#3a5dde" : undefined,
+        },
         headerBackground() {
           return (
             <LinearGradient
@@ -310,13 +380,19 @@ const MainStackNavigator = () => (
             />
           );
         },
-        freezeOnBlur:true,
+        freezeOnBlur: true,
+        headerTitleStyle: {
+          fontSize: +moderateScale(18).toFixed(0),
+        },
       }}
     />
     <Stack.Screen
       name="QuizResults"
       component={QuizResultsScreen}
       options={{
+        headerStyle: {
+          backgroundColor: isTablet ? "#3a5dde" : undefined,
+        },
         headerBackground() {
           return (
             <LinearGradient
@@ -327,13 +403,19 @@ const MainStackNavigator = () => (
             />
           );
         },
-        freezeOnBlur:true,
+        freezeOnBlur: true,
+        headerTitleStyle: {
+          fontSize: +moderateScale(18).toFixed(0),
+        },
       }}
     />
     <Stack.Screen
       name="QuizSolution"
       component={SolutionScreen}
       options={{
+        headerStyle: {
+          backgroundColor: isTablet ? "#3a5dde" : undefined,
+        },
         headerBackground() {
           return (
             <LinearGradient
@@ -344,7 +426,10 @@ const MainStackNavigator = () => (
             />
           );
         },
-        freezeOnBlur:true,
+        freezeOnBlur: true,
+        headerTitleStyle: {
+          fontSize: +moderateScale(18).toFixed(0),
+        },
       }}
     />
     <Stack.Screen
@@ -355,6 +440,9 @@ const MainStackNavigator = () => (
         animation: "ios_from_left",
         headerShown: true,
         headerTintColor: "white",
+        headerStyle: {
+          backgroundColor: isTablet ? "#3a5dde" : undefined,
+        },
         headerBackground() {
           return (
             <LinearGradient
@@ -365,8 +453,11 @@ const MainStackNavigator = () => (
             />
           );
         },
-        freezeOnBlur:true,
+        freezeOnBlur: true,
         headerTitleAlign: "center",
+        headerTitleStyle: {
+          fontSize: +moderateScale(18).toFixed(0),
+        },
       }}
     />
     <Stack.Screen
@@ -375,6 +466,9 @@ const MainStackNavigator = () => (
       options={{
         title: "Shaxsiy ma'lumotlar",
         headerShadowVisible: false,
+        headerStyle: {
+          backgroundColor: isTablet ? "#3a5dde" : undefined,
+        },
         headerBackground() {
           return (
             <LinearGradient
@@ -385,7 +479,10 @@ const MainStackNavigator = () => (
             />
           );
         },
-        freezeOnBlur:true,
+        freezeOnBlur: true,
+        headerTitleStyle: {
+          fontSize: +moderateScale(18).toFixed(0),
+        },
       }}
     />
 
@@ -403,6 +500,9 @@ const MainStackNavigator = () => (
               animation: "ios_from_right",
               headerShown: true,
               headerTintColor: "white",
+              headerStyle: {
+                backgroundColor: isTablet ? "#3a5dde" : undefined,
+              },
               headerBackground() {
                 return (
                   <LinearGradient
@@ -413,8 +513,11 @@ const MainStackNavigator = () => (
                   />
                 );
               },
-        freezeOnBlur:true,
+              freezeOnBlur: true,
               headerTitleAlign: "center",
+              headerTitleStyle: {
+                fontSize: +moderateScale(18).toFixed(0),
+              },
             }}
           >
             <Stack.Screen
@@ -427,7 +530,7 @@ const MainStackNavigator = () => (
               component={CreditCardScreen}
               options={{
                 animation: "slide_from_bottom",
-        freezeOnBlur:true,
+                freezeOnBlur: true,
               }}
             />
             <Stack.Screen
@@ -435,7 +538,7 @@ const MainStackNavigator = () => (
               component={OTPCardVerification}
               options={{
                 animation: "slide_from_bottom",
-        freezeOnBlur:true,
+                freezeOnBlur: true,
               }}
             />
             <Stack.Screen
@@ -451,6 +554,9 @@ const MainStackNavigator = () => (
       component={PaymentOrders}
       options={{
         title: "Mening to‘lovlarim",
+        headerStyle: {
+          backgroundColor: isTablet ? "#3a5dde" : undefined,
+        },
         headerBackground() {
           return (
             <LinearGradient
@@ -461,7 +567,10 @@ const MainStackNavigator = () => (
             />
           );
         },
-        freezeOnBlur:true,
+        freezeOnBlur: true,
+        headerTitleStyle: {
+          fontSize: +moderateScale(18).toFixed(0),
+        },
       }}
     />
   </Stack.Navigator>
@@ -470,6 +579,14 @@ const MainStackNavigator = () => (
 export default function AppNavigation() {
   const { isAuthenticated, isLoading } = useAuth();
   const { theme } = useTheme();
+  const [isConnected, setIsConnected] = useState(true);
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      setIsConnected(!!state.isConnected);
+    });
+
+    return () => unsubscribe();
+  }, []);
   // Show loading screen (splash screen) while checking authentication
   useEffect(() => {
     try {
@@ -479,6 +596,9 @@ export default function AppNavigation() {
       console.warn("SystemNavigationBar error:", error);
     }
   }, [theme]);
+  if (!isConnected) {
+    return <NoConnection setIsConnected={setIsConnected} />;
+  }
   if (isLoading) {
     return <LoadingScreen />;
   }
@@ -496,6 +616,7 @@ export default function AppNavigation() {
       >
         <StatusBar
           // hidden
+          translucent
           backgroundColor={"transparent"}
           barStyle={"light-content"}
         />

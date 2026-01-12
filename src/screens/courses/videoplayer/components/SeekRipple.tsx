@@ -5,6 +5,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from "react-native-reanimated";
+import { moderateScale } from 'react-native-size-matters';
 interface SeekRippleProps {
   side: "left" | "right";
   active: any;
@@ -31,7 +32,7 @@ const SeekRipple: React.FC<SeekRippleProps> = ({ side, active, text }) => {
       <Animated.View style={[styles.ripple]}>
         <Icon
           name={side === "left" ? "play-back" : "play-forward"}
-          size={25}
+          size={moderateScale(23)}
           color="#fff"
         />
         <Text style={styles.rippleText}>{text}</Text>
@@ -56,15 +57,15 @@ const styles = StyleSheet.create({
     right: 0,
   },
   ripple: {
-    borderRadius: 50,
+    borderRadius: moderateScale(50),
     gap: 8,
     justifyContent: "center",
-    padding: 20,
+    padding: moderateScale(20),
     alignItems: "center",
   },
   rippleText: {
     color: "#fff",
-    fontSize: 14,
+    fontSize: moderateScale(12),
   },
 });
 

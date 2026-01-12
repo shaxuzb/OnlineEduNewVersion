@@ -1,6 +1,7 @@
 import { View, Text } from "react-native";
 import React, { ReactNode } from "react";
 import { useTheme } from "@/src/context/ThemeContext";
+import { moderateScale } from "react-native-size-matters";
 
 export default function PageCard({ children }: { children: ReactNode }) {
   const { theme } = useTheme();
@@ -11,8 +12,8 @@ export default function PageCard({ children }: { children: ReactNode }) {
         style={{
           flex: 1,
           backgroundColor: theme.colors.background,
-          borderTopEndRadius: 20,
-          borderTopStartRadius: 20,
+          borderTopEndRadius: moderateScale(18),
+          borderTopStartRadius: moderateScale(18),
           overflow: "hidden",
         }}
       >

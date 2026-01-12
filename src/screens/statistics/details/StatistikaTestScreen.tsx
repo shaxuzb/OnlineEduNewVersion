@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { moderateScale } from "react-native-size-matters";
 
 function StatistikaTestScreen({
   navigation,
@@ -62,18 +63,15 @@ function StatistikaTestScreen({
         <View
           style={{
             alignItems: "center",
-            paddingBottom: 5,
+            paddingBottom: moderateScale(3),
           }}
         >
           <Text style={styles.headerTitle}>{children}</Text>
-          <Text style={styles.headerSubtitle}>Natija</Text>
+          {/* <Text style={styles.headerSubtitle}>Natija</Text> */}
         </View>
       ),
       headerRight: () => <Text style={{ width: 55 }}></Text>,
       headerTintColor: "white",
-      headerStyle: {
-        backgroundColor: theme.colors.primary,
-      },
     });
   }, [navigation]);
   return (
@@ -133,7 +131,7 @@ function StatistikaTestScreen({
                       <View key={subTestNo}>
                         <Text
                           style={{
-                            fontSize: 16,
+                            fontSize: moderateScale(14),
                             marginBottom: 8,
                             color: theme.colors.text,
                           }}
@@ -193,7 +191,7 @@ function StatistikaTestScreen({
             >
               <Ionicons
                 name="eye-outline"
-                size={20}
+                size={moderateScale(18)}
                 color={theme.colors.primary}
               />
               <Text style={styles.outlineText}>Natijani ko‘rish</Text>
@@ -217,32 +215,14 @@ const createStyles = (theme: Theme) =>
       flex: 1,
       backgroundColor: theme.colors.background,
     },
-    header: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      backgroundColor: theme.colors.primary,
-      paddingHorizontal: SPACING.lg,
-      paddingVertical: SPACING.base,
-      minHeight: 60,
-    },
-    headerButton: {
-      padding: SPACING.xs,
-      minWidth: 40,
-    },
-    headerTitleContainer: {
-      flex: 1,
-      alignItems: "center",
-      paddingHorizontal: SPACING.base,
-    },
     headerTitle: {
-      fontSize: FONT_SIZES.lg,
+      fontSize: moderateScale(FONT_SIZES.base),
       fontWeight: "bold",
       textAlign: "center",
       color: "white",
     },
     headerSubtitle: {
-      fontSize: FONT_SIZES.sm,
+      fontSize: moderateScale(FONT_SIZES.xs),
       color: "white",
       opacity: 0.8,
     },
@@ -256,9 +236,9 @@ const createStyles = (theme: Theme) =>
       marginBottom: SPACING.xl,
     },
     percentageCircle: {
-      width: 150,
-      height: 150,
-      borderRadius: 75,
+      width: moderateScale(130),
+      height: moderateScale(130),
+      borderRadius: moderateScale(75),
       backgroundColor: theme.colors.card,
       justifyContent: "center",
       alignItems: "center",
@@ -271,15 +251,15 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.colors.primary,
     },
     percentageText: {
-      fontSize: 48,
+      fontSize: moderateScale(42),
       fontWeight: "bold",
       color: theme.colors.primary,
     },
     statsContainer: {
       backgroundColor: theme.colors.card,
-      borderRadius: BORDER_RADIUS.base,
-      padding: SPACING.lg,
-      marginBottom: SPACING.xl,
+      borderRadius: moderateScale(BORDER_RADIUS.sm),
+      padding: moderateScale(SPACING.sm),
+      marginBottom: moderateScale(SPACING.base),
       width: "100%",
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
@@ -294,12 +274,12 @@ const createStyles = (theme: Theme) =>
       paddingVertical: SPACING.sm,
     },
     statsLabel: {
-      fontSize: FONT_SIZES.lg,
+      fontSize: moderateScale(FONT_SIZES.sm),
       color: theme.colors.text,
       fontWeight: "500",
     },
     statsValue: {
-      fontSize: FONT_SIZES.lg,
+      fontSize: moderateScale(FONT_SIZES.sm),
       color: theme.colors.text,
       fontWeight: "bold",
     },
@@ -316,7 +296,7 @@ const createStyles = (theme: Theme) =>
       elevation: 2,
     },
     wrongAnswersTitle: {
-      fontSize: FONT_SIZES.base,
+      fontSize: moderateScale(FONT_SIZES.sm),
       color: theme.colors.text,
       fontWeight: "600",
       marginBottom: SPACING.base,
@@ -331,18 +311,18 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.error + "20",
       borderColor: theme.colors.error,
       borderWidth: 1,
-      borderRadius: BORDER_RADIUS.sm,
-      paddingHorizontal: SPACING.sm,
-      paddingVertical: SPACING.xs,
-      marginBottom: SPACING.xs,
+      borderRadius: moderateScale(BORDER_RADIUS.sm - 2),
+      paddingHorizontal: moderateScale(SPACING.xs),
+      paddingVertical: moderateScale(SPACING.xs - 2),
+      marginBottom: moderateScale(SPACING.xs - 2),
     },
     wrongNumberText: {
-      fontSize: FONT_SIZES.sm,
+      fontSize: moderateScale(FONT_SIZES.xs),
       color: theme.colors.error,
       fontWeight: "600",
     },
     encouragementText: {
-      fontSize: FONT_SIZES.base,
+      fontSize: moderateScale(FONT_SIZES.sm),
       color: theme.colors.text,
       fontWeight: "500",
       textAlign: "center",
@@ -353,26 +333,26 @@ const createStyles = (theme: Theme) =>
       flexDirection: "row",
       gap: SPACING.base,
       width: "100%",
-      paddingHorizontal: SPACING.lg,
+      paddingHorizontal: moderateScale(SPACING.base),
       marginTop: "auto",
-      paddingTop: SPACING.sm,
-      marginBottom: SPACING.sm,
+      paddingTop: moderateScale(SPACING.xs),
+      marginBottom: moderateScale(SPACING.xs),
     },
     actionButton: {
       flex: 1,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      paddingVertical: SPACING.base,
-      borderRadius: BORDER_RADIUS.base,
+      paddingVertical: moderateScale(SPACING.sm),
+      borderRadius: moderateScale(BORDER_RADIUS.sm),
       gap: SPACING.xs,
     },
     button: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      paddingHorizontal: 12,
-      borderRadius: BORDER_RADIUS.base,
+      paddingHorizontal: moderateScale(10),
+      borderRadius: moderateScale(BORDER_RADIUS.sm),
       gap: SPACING.xs,
     },
     outlineButton: {
@@ -383,7 +363,7 @@ const createStyles = (theme: Theme) =>
     outlineText: {
       color: theme.colors.primary,
       fontWeight: "600",
-      fontSize: FONT_SIZES.base,
+      fontSize: moderateScale(FONT_SIZES.sm),
     },
     retryButton: {
       backgroundColor: theme.colors.card,
@@ -391,7 +371,7 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.colors.primary,
     },
     retryButtonText: {
-      fontSize: FONT_SIZES.base,
+      fontSize: moderateScale(FONT_SIZES.sm),
       color: theme.colors.primary,
       fontWeight: "600",
     },
@@ -399,7 +379,7 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.primary,
     },
     finishButtonText: {
-      fontSize: FONT_SIZES.base,
+      fontSize: moderateScale(FONT_SIZES.sm),
       color: "white",
       fontWeight: "600",
     },

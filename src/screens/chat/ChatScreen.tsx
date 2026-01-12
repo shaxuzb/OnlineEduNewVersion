@@ -29,6 +29,7 @@ import {
   KeyboardAvoidingView,
   KeyboardProvider,
 } from "react-native-keyboard-controller";
+import { moderateScale } from "react-native-size-matters";
 
 export default function ChatScreen({ navigation }: { navigation: any }) {
   const { theme } = useTheme();
@@ -118,23 +119,26 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
     navigation.setOptions({
       title: "Habarlar",
       freezeOnBlur: true,
+      headerTitleStyle: {
+        fontSize: +moderateScale(18).toFixed(0),
+      },
       headerRight: () => (
         <Pressable
           android_ripple={{
             foreground: true,
             color: lightColors.ripple,
             borderless: true,
-            radius: 30,
+            radius: moderateScale(30),
           }}
           style={{
-            width: 40,
-            height: 40,
+            width: moderateScale(40),
+            height: moderateScale(40),
             alignItems: "center",
             justifyContent: "center",
           }}
           onPress={() => refetch()}
         >
-          <Ionicons name="reload" size={20} color="white" />
+          <Ionicons name="reload" size={moderateScale(18)} color="white" />
         </Pressable>
       ),
     });
@@ -188,7 +192,11 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
                 style={styles.scrollToBottomButton}
                 onPress={scrollToBottom}
               >
-                <Ionicons name="chevron-down" size={20} color="white" />
+                <Ionicons
+                  name="chevron-down"
+                  size={moderateScale(18)}
+                  color="white"
+                />
               </TouchableOpacity>
             </Animated.View>
           )}
@@ -209,26 +217,6 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.colors.background },
-    header: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      backgroundColor: theme.colors.primary,
-      padding: 12,
-    },
-    backButton: {
-      width: 40,
-      height: 40,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    headerTitle: {
-      fontSize: 20,
-      fontWeight: "bold",
-      color: "white",
-      flex: 1,
-      textAlign: "center",
-    },
     headerRight: {
       width: 40,
       height: 40,
@@ -243,22 +231,22 @@ const createStyles = (theme: Theme) =>
       zIndex: 10,
       backgroundColor: "rgba(255, 255, 255, 0.06)",
     },
-    messagesList: { flex: 1, paddingHorizontal: 10 },
+    messagesList: { flex: 1, paddingHorizontal: moderateScale(8) },
     dateHeader: { alignItems: "center", marginVertical: 12 },
     dateText: {
       backgroundColor: theme.colors.divider,
       paddingHorizontal: 12,
       paddingVertical: 4,
       borderRadius: 12,
-      fontSize: 12,
+      fontSize: moderateScale(10),
       color: theme.colors.textSecondary,
       fontWeight: "500",
     },
     messageContainer: {
       marginVertical: 4,
       maxWidth: "80%",
-      padding: 12,
-      borderRadius: 18,
+      padding: moderateScale(10),
+      borderRadius: moderateScale(14),
     },
     sentMessage: {
       alignSelf: "flex-end",
@@ -271,7 +259,7 @@ const createStyles = (theme: Theme) =>
       borderBottomLeftRadius: 4,
       elevation: 1,
     },
-    messageText: { fontSize: 16, lineHeight: 20 },
+    messageText: { fontSize: moderateScale(14), lineHeight: 20 },
     sentMessageText: { color: "white" },
     receivedMessageText: { color: "white" },
     messageFooter: {
@@ -280,7 +268,7 @@ const createStyles = (theme: Theme) =>
       justifyContent: "flex-end",
       marginTop: 4,
     },
-    timeText: { fontSize: 11, marginRight: 4 },
+    timeText: { fontSize: moderateScale(9), marginRight: 4 },
     sentTimeText: { color: "rgba(255,255,255,0.7)" },
     receivedTimeText: { color: "rgba(255,255,255,0.7)" },
     scrollToBottomContainer: {
@@ -290,9 +278,9 @@ const createStyles = (theme: Theme) =>
       zIndex: 1000,
     },
     scrollToBottomButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: moderateScale(36),
+      height: moderateScale(36),
+      borderRadius: moderateScale(20),
       backgroundColor: theme.colors.primary,
       justifyContent: "center",
       alignItems: "center",
@@ -301,29 +289,29 @@ const createStyles = (theme: Theme) =>
       flexDirection: "row",
       alignItems: "flex-end",
       backgroundColor: theme.colors.inputBackground,
-      paddingHorizontal: 12,
-      paddingVertical: 0,
-      borderRadius: 12,
-      marginHorizontal: 16,
-      marginTop: 8,
+      paddingHorizontal: moderateScale(12),
+      paddingVertical: moderateScale(0),
+      borderRadius: moderateScale(12),
+      marginHorizontal: moderateScale(16),
+      marginTop: moderateScale(8),
       marginBottom: Platform.OS === "ios" ? 0 : 8, // iOSda SafeArea ishlaydi
     },
     textInputFull: {
       flex: 1,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      fontSize: 16,
+      paddingHorizontal: moderateScale(14),
+      paddingVertical: moderateScale(10),
+      fontSize: moderateScale(14),
       color: theme.colors.text,
       maxHeight: 100,
     },
     sendButton: {
-      marginLeft: 8,
-      marginBottom: 4,
-      height: 36,
-      width: 36,
+      marginLeft: moderateScale(6),
+      marginBottom: moderateScale(2),
+      height: moderateScale(34),
+      width: moderateScale(34),
       justifyContent: "center",
       alignItems: "center",
       backgroundColor: theme.colors.primary,
-      borderRadius: 18,
+      borderRadius: moderateScale(18),
     },
   });

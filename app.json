@@ -1,11 +1,11 @@
 {
   "expo": {
     "name": "MATH ME",
-    "slug": "onlineedu",
-    "version": "1.0.18",
+    "slug": "mathme",
+    "version": "1.0.20",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "onlineedu",
+    "scheme": "mathme",
     "platforms": ["ios", "android"],
     "userInterfaceStyle": "automatic",
     "splash": {
@@ -20,8 +20,8 @@
       "imageWidth": 150
     },
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.onlineedu.app",
+      "supportsTablet": false,
+      "bundleIdentifier": "com.rbsx.mathmeeducation",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -45,7 +45,7 @@
       "API_URL": "https://edu-api.crmuz.uz",
       "router": {},
       "eas": {
-        "projectId": "84353f25-8841-4253-82ab-75e6d2701755"
+        "projectId": "34ba133e-e407-4f20-a0cc-cbd3d9e8a6fd"
       }
     }
   }

@@ -15,6 +15,7 @@ import { ChapterThemeStatistic, Theme } from "@/src/types";
 import LoadingData from "@/src/components/exceptions/LoadingData";
 import ErrorData from "@/src/components/exceptions/ErrorData";
 import NoTestResultsModal from "../components/NoTestResultsModal";
+import { moderateScale } from "react-native-size-matters";
 
 export default function StatistikaSubjectScreen({
   navigation,
@@ -71,7 +72,7 @@ export default function StatistikaSubjectScreen({
       title: subjectName.toString(),
       freezeOnBlur: true,
       headerRight: () => (
-        <Text style={{ color: "white", fontSize: 18 }}>{subjectPercent}%</Text>
+        <Text style={{ color: "white", fontSize: moderateScale(14) }}>{subjectPercent}%</Text>
       ),
     });
   }, [navigation]);
@@ -131,7 +132,7 @@ const ThemeItem = React.memo(
         <View style={styles.lockIconContainer}>
           <Ionicons
             name={chapterTheme.isLocked ? "lock-closed" : "lock-open"}
-            size={16}
+            size={moderateScale(14)}
             color={
               chapterTheme.isLocked
                 ? theme.colors.textMuted
@@ -170,8 +171,8 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.background,
     },
     content: {
-      paddingHorizontal: 16,
-      paddingTop: 5,
+      paddingHorizontal: moderateScale(12),
+      paddingTop: moderateScale(3),
     },
 
     retryBtn: {
@@ -186,9 +187,9 @@ const createStyles = (theme: Theme) =>
     },
     themeCard: {
       backgroundColor: theme.colors.card,
-      borderRadius: 12,
-      padding: 16,
-      marginBottom: 12,
+      borderRadius: moderateScale(10),
+      padding: moderateScale(14),
+      marginBottom: moderateScale(10),
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
@@ -211,7 +212,7 @@ const createStyles = (theme: Theme) =>
       marginRight: 12,
     },
     themeNumber: {
-      fontSize: 14,
+      fontSize: moderateScale(12),
       color: theme.colors.textSecondary,
       marginBottom: 4,
     },
@@ -219,7 +220,7 @@ const createStyles = (theme: Theme) =>
       flex: 1,
     },
     themeName: {
-      fontSize: 16,
+      fontSize: moderateScale(14),
       color: theme.colors.text,
       lineHeight: 20,
     },
@@ -227,7 +228,7 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.textMuted,
     },
     chapterSectionTitle: {
-      fontSize: 18,
+      fontSize: moderateScale(16),
       fontWeight: "bold",
       color: theme.colors.text,
       marginBottom: 12,
@@ -235,5 +236,6 @@ const createStyles = (theme: Theme) =>
     },
     percentText: {
       color: theme.colors.text,
+      fontSize: moderateScale(12),
     },
   });

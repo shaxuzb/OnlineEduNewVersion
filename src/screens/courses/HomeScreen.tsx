@@ -6,11 +6,10 @@ import Logo from "@/src/assets/icons/logo/logo.svg";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useCurrentUserId } from "@/src/hooks/useQuiz";
 import { useStatistics } from "@/src/hooks/useStatistics";
-import { AuthToken, SubjectStatistic, Theme } from "@/src/types";
+import { SubjectStatistic, Theme } from "@/src/types";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import * as SecureStore from "expo-secure-store";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { moderateScale, ScaledSheet } from "react-native-size-matters";
 import {
   Alert,
@@ -37,16 +36,9 @@ const HomeScreen: React.FC = () => {
     isError,
     refetch,
   } = useStatistics(Number(userId));
-  const [userData, setUserData] = useState<AuthToken | null>(null);
   // const { data: subjects, isLoading, error, refetch } = useSubjects();
 
   // ✅ Fetch user session once
-  useEffect(() => {
-    (async () => {
-      const session = await SecureStore.getItemAsync("session");
-      if (session) setUserData(JSON.parse(session));
-    })();
-  }, []);
 
   // ✅ Trigger refetch after UI idle
   useEffect(() => {
@@ -160,37 +152,45 @@ const HomeScreen: React.FC = () => {
                 foreground: true,
                 color: lightColors.ripple,
                 borderless: true,
-                radius: 22,
+                radius: moderateScale(22),
               }}
               style={{
-                width: 40,
-                height: 40,
+                width: moderateScale(40),
+                height: moderateScale(40),
                 alignItems: "center",
                 justifyContent: "center",
                 marginRight: 10,
               }}
               onPress={() => (navigation as any).navigate("Profile")}
             >
-              <FontAwesome name="user-circle" size={34} color="white" />
+              <FontAwesome
+                name="user-circle"
+                size={moderateScale(28)}
+                color="white"
+              />
             </Pressable>
-            <Logo width={150} />
+            <Logo width={moderateScale(140)} />
             <Pressable
               android_ripple={{
                 foreground: true,
                 color: lightColors.ripple,
                 borderless: true,
-                radius: 22,
+                radius: moderateScale(22),
               }}
               style={{
-                width: 40,
-                height: 40,
+                width: moderateScale(40),
+                height: moderateScale(40),
                 alignItems: "center",
                 justifyContent: "center",
                 marginRight: 10,
               }}
               onPress={() => (navigation as any).navigate("News")}
             >
-              <Ionicons name="notifications-outline" size={34} color="white" />
+              <Ionicons
+                name="notifications-outline"
+                size={moderateScale(28)}
+                color="white"
+              />
             </Pressable>
           </View>
           {isError ? null : (
@@ -411,7 +411,7 @@ const HomeScreen: React.FC = () => {
                 </View>
               ) : isError ? (
                 <ErrorData refetch={refetch} />
-              ) : subjects?.length ? (
+              ) : subjects && subjects.length > 0 ? (
                 <View
                   style={{
                     flexDirection: "row",
@@ -425,7 +425,6 @@ const HomeScreen: React.FC = () => {
                       style={{
                         width: "50%",
                         padding: 10,
-                        overflow: "hidden",
                       }}
                       key={index}
                     >
@@ -484,14 +483,13 @@ const createStyles = (theme: Theme) =>
     categoryItem: {
       flexDirection: "column",
       alignItems: "center",
-      backgroundColor: theme.colors.card,
       padding: moderateScale(10),
       paddingHorizontal: moderateScale(5),
       aspectRatio: 1,
       borderRadius: moderateScale(12),
+      overflow: "hidden",
     },
     categoryIconContainer: {
-      position: "relative",
       borderRadius: moderateScale(12),
       padding: moderateScale(15),
       flexShrink: 1,

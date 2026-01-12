@@ -4,6 +4,7 @@ import Icon from "@expo/vector-icons/MaterialIcons";
 import CustomSlider from "./CustomSlider";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { moderateScale } from "react-native-size-matters";
 interface VideoControlsProps {
   paused: boolean;
   onPlayPause: () => void;
@@ -47,7 +48,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         {/* Top controls */}
         <View style={styles.topControls}>
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <Icon name="arrow-back" size={24} color="#fff" />
+            <Icon name="arrow-back" size={moderateScale(22)} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.title} numberOfLines={1}>
             {title}
@@ -56,7 +57,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             style={[styles.backButton, styles.settingsButton]}
             onPress={toggleSettings}
           >
-            <Ionicons name="settings-outline" size={24} color="#FFF" />
+            <Ionicons name="settings-outline" size={moderateScale(22)} color="#FFF" />
           </TouchableOpacity>
         </View>
 
@@ -69,7 +70,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
           >
             <Icon
               name={paused ? "play-arrow" : "pause"}
-              size={40}
+              size={moderateScale(40)}
               color="#fff"
             />
           </TouchableOpacity>
@@ -96,7 +97,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
           >
             <Icon
               name={fullscreen ? "fullscreen-exit" : "fullscreen"}
-              size={24}
+              size={moderateScale(22)}
               color="#fff"
             />
           </TouchableOpacity>
@@ -105,7 +106,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         {/* Buffering indicator */}
         {buffering && (
           <View style={styles.bufferingContainer}>
-            <Icon name="download" size={30} color="#fff" />
+            <Icon name="download" size={moderateScale(30)} color="#fff" />
             <Text style={styles.bufferingText}>Yuklanmoqda...</Text>
           </View>
         )}
@@ -128,8 +129,8 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   topBackButton: {
-    width: 32,
-    height: 32,
+    width: moderateScale(32),
+    height: moderateScale(32),
     justifyContent: "center",
     alignItems: "center",
   },
@@ -142,7 +143,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: moderateScale(14),
     fontWeight: "bold",
   },
   centerControls: {
@@ -152,8 +153,8 @@ const styles = StyleSheet.create({
   },
   playButton: {
     backgroundColor: "rgba(0,0,0,0.6)",
-    borderRadius: 50,
-    padding: 20,
+    borderRadius: moderateScale(50),
+    padding: moderateScale(18),
   },
   bottomControls: {
     flexDirection: "row",
@@ -163,7 +164,7 @@ const styles = StyleSheet.create({
   },
   timeText: {
     color: "#fff",
-    fontSize: 12,
+    fontSize: moderateScale(10),
     minWidth: 40,
   },
   backButton: {
