@@ -427,3 +427,31 @@ export interface OrderResponse {
   results: OrderItem[];
   count: number;
 }
+
+export interface SubscriptionPlanFeature {
+  id: number;
+  code: string;
+  name: string;
+  description: string;
+}
+export interface SubscriptionPlanOption {
+  id: number;
+  periodId: number;
+  price: number;
+  stateId: number;
+  periodCode: string;
+  periodDurationValue: number;
+  periodDurationUnit: string;
+  annualDiscountPercent: number;
+  state: string;
+}
+export interface SubscriptionPlan {
+  id: number;
+  code: string;
+  name: string;
+  description: string;
+  stateId: number;
+  state: string;
+  features: SubscriptionPlanFeature[];
+  plans: SubscriptionPlanOption[];
+}

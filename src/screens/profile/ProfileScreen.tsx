@@ -154,7 +154,7 @@ function ProfileScreen() {
         <View style={styles.menuContainer}>
           {menuItems
             .filter(
-              (item) => !(item.id === 6 && isSuperAdmin && countryCode !== "UZ")
+              (item) => !(item.id === 6 && isSuperAdmin && countryCode === "UZ")
             )
             .map((item, index) => {
               return (

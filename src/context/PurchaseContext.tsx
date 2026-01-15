@@ -1,11 +1,10 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
-import Toast from "react-native-toast-message";
-import { useNavigation } from "@react-navigation/native";
 import { $axiosPrivate } from "../services/AxiosService";
+import { SubscriptionPlanOption } from "../types";
 // 🟦 Sotib olishni yuborish funksiyasi (post)
 interface SubmitPurchaseProps {
   values: {
-    scopeTypeId: number;
+    planId: number;
     paymentType: string;
     card?: {
       number: string;
@@ -14,11 +13,9 @@ interface SubmitPurchaseProps {
   };
 }
 interface PurchaseContextType {
-  selectedItems: any[];
-  selectAll: boolean;
+  selectedItem: SubscriptionPlanOption | null;
   submitPurchase: (values: SubmitPurchaseProps) => Promise<void>;
-  setSelectAll: React.Dispatch<React.SetStateAction<boolean>>;
-  setSelectedItems: React.Dispatch<React.SetStateAction<any[]>>;
+  setSelectedItem: React.Dispatch<React.SetStateAction<SubscriptionPlanOption | null>>;
 }
 
 const PurchaseContext = createContext<PurchaseContextType | null>(null);
@@ -26,36 +23,31 @@ const PurchaseContext = createContext<PurchaseContextType | null>(null);
 export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const navigation = useNavigation<any>();
-
-  const [selectedItems, setSelectedItems] = useState<any[]>([]);
-  const [selectAll, setSelectAll] = useState(false);
+  const [selectedItem, setSelectedItem] =
+    useState<SubscriptionPlanOption | null>(null);
 
   // 🟩 Checkout bosilganda
 
   const submitPurchase = useCallback(
     async ({ values }: SubmitPurchaseProps) => {
       const body = {
-        scopeIds: selectedItems.map((item) => item.id),
+        scopeIds: selectedItem?.id,
         ...values,
       };
 
       const { data } = await $axiosPrivate.post("purchase-orders", body);
-      setSelectedItems([]);
-      setSelectAll(false);
+      setSelectedItem(null);
       return data;
     },
-    [selectedItems]
+    [selectedItem]
   );
 
   return (
     <PurchaseContext.Provider
       value={{
-        selectedItems,
-        selectAll,
+        selectedItem,
         submitPurchase,
-        setSelectedItems,
-        setSelectAll,
+        setSelectedItem,
       }}
     >
       {children}

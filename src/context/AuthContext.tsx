@@ -6,7 +6,7 @@ import React, {
   ReactNode,
 } from "react";
 import * as SecureStore from "expo-secure-store";
-import { AuthToken, AuthUserData } from "../types";
+import { AuthToken, AuthUserData, SubscriptionPlan } from "../types";
 import { $axiosBase, $axiosPrivate } from "../services/AxiosService";
 import DeviceInfo from "react-native-device-info";
 import { queryClient } from "../utils/helpers/queryClient";
@@ -15,6 +15,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   isLoginLoading: boolean;
+  plan: SubscriptionPlan | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
 }
@@ -31,16 +32,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoginLoading, setIsLoginLoading] = useState(false);
   const [user, setUser] = useState<AuthUserData | null>(null);
+  const [plan, setPlan] = useState<SubscriptionPlan | null>(null);
   const isAuthenticated = !!user;
-
-  // Check if user is already authenticated on app start
   useEffect(() => {
     checkAuthStatus();
   }, []);
+  useEffect(() => {
+    if (isAuthenticated) {
+      checkPlan();
+    } else {
+      setPlan(null);
+    }
+  }, [isAuthenticated]);
+  const checkPlan = async () => {
+    try {
+      const planData = await $axiosPrivate.get(
+        "subscription-plan/current-plan"
+      );
+      console.log(planData?.data);
+      setPlan(planData.data);
+    } catch (error) {
+      console.error("Error fetching subscription plan:", error);
+    }
+  };
 
   const checkAuthStatus = async () => {
     setIsLoading(true);
-
     try {
       // Add a minimum loading time to show splash screen nicely
       await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -52,7 +69,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // console.log("Stored session data:", data);
       // console.log("Stored user data:", data?.user);
 
-      await $axiosPrivate.get("/subjects");
+      await $axiosPrivate.get("subscription-plan/current-plan");
       setUser(data?.user ?? null);
       setIsLoading(false);
 
@@ -67,15 +84,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<any> => {
     setIsLoginLoading(true);
-    console.log(DeviceInfo.getApplicationName());
-
     try {
       const { data } = await $axiosBase.post<AuthToken>("/account/login", {
         userName: email,
         password,
         uniqueId: (await DeviceInfo.getUniqueId()).toString(),
       });
-
       if (data) {
         setIsLoginLoading(false);
 
@@ -107,6 +121,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     isAuthenticated,
     isLoading,
+    plan,
     isLoginLoading,
     login,
     logout,

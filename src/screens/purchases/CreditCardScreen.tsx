@@ -1,29 +1,32 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Formik } from "formik";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import * as Yup from "yup";
+import LinearGradient from "react-native-linear-gradient";
+
 import { useTheme } from "@/src/context/ThemeContext";
 import { usePurchase } from "@/src/context/PurchaseContext";
-import { numberSpacing } from "@/src/utils";
 import { $axiosPrivate } from "@/src/services/AxiosService";
-import { lightColors } from "@/src/constants/theme";
 import { Theme } from "@/src/types";
 import CreditCardInput from "./components/CreditCardInput";
 
 const ValidationScheme = Yup.object().shape({
-  number: Yup.string().required("Telefon raqam majburiy"),
-  expire: Yup.string().required("sdasdsa"),
+  number: Yup.string().required("Karta raqam majburiy"),
+  expire: Yup.string().required("Muddati majburiy"),
 });
+
 export default function CreditCardScreen({
   navigation,
   route,
@@ -31,64 +34,58 @@ export default function CreditCardScreen({
   navigation: any;
   route: any;
 }) {
-  const { theme } = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  const { selectedItems, submitPurchase } = usePurchase();
+  const { theme, isDark } = useTheme();
+  const styles = createStyles(theme, isDark);
+  const { selectedItem, submitPurchase } = usePurchase();
   const [loading, setLoading] = useState(false);
 
-  const { scopeTypeId, paymentType } = route.params;
-  const totalPrice = useMemo(
-    () =>
-      numberSpacing(selectedItems.reduce((acc, item) => acc + item.price, 0)),
-    [selectedItems]
-  );
+  const { paymentType } = route.params;
+
+  const formatPrice = (price: number) => {
+    return price.toLocaleString("uz-UZ") + " so'm";
+  };
+
   const handleSendSms = async (orderId: any) => {
     try {
       const { data } = await $axiosPrivate.post(
         "transactions/subscribe/card/send-sms",
-        {
-          orderId: orderId,
-        }
+        { orderId }
       );
       setLoading(false);
-      (navigation as any).navigate("OTPCardVerification", {
-        orderId: orderId,
-        phoneNumber: (data as any).phone,
+      navigation.navigate("OTPCardVerification", {
+        orderId,
+        phoneNumber: data.phone,
       });
-      // router.navigate({
-      //   pathname: "/(root)/(purchases)/checkout/creditcard/otpverification",
-      //   params: {
-      //     orderId: orderId,
-      //     phoneNumber: (data as any).phone,
-      //   },
-      // });
       Toast.show({
-        type: "success", // 'success' | 'error' | 'info'
+        type: "success",
         text1: "SMS yuborildi!",
         text2: `Tasdiqlash kodi yuborildi`,
       });
     } catch (error: any) {
       setLoading(false);
       if (error.status === 400) {
-        return Toast.show({
-          type: "error", // 'success' | 'error' | 'info'
+        Toast.show({
+          type: "error",
           text1: "SMS yuborilgan",
           text2: "SMS allaqachon yuborilgan",
         });
+        return;
       }
       Toast.show({
-        type: "error", // 'success' | 'error' | 'info'
+        type: "error",
         text1: "Xatolik",
         text2: "SMS yuborishda xatolik yuz berdi",
       });
     }
   };
+
   const handleSubmit = async (values: any) => {
     setLoading(true);
+
     try {
       const data = await submitPurchase({
         values: {
-          scopeTypeId: Number(scopeTypeId),
+          planId: Number(selectedItem?.id),
           paymentType: paymentType.toString(),
           card: {
             expire: values.expire.split("/").join(""),
@@ -107,266 +104,381 @@ export default function CreditCardScreen({
       });
     }
   };
+
   useEffect(() => {
     navigation.setOptions({
-      headerTitle: () => (
-        <Ionicons name="cart-outline" size={38} color="white" />
-      ),
-      freezeOnBlur: true,
-      headerRight: () => (
-        <Pressable
-          android_ripple={{
-            foreground: true,
-            color: lightColors.ripple,
-            borderless: true,
-            radius: 22,
-          }}
-          style={{
-            width: 40,
-            height: 40,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-          onPress={() => navigation.navigate("Chat")}
-        >
-          <Ionicons name="chatbox" size={24} color="white" />
-        </Pressable>
-      ),
+      headerTitle: "Karta orqali to'lash",
+      headerStyle: {
+        backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+      },
+      headerTintColor: isDark ? "#fff" : "#000",
+      statusBarStyle: !isDark ? "dark" : "light",
     });
-  }, [navigation]);
+  }, [navigation, isDark]);
   return (
-    <SafeAreaView style={styles.container} edges={[]}>
-      <ScrollView
-        style={{
-          paddingHorizontal: 24,
-        }}
-        showsVerticalScrollIndicator={false}
+    <SafeAreaView style={styles.container} edges={["bottom", "top"]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
       >
-        <View style={styles.greetingSection}>
-          <Text style={styles.greeting}>{totalPrice} UZS</Text>
-        </View>
-        <Formik
-          initialValues={{
-            number: "",
-            expire: "",
-          }}
-          validationSchema={ValidationScheme}
-          onSubmit={handleSubmit}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
         >
-          {({ handleChange, handleBlur, values, errors, touched }) => {
-            console.log(values);
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons
+                name="arrow-back"
+                size={24}
+                color={isDark ? "#fff" : "#000"}
+              />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Karta orqali to'lash</Text>
+            <View style={{ width: 24 }} />
+          </View>
+          {/* Card Form */}
+          <View style={styles.formCard}>
+            <View style={styles.formHeader}>
+              <MaterialIcons
+                name="credit-card"
+                size={22}
+                color={isDark ? "#fff" : "#1F2937"}
+              />
+              <Text style={styles.formTitle}>Karta ma'lumotlari</Text>
+            </View>
 
-            return (
-              <View>
-                <CreditCardInput
-                  values={values}
-                  errors={errors}
-                  touched={touched}
-                  handleChange={handleChange}
-                  handleBlur={handleBlur}
-                />
+            <Formik
+              initialValues={{ number: "", expire: "" }}
+              validationSchema={ValidationScheme}
+              onSubmit={handleSubmit}
+            >
+              {({
+                handleChange,
+                handleBlur,
+                values,
+                errors,
+                touched,
+                submitForm,
+              }) => (
+                <View style={styles.formContainer}>
+                  <CreditCardInput
+                    values={values}
+                    errors={errors}
+                    touched={touched}
+                    handleChange={handleChange}
+                    handleBlur={handleBlur}
+                    inputStyle={{ color: isDark ? "#fff" : "#000" }}
+                  />
 
-                <View
-                  style={{
-                    marginTop: 30,
-                    gap: 10,
-                  }}
-                >
-                  <View
-                    style={{
-                      flexDirection: "row",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 18,
-                        color: theme.colors.text,
-                      }}
-                    >
-                      To'lov miqdori
-                    </Text>
-                    <Text
-                      style={{
-                        flexGrow: 1,
-                        height: 14,
-                        marginHorizontal: 5,
-                        borderBottomColor: theme.colors.text,
-                        borderBottomWidth: 1,
-                        borderStyle: "dashed",
-                      }}
-                    ></Text>
-                    <Text
-                      style={{
-                        fontSize: 18,
-                        color: theme.colors.text,
-                      }}
-                    >
-                      {totalPrice} UZS
+                  {/* Security Info */}
+                  <View style={styles.securityInfo}>
+                    <Ionicons
+                      name="shield-checkmark"
+                      size={18}
+                      color="#10B981"
+                    />
+                    <Text style={styles.securityText}>
+                      Karta ma'lumotlaringiz xavfsiz saqlanadi
                     </Text>
                   </View>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 18,
-                        color: theme.colors.text,
-                      }}
-                    >
-                      Komissiya
-                    </Text>
-                    <Text
-                      style={{
-                        flexGrow: 1,
-                        height: 14,
-                        marginHorizontal: 5,
-                        borderBottomColor: theme.colors.text,
-                        borderBottomWidth: 1,
-                        borderStyle: "dashed",
-                      }}
-                    ></Text>
-                    <Text
-                      style={{
-                        fontSize: 18,
-                        color: theme.colors.text,
-                      }}
-                    >
-                      0 UZS
-                    </Text>
+
+                  {/* Price Breakdown */}
+                  <View style={styles.breakdownCard}>
+                    <View style={styles.breakdownRow}>
+                      <Text style={styles.breakdownLabel}>To'lov summasi</Text>
+                      <Text style={styles.breakdownValue}>
+                        {formatPrice(selectedItem?.price || 0)}
+                      </Text>
+                    </View>
+                    <View style={styles.breakdownRow}>
+                      <Text style={styles.breakdownLabel}>Komissiya</Text>
+                      <Text style={styles.breakdownValue}>0 сум</Text>
+                    </View>
+                    <View style={styles.breakdownDivider} />
+                    <View style={styles.totalRow}>
+                      <Text style={styles.totalLabel}>Jami to'lov</Text>
+                      <Text style={styles.totalValue}>
+                        {formatPrice(selectedItem?.price || 0)}
+                      </Text>
+                    </View>
                   </View>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                    }}
+
+                  {/* Submit Button */}
+                  <TouchableOpacity
+                    style={styles.payButton}
+                    onPress={submitForm}
+                    disabled={loading}
+                    activeOpacity={0.9}
                   >
-                    <Text
-                      style={{
-                        fontSize: 18,
-                        color: theme.colors.text,
-                        fontWeight: "700",
-                      }}
+                    <LinearGradient
+                      colors={["#3a5dde", "#5e84e6"]}
+                      start={{ x: 0.5, y: 1.0 }}
+                      end={{ x: 0.5, y: 0.0 }}
+                      style={styles.payButtonGradient}
                     >
-                      Jami to'lov
-                    </Text>
-                    <Text
-                      style={{
-                        flexGrow: 1,
-                        height: 14,
-                        marginHorizontal: 5,
-                        borderBottomColor: theme.colors.text,
-                        borderBottomWidth: 1,
-                        borderStyle: "dashed",
-                      }}
-                    ></Text>
-                    <Text
-                      style={{
-                        fontSize: 18,
-                        fontWeight: "700",
-                        color: theme.colors.text,
-                      }}
-                    >
-                      {totalPrice} UZS
-                    </Text>
-                  </View>
-                </View>
-                <Pressable
-                  android_ripple={{
-                    foreground: true,
-                    color: lightColors.ripple,
-                  }}
-                  onPress={() => handleSubmit(values)}
-                  style={styles.payButton}
-                  disabled={loading}
-                >
-                  <Text style={styles.payButtonText}>
-                    {loading ? (
-                      <ActivityIndicator
-                        color="white"
-                        style={{ width: 24, height: 24 }}
-                      />
-                    ) : (
-                      "To‘lovni amalga oshirish"
-                    )}
+                      {loading ? (
+                        <ActivityIndicator color="#fff" size="small" />
+                      ) : (
+                        <>
+                          <MaterialIcons name="lock" size={20} color="#fff" />
+                          <Text style={styles.payButtonText}>
+                            To'lash • {formatPrice(selectedItem?.price || 0)}
+                          </Text>
+                        </>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+
+                  {/* Terms */}
+                  <Text style={styles.termsText}>
+                    To'lovni amalga oshirish orqali siz foydalanish shartlarimiz
+                    bilan roziligingizni bildirasiz
                   </Text>
-                </Pressable>
+                </View>
+              )}
+            </Formik>
+          </View>
+
+          {/* Payment Info */}
+          {/* <View style={styles.infoCard}>
+            <View style={styles.infoHeader}>
+              <MaterialIcons name="info" size={20} color="#8B5CF6" />
+              <Text style={styles.infoTitle}>To'lov haqida</Text>
+            </View>
+            <View style={styles.infoPoints}>
+              <View style={styles.infoPoint}>
+                <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                <Text style={styles.infoPointText}>
+                  SMS orqali tasdiqlash kerak bo'ladi
+                </Text>
               </View>
-            );
-          }}
-        </Formik>
-      </ScrollView>
+              <View style={styles.infoPoint}>
+                <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                <Text style={styles.infoPointText}>
+                  Bank kartangizga bog'liq bo'lgan telefon raqamingizga SMS keladi
+                </Text>
+              </View>
+              <View style={styles.infoPoint}>
+                <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                <Text style={styles.infoPointText}>
+                  To'lov bank darajasida himoyalangan
+                </Text>
+              </View>
+            </View>
+          </View> */}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-const createStyles = (theme: Theme) =>
+const createStyles = (theme: Theme, isDark: boolean) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: isDark ? "#0F172A" : "#F9FAFB",
+    },
+    scrollContent: {
+      paddingHorizontal: 20,
+      paddingBottom: 40,
     },
     header: {
       flexDirection: "row",
+      alignItems: "center",
       justifyContent: "space-between",
+      paddingTop: 16,
+      paddingBottom: 12,
+      marginBottom: 8,
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: isDark
+        ? "rgba(255, 255, 255, 0.1)"
+        : "rgba(0, 0, 0, 0.05)",
       alignItems: "center",
-      backgroundColor: theme.colors.primary,
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-    },
-    headerSelectTotal: {
-      fontSize: 13,
-      fontWeight: "500",
-      color: "white",
-    },
-    greetingSection: {
       justifyContent: "center",
+    },
+    headerTitle: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: isDark ? "#FFFFFF" : "#1F2937",
+    },
+    priceCard: {
+      backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+      borderRadius: 20,
+      padding: 24,
       alignItems: "center",
-      marginVertical: 20,
+      marginBottom: 24,
+      borderWidth: 2,
+      borderColor: "#8B5CF6",
+      ...(isDark
+        ? {}
+        : {
+            shadowColor: "#8B5CF6",
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.1,
+            shadowRadius: 12,
+            elevation: 6,
+          }),
     },
-    greeting: {
-      fontSize: 26,
+    priceIcon: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: "#8B5CF6",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 16,
+    },
+    priceAmount: {
+      fontSize: 32,
+      fontWeight: "800",
+      color: isDark ? "#FFFFFF" : "#1F2937",
+      marginBottom: 8,
+    },
+    priceNote: {
+      fontSize: 15,
+      color: isDark ? "#94A3B8" : "#6B7280",
       fontWeight: "500",
-      color: theme.colors.text,
     },
-    section: {
-      paddingHorizontal: 16,
-      gap: 14,
+    formCard: {
+      backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+      borderRadius: 20,
+      padding: 20,
       marginBottom: 24,
     },
-    formContainer: { width: "100%" },
-    inputContainer: { marginBottom: 20 },
-    label: { fontSize: 14, color: theme.colors.textSecondary, marginBottom: 8 },
-    input: {
-      borderWidth: 1,
-      borderColor: theme.colors.inputBorder,
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      fontSize: 16,
-      backgroundColor: theme.colors.inputBackground,
-      color: theme.colors.text,
-    },
-    inputError: {
-      borderColor: theme.colors.error,
-      backgroundColor: theme.colors.error + "15",
-    },
-    errorText: {
-      color: theme.colors.error,
-      fontSize: 14,
-      marginTop: 6,
-      marginLeft: 4,
-    },
-    payButton: {
-      backgroundColor: theme.colors.primary,
-      borderRadius: 12,
-      paddingVertical: 14,
-      marginTop: 32,
+    formHeader: {
+      flexDirection: "row",
       alignItems: "center",
+      gap: 10,
+      marginBottom: 20,
     },
-    payButtonText: {
-      color: "white",
+    formTitle: {
       fontSize: 18,
       fontWeight: "600",
+      color: isDark ? "#FFFFFF" : "#1F2937",
+    },
+    formContainer: {
+      gap: 20,
+    },
+    securityInfo: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: isDark
+        ? "rgba(16, 185, 129, 0.1)"
+        : "rgba(16, 185, 129, 0.05)",
+      padding: 12,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: isDark
+        ? "rgba(16, 185, 129, 0.2)"
+        : "rgba(16, 185, 129, 0.1)",
+    },
+    securityText: {
+      fontSize: 14,
+      color: isDark ? "#94A3B8" : "#6B7280",
+      flex: 1,
+    },
+    breakdownCard: {
+      backgroundColor: isDark
+        ? "rgba(255, 255, 255, 0.05)"
+        : "rgba(0, 0, 0, 0.03)",
+      borderRadius: 16,
+      padding: 16,
+    },
+    breakdownRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 12,
+    },
+    breakdownLabel: {
+      fontSize: 15,
+      color: isDark ? "#94A3B8" : "#6B7280",
+    },
+    breakdownValue: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: isDark ? "#FFFFFF" : "#1F2937",
+    },
+    breakdownDivider: {
+      height: 1,
+      backgroundColor: isDark ? "#334155" : "#E5E7EB",
+      marginVertical: 12,
+    },
+    totalRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    totalLabel: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: isDark ? "#FFFFFF" : "#1F2937",
+    },
+    totalValue: {
+      fontSize: 20,
+      fontWeight: "800",
+      color: "#5e84e6",
+    },
+    payButton: {
+      borderRadius: 16,
+      overflow: "hidden",
+    },
+    payButtonGradient: {
+      paddingVertical: 18,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 12,
+    },
+    payButtonText: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: "#FFFFFF",
+    },
+    termsText: {
+      fontSize: 13,
+      color: isDark ? "#94A3B8" : "#6B7280",
+      textAlign: "center",
+      lineHeight: 18,
+      marginTop: 8,
+    },
+    infoCard: {
+      backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+      borderRadius: 20,
+      padding: 20,
+    },
+    infoHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      marginBottom: 16,
+    },
+    infoTitle: {
+      fontSize: 17,
+      fontWeight: "600",
+      color: isDark ? "#FFFFFF" : "#1F2937",
+    },
+    infoPoints: {
+      gap: 12,
+    },
+    infoPoint: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 10,
+    },
+    infoPointText: {
+      flex: 1,
+      fontSize: 14,
+      color: isDark ? "#94A3B8" : "#6B7280",
+      lineHeight: 20,
     },
   });

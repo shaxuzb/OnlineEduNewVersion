@@ -121,11 +121,6 @@ const HomeScreen: React.FC = () => {
     },
     [styles.iconText]
   );
-  useEffect(() => {
-    navigation.setOptions({
-      headerShown: false,
-    });
-  }, [navigation]);
   return (
     <SafeAreaView style={styles.container} edges={[]}>
       <ScrollView

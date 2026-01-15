@@ -26,17 +26,15 @@ import { useAuth } from "../context/AuthContext";
 import SystemNavigationBar from "react-native-system-navigation-bar";
 import StatistikaSubjectScreen from "../screens/statistics/details/StatistikaSubjectScreen";
 import StatistikaTestScreen from "../screens/statistics/details/StatistikaTestScreen";
-import { StatusBar, TouchableOpacity } from "react-native";
+import { StatusBar, TouchableOpacity, View } from "react-native";
 import PaymentOrders from "../screens/profile/screen/paymentorders";
 import SolutionScreen from "../screens/courses/SolutionScreen";
 import VideoPlayerScreen from "../screens/courses/videoplayer";
 import LinearGradient from "react-native-linear-gradient";
 import { PurchaseProvider } from "../context/PurchaseContext";
-import PurchaseSubjectScreen from "../screens/purchases/PurchaseSubjectScreen";
 import CheckoutScreen from "../screens/purchases/CheckoutScreen";
 import CreditCardScreen from "../screens/purchases/CreditCardScreen";
 import OTPCardVerification from "../screens/purchases/OTPCardVerification";
-import PurchaseSubjectThemeScreen from "../screens/purchases/PurchaseSubjectThemeScreen";
 import EmptyScreen from "../screens/empty";
 import ThemeAbstractScreen from "../screens/courses/ThemeAbstractScreen";
 import { useSession } from "../hooks/useSession";
@@ -46,6 +44,8 @@ import NoConnection from "../components/NoConnection";
 
 import NetInfo from "@react-native-community/netinfo";
 import { useGeo } from "../hooks/useGeo";
+import PurchaseScreen from "../screens/purchases/PurchaseScreen";
+import PurchasePriceScreen from "../screens/purchases/PurchasePriceScreen";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -53,8 +53,9 @@ const isTablet = DeviceInfo.isTablet();
 const MainTabNavigator = () => {
   const { theme } = useTheme();
   const { isSuperAdmin } = useSession();
+  const { plan } = useAuth();
   const { countryCode } = useGeo();
-  
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -110,14 +111,33 @@ const MainTabNavigator = () => {
       <Tab.Screen
         name="Statistika"
         component={StatistikaScreen}
+        listeners={{
+          tabPress: (e) => {
+            if (plan) {
+              e.preventDefault(); // ❌ screen ochilmasin
+              // setShowPremiumModal(true); // ✅ modal ochilsin
+            }
+          },
+        }}
         options={{
           tabBarLabel: "Statistika",
           tabBarLabelStyle: {
             fontSize: +moderateScale(10).toFixed(0),
           },
+          tabBarIcon: ({ color, size }) => (
+            <View style={{ position: "relative" }}>
+              <Ionicons name="stats-chart" size={size} color={color} />
+
+              {plan && (
+                <View style={{ position: "absolute", top: -6, right: -6 }}>
+                  <Ionicons name="lock-closed" size={14} color="gold" />
+                </View>
+              )}
+            </View>
+          ),
         }}
       />
-      {!isSuperAdmin && countryCode === 'UZ' && (
+      {!isSuperAdmin && countryCode === "UZ" && (
         <Tab.Screen
           name="Payment"
           component={EmptyScreen}
@@ -125,7 +145,7 @@ const MainTabNavigator = () => {
             tabPress: (e) => {
               e.preventDefault();
               navigation.navigate("PurchaseGroup", {
-                screen: "PurchaseSubject",
+                screen: "Purchase",
               });
             },
           })}
@@ -498,21 +518,21 @@ const MainStackNavigator = () => (
           <Stack.Navigator
             screenOptions={{
               animation: "ios_from_right",
-              headerShown: true,
+              headerShown: false,
               headerTintColor: "white",
               headerStyle: {
                 backgroundColor: isTablet ? "#3a5dde" : undefined,
               },
-              headerBackground() {
-                return (
-                  <LinearGradient
-                    colors={["#3a5dde", "#5e84e6"]}
-                    start={{ x: 0.5, y: 1.0 }}
-                    end={{ x: 0.5, y: 0.0 }}
-                    style={{ flex: 1 }}
-                  />
-                );
-              },
+              // headerBackground() {
+              //   return (
+              //     <LinearGradient
+              //       colors={["#3a5dde", "#5e84e6"]}
+              //       start={{ x: 0.5, y: 1.0 }}
+              //       end={{ x: 0.5, y: 0.0 }}
+              //       style={{ flex: 1 }}
+              //     />
+              //   );
+              // },
               freezeOnBlur: true,
               headerTitleAlign: "center",
               headerTitleStyle: {
@@ -521,8 +541,11 @@ const MainStackNavigator = () => (
             }}
           >
             <Stack.Screen
-              name="PurchaseSubject"
-              component={PurchaseSubjectScreen}
+              name="Purchase"
+              options={{
+                headerShown: false,
+              }}
+              component={PurchaseScreen}
             />
             <Stack.Screen name="Checkout" component={CheckoutScreen} />
             <Stack.Screen
@@ -542,8 +565,11 @@ const MainStackNavigator = () => (
               }}
             />
             <Stack.Screen
-              name="PurchaseSubjectTheme"
-              component={PurchaseSubjectThemeScreen}
+              name="PurchasePrice"
+              component={PurchasePriceScreen}
+              options={{
+                headerShown: false,
+              }}
             />
           </Stack.Navigator>
         </PurchaseProvider>
@@ -615,7 +641,7 @@ export default function AppNavigation() {
         }}
       >
         <StatusBar
-          // hidden
+          hidden
           translucent
           backgroundColor={"transparent"}
           barStyle={"light-content"}

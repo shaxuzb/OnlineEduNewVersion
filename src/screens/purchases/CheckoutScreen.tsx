@@ -1,348 +1,590 @@
-import Cash from "../../assets/icons/payments/cash.svg";
-import Payme from "../../assets/icons/payments/payme.svg";
-import { lightColors } from "@/src/constants/theme";
-import { usePurchase } from "@/src/context/PurchaseContext";
-import { useTheme } from "@/src/context/ThemeContext";
-import { Theme } from "@/src/types";
-import { numberSpacing } from "@/src/utils";
-import { queryClient } from "@/src/utils/helpers/queryClient";
-import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
+  View,
   Text,
   TouchableOpacity,
-  View,
+  StyleSheet,
+  ScrollView,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import LinearGradient from "react-native-linear-gradient";
+import { Ionicons, MaterialIcons, FontAwesome } from "@expo/vector-icons";
+import Payme from "@/src/assets/icons/payments/payme.svg";
+
+import { useTheme } from "@/src/context/ThemeContext";
+import { Theme } from "@/src/types";
+import { queryClient } from "@/src/utils/helpers/queryClient";
+import { usePurchase } from "@/src/context/PurchaseContext";
 import Toast from "react-native-toast-message";
 
-interface PaymentItems {
-  label: string;
-  icon: any;
+interface PaymentItem {
   id: number;
+  label: string;
+  icon: React.ReactNode;
   paymentCode: string;
 }
-const paymentItems: PaymentItems[] = [
-  {
-    icon: <Cash width={50} height={35} />,
-    id: 1,
-    label: "Karta raqam",
-    paymentCode: "PAYME_SUBSCRIBE",
-  },
-  {
-    icon: <Payme width={50} height={35} />,
-    id: 2,
-    label: "Payme",
-    paymentCode: "PAYME_MERCHANT",
-  },
-];
+
 export default function CheckoutScreen({
   navigation,
-  route,
 }: {
   navigation: any;
-  route: any;
 }) {
-  const { theme } = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  const { selectedItems, submitPurchase } = usePurchase();
+  const { theme, isDark } = useTheme();
+  const styles = createStyles(theme, isDark);
+  const { selectedItem, setSelectedItem, submitPurchase } = usePurchase();
 
-  const { scopeTypeId } = route.params;
-  const totalPrice = useMemo(
-    () =>
-      numberSpacing(selectedItems.reduce((acc, item) => acc + item.price, 0)),
-    [selectedItems]
-  );
-  const handleSubmit = async (paymentCode: string) => {
+  const [selectedPayment, setSelectedPayment] = useState<number>(1);
+
+  const paymentItems: PaymentItem[] = [
+    {
+      id: 1,
+      label: "Bank kartasi",
+      icon: <FontAwesome name="credit-card" size={24} color="#3a5dde" />,
+      paymentCode: "PAYME_SUBSCRIBE",
+    },
+    {
+      id: 2,
+      label: "Payme",
+      icon: <Payme width={50} height={35} />,
+      paymentCode: "PAYME_MERCHANT",
+    },
+  ];
+
+  const formatPrice = (price: number) => {
+    return price.toLocaleString("uz-UZ") + " сум";
+  };
+
+  const handlePaymentSelect = async (paymentCode: string) => {
     if (paymentCode === "PAYME_SUBSCRIBE") {
-      return navigation.navigate("CreditCardScreen", {
-        scopeTypeId: scopeTypeId,
+      navigation.navigate("CreditCardScreen", {
+        totalPrice: 1,
         paymentType: paymentCode,
       });
-    }
-    try {
-      const data = await submitPurchase({
-        values: { scopeTypeId: Number(scopeTypeId), paymentType: paymentCode },
-      });
-      queryClient.clear();
-      await queryClient.refetchQueries({ queryKey: ["themes"] });
-      await Linking.openURL((data as any).paymentUrl);
-      navigation.reset({
-        index: 0,
-        routes: [
-          {
-            name: "MainTabs",
-            state: {
-              routes: [
-                {
-                  name: "Courses",
-                  state: {
-                    routes: [{ name: "CoursesList" }],
-                  },
-                },
-              ],
-            },
+    } else {
+      try {
+        const data = await submitPurchase({
+          values: {
+            planId: Number(selectedItem?.id),
+            paymentType: paymentCode,
           },
-        ],
-      });
-    } catch (error) {
-      Toast.show({
-        type: "error",
-        text1: "Sotib olishda xatolik yuz berdi!",
-      });
+        });
+        queryClient.clear();
+        await queryClient.refetchQueries({ queryKey: ["themes"] });
+        await Linking.openURL((data as any).paymentUrl);
+        navigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: "MainTabs",
+              state: {
+                routes: [
+                  {
+                    name: "Courses",
+                    state: {
+                      routes: [{ name: "CoursesList" }],
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        });
+      } catch (error) {
+        Toast.show({
+          type: "error",
+          text1: "Sotib olishda xatolik yuz berdi!",
+        });
+      }
     }
   };
   useEffect(() => {
     navigation.setOptions({
-      headerTitle: () => (
-        <Ionicons name="cart-outline" size={38} color="white" />
-      ),
-      freezeOnBlur: true,
-
-      headerRight: () => (
-        <Pressable
-          android_ripple={{
-            foreground: true,
-            color: lightColors.ripple,
-            borderless: true,
-            radius: 22,
-          }}
-          style={{
-            width: 40,
-            height: 40,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-          onPress={() => navigation.navigate("Chat")}
-        >
-          <Ionicons name="chatbox" size={24} color="white" />
-        </Pressable>
-      ),
+      headerShown: false,
+      statusBarStyle: !isDark ? "dark" : "light",
     });
   }, [navigation]);
   return (
-    <SafeAreaView style={styles.container} edges={[]}>
+    <SafeAreaView style={styles.container} edges={["bottom", "top"]}>
+      {/* <StatusBar barStyle={isDark ? "light-content" : "dark-content"} /> */}
+
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons
+            name="arrow-back"
+            size={24}
+            color={isDark ? "#fff" : "#000"}
+          />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>To'lov</Text>
+        <View style={{ width: 24 }} />
+      </View>
+
       <ScrollView
-        style={{
-          paddingHorizontal: 24,
-        }}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
       >
-        <View style={styles.greetingSection}>
-          <Text style={styles.greeting}>{totalPrice} UZS</Text>
-        </View>
-        <View>
-          <Text
-            style={{
-              fontSize: 18,
-              color: theme.colors.text,
-            }}
-          >
-            To'lov turini tanlang
-          </Text>
-          <View
-            style={{
-              gap: 10,
-              marginTop: 10,
-            }}
-          >
+        {/* Order Summary - Compact */}
+        {/* <View style={styles.summaryCompact}>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryLabelContainer}>
+              <MaterialIcons name="calendar-today" size={18} color={isDark ? '#94A3B8' : '#6B7280'} />
+              <Text style={styles.summaryLabel}>Davomiylik:</Text>
+            </View>
+            <Text style={styles.summaryValue}>1 yil • Premium+</Text>
+          </View>
+          
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryLabelContainer}>
+              <MaterialIcons name="payments" size={18} color={isDark ? '#94A3B8' : '#6B7280'} />
+              <Text style={styles.summaryLabel}>Narx:</Text>
+            </View>
+            <View style={styles.priceContainer}>
+              <Text style={styles.originalPrice}>{formatPrice(totalPrice)}</Text>
+              <Text style={styles.finalPriceCompact}>{formatPrice(finalPrice)}</Text>
+            </View>
+          </View>
+        </View> */}
+
+        {/* Payment Methods */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <MaterialIcons
+              name="payment"
+              size={22}
+              color={isDark ? "#fff" : "#1F2937"}
+            />
+            <Text style={styles.sectionTitle}>To'lov usuli</Text>
+          </View>
+
+          <View style={styles.paymentMethods}>
             {paymentItems.map((item) => (
               <TouchableOpacity
                 key={item.id}
-                style={styles.categoryItem}
+                style={[
+                  styles.paymentCard,
+                  selectedPayment === item.id && styles.paymentCardSelected,
+                ]}
+                onPress={() => {
+                  setSelectedPayment(item.id);
+                  handlePaymentSelect(item.paymentCode);
+                }}
                 activeOpacity={0.8}
-                onPress={() => handleSubmit(item.paymentCode)}
               >
-                {item.icon}
-                <Text style={styles.categoryLabel}>{item.label}</Text>
+                <View style={styles.paymentIcon}>{item.icon}</View>
+                <Text
+                  style={[
+                    styles.paymentLabel,
+                    selectedPayment === item.id && styles.paymentLabelSelected,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+                {selectedPayment === item.id && (
+                  <View style={styles.selectedIndicator}>
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={24}
+                      color="#3a5dde"
+                    />
+                  </View>
+                )}
               </TouchableOpacity>
             ))}
           </View>
-          <View
-            style={{
-              marginTop: 30,
-              gap: 10,
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 18,
-                  color: theme.colors.text,
-                }}
-              >
-                To'lov miqdori
-              </Text>
-              <Text
-                style={{
-                  flexGrow: 1,
-                  height: 14,
-                  marginHorizontal: 5,
-                  borderBottomColor: theme.colors.text,
-                  borderBottomWidth: 1,
-                  borderStyle: "dashed",
-                }}
-              ></Text>
-              <Text
-                style={{
-                  fontSize: 18,
-                  color: theme.colors.text,
-                }}
-              >
-                {totalPrice} UZS
-              </Text>
+        </View>
+
+        {/* Detailed Price Breakdown */}
+        <View style={styles.breakdownCard}>
+          <View style={styles.breakdownHeader}>
+            <MaterialIcons
+              name="receipt"
+              size={20}
+              color={isDark ? "#fff" : "#1F2937"}
+            />
+            <Text style={styles.breakdownTitle}>To'lov tafsilotlari</Text>
+          </View>
+
+          <View style={styles.breakdownRow}>
+            <Text style={styles.breakdownLabel}>Obuna narxi</Text>
+            <Text style={styles.breakdownValue}>
+              {formatPrice(selectedItem?.price ?? 0)}
+            </Text>
+          </View>
+          {selectedItem?.annualDiscountPercent && (
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>Chegirma</Text>
+              <View style={styles.discountBadge}>
+                <Text style={styles.discountLabel}>
+                  {(selectedItem as any)?.annualDiscountPercent}%
+                </Text>
+              </View>
             </View>
-            <View
-              style={{
-                flexDirection: "row",
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 18,
-                  color: theme.colors.text,
-                }}
-              >
-                Komissiya
-              </Text>
-              <Text
-                style={{
-                  flexGrow: 1,
-                  height: 14,
-                  marginHorizontal: 5,
-                  borderBottomColor: theme.colors.text,
-                  borderBottomWidth: 1,
-                  borderStyle: "dashed",
-                }}
-              ></Text>
-              <Text
-                style={{
-                  fontSize: 18,
-                  color: theme.colors.text,
-                }}
-              >
-                0 UZS
-              </Text>
+          )}
+          <View style={styles.breakdownDivider} />
+
+          <View style={[styles.breakdownRow, styles.totalRow]}>
+            <View style={styles.totalLabelContainer}>
+              <MaterialIcons name="attach-money" size={20} color="#5e84e6" />
+              <Text style={styles.totalLabel}>Jami to'lov</Text>
             </View>
-            <View
-              style={{
-                flexDirection: "row",
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 18,
-                  color: theme.colors.text,
-                  fontWeight: "700",
-                }}
-              >
-                Jami to'lov
-              </Text>
-              <Text
-                style={{
-                  flexGrow: 1,
-                  height: 14,
-                  marginHorizontal: 5,
-                  borderBottomColor: theme.colors.text,
-                  borderBottomWidth: 1,
-                  borderStyle: "dashed",
-                }}
-              ></Text>
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: "700",
-                  color: theme.colors.text,
-                }}
-              >
-                {totalPrice} UZS
+            <View style={styles.finalPriceContainer}>
+              <Text style={styles.finalPrice}>
+                {formatPrice(selectedItem?.price ?? 0)}
               </Text>
             </View>
           </View>
         </View>
+
+        {/* Security Info */}
+        <View style={styles.securityCard}>
+          <View style={styles.securityIcon}>
+            <Ionicons name="shield-checkmark" size={20} color="#10B981" />
+          </View>
+          <View style={styles.securityContent}>
+            <Text style={styles.securityTitle}>100% xavfsiz to'lov</Text>
+            <Text style={styles.securityText}>
+              Karta ma'lumotlaringiz bank darajasida himoyalangan. To'lov payme
+              orqali amalga oshiriladi.
+            </Text>
+          </View>
+        </View>
+
+        {/* Terms & Conditions */}
+        <View style={styles.termsCard}>
+          <View style={styles.termsIcon}>
+            <MaterialIcons name="info" size={18} color="#94A3B8" />
+          </View>
+          <Text style={styles.termsText}>
+            • Obunani istalgan vaqtda bekor qilishingiz mumkin{"\n"}• To'lovdan
+            so'ng barcha imkoniyatlar darhol ochiladi{"\n"}• To'lov ma'lumotlari
+            maxfiy saqlanadi
+          </Text>
+        </View>
       </ScrollView>
+
+      {/* Continue Button */}
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={styles.continueButton}
+          onPress={() =>
+            handlePaymentSelect(
+              paymentItems.find((p) => p.id === selectedPayment)?.paymentCode ||
+                ""
+            )
+          }
+          activeOpacity={0.9}
+        >
+          <LinearGradient
+            colors={["#3a5dde", "#5e84e6"]}
+            start={{ x: 0.5, y: 1.0 }}
+            end={{ x: 0.5, y: 0.0 }}
+            style={styles.continueButtonGradient}
+          >
+            <MaterialIcons name="lock" size={20} color="#fff" />
+            <Text style={styles.continueButtonText}>
+              Xavfsiz to'lash • {formatPrice(selectedItem?.price ?? 0)}
+            </Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
 
-const createStyles = (theme: Theme) =>
+/* ================= STYLES ================= */
+
+const createStyles = (theme: Theme, isDark: boolean) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: isDark ? "#0F172A" : "#F9FAFB",
     },
     header: {
       flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? "#1E293B" : "#E5E7EB",
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: isDark
+        ? "rgba(255, 255, 255, 0.1)"
+        : "rgba(0, 0, 0, 0.05)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    headerTitle: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: isDark ? "#FFFFFF" : "#1F2937",
+    },
+    scrollContent: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+    },
+    summaryCompact: {
+      backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 24,
+      borderWidth: 1,
+      borderColor: isDark ? "#334155" : "#E5E7EB",
+    },
+    summaryRow: {
+      flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      backgroundColor: theme.colors.primary,
-      paddingHorizontal: 16,
-      paddingVertical: 8,
+      marginBottom: 12,
     },
-    headerSelectTotal: {
-      fontSize: 13,
-      fontWeight: "500",
-      color: "white",
-    },
-    greetingSection: {
-      justifyContent: "center",
+    summaryLabelContainer: {
+      flexDirection: "row",
       alignItems: "center",
-      marginVertical: 20,
+      gap: 8,
     },
-    greeting: {
-      fontSize: 26,
+    summaryLabel: {
+      fontSize: 15,
+      color: isDark ? "#94A3B8" : "#6B7280",
       fontWeight: "500",
-      color: theme.colors.text,
+    },
+    summaryValue: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: isDark ? "#FFFFFF" : "#1F2937",
+    },
+    priceContainer: {
+      alignItems: "flex-end",
+      gap: 2,
+    },
+    originalPrice: {
+      fontSize: 13,
+      color: isDark ? "#94A3B8" : "#9CA3AF",
+      textDecorationLine: "line-through",
+    },
+    finalPriceCompact: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: "#8B5CF6",
     },
     section: {
-      paddingHorizontal: 16,
-      gap: 14,
       marginBottom: 24,
     },
-    categoryItem: {
+    sectionHeader: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: theme.colors.card,
-      padding: 5,
-      borderRadius: 12,
-      borderWidth: 2,
-      borderColor: theme.colors.border,
+      gap: 10,
+      marginBottom: 16,
     },
-    categoryItemSelected: {
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: isDark ? "#FFFFFF" : "#1F2937",
+    },
+    paymentMethods: {
+      gap: 12,
+    },
+    paymentCard: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: theme.colors.primarySecondary,
+      backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+      borderRadius: 16,
+      padding: 18,
       borderWidth: 2,
-      borderColor: theme.colors.primary,
-      padding: 16,
-      borderRadius: 12,
-      elevation: 2,
+      borderColor: isDark ? "#334155" : "#E5E7EB",
     },
-    categoryIconContainer: {
+    paymentCardSelected: {
+      borderColor: "#5e84e6",
+      backgroundColor: isDark ? "#2D1B69" : "#5e84e622",
+    },
+    paymentIcon: {
       width: 48,
       height: 48,
       borderRadius: 12,
-      backgroundColor: theme.colors.primary,
-      marginRight: 12,
+      backgroundColor: isDark ? "rgba(139, 92, 246, 0.2)" : "#5e84e622",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 16,
     },
-    categoryLabel: {
-      fontSize: 18,
-      flex: 1,
+    paymentLabel: {
+      fontSize: 17,
       fontWeight: "600",
-      color: theme.colors.text,
-    },
-    categoryLabelSelected: {
-      fontSize: 18,
+      color: isDark ? "#FFFFFF" : "#1F2937",
       flex: 1,
-      color: theme.colors.primary,
-      textAlign: "center",
+    },
+    paymentLabelSelected: {
+      color: "#3a5dde",
+    },
+    selectedIndicator: {
+      marginLeft: 8,
+    },
+    breakdownCard: {
+      backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: isDark ? "#334155" : "#E5E7EB",
+      padding: 20,
+      marginBottom: 24,
+    },
+    breakdownHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      marginBottom: 20,
+    },
+    breakdownTitle: {
+      fontSize: 17,
+      fontWeight: "600",
+      color: isDark ? "#FFFFFF" : "#1F2937",
+    },
+    breakdownRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 14,
+    },
+    breakdownLabel: {
+      fontSize: 15,
+      color: isDark ? "#94A3B8" : "#6B7280",
+    },
+    breakdownValue: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: isDark ? "#FFFFFF" : "#1F2937",
+    },
+    discountBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: isDark
+        ? "rgba(16, 185, 129, 0.2)"
+        : "rgba(16, 185, 129, 0.1)",
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 8,
+      gap: 4,
+    },
+    discountLabel: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: "#10B981",
+    },
+    discountValue: {
+      color: "#10B981",
+    },
+    breakdownDivider: {
+      height: 1,
+      backgroundColor: isDark ? "#334155" : "#E5E7EB",
+      marginVertical: 16,
+    },
+    totalRow: {
+      marginBottom: 0,
+    },
+    totalLabelContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    totalLabel: {
+      fontSize: 17,
+      fontWeight: "700",
+      color: isDark ? "#FFFFFF" : "#1F2937",
+    },
+    finalPriceContainer: {
+      alignItems: "flex-end",
+    },
+    finalPrice: {
+      fontSize: 24,
+      fontWeight: "800",
+      color: "#5e84e6",
+    },
+    securityCard: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      backgroundColor: isDark
+        ? "rgba(16, 185, 129, 0.1)"
+        : "rgba(16, 185, 129, 0.05)",
+      borderRadius: 16,
+      padding: 18,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: isDark
+        ? "rgba(16, 185, 129, 0.2)"
+        : "rgba(16, 185, 129, 0.1)",
+    },
+    securityIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: isDark
+        ? "rgba(16, 185, 129, 0.2)"
+        : "rgba(16, 185, 129, 0.1)",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 14,
+      flexShrink: 0,
+    },
+    securityContent: {
+      flex: 1,
+    },
+    securityTitle: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: isDark ? "#FFFFFF" : "#1F2937",
+      marginBottom: 4,
+    },
+    securityText: {
+      fontSize: 13,
+      color: isDark ? "#94A3B8" : "#6B7280",
+      lineHeight: 18,
+    },
+    termsCard: {
+      backgroundColor: isDark
+        ? "rgba(148, 163, 184, 0.1)"
+        : "rgba(229, 231, 235, 0.5)",
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 8,
+    },
+    termsIcon: {
+      position: "absolute",
+      top: 16,
+      left: 16,
+    },
+    termsText: {
+      fontSize: 13,
+      color: isDark ? "#94A3B8" : "#6B7280",
+      lineHeight: 18,
+      marginLeft: 28,
+    },
+    footer: {
+      padding: 20,
+      backgroundColor: isDark ? "#0F172A" : "#F9FAFB",
+      borderTopWidth: 1,
+      borderTopColor: isDark ? "#1E293B" : "#E5E7EB",
+    },
+    continueButton: {
+      borderRadius: 14,
+      overflow: "hidden",
+    },
+    continueButtonGradient: {
+      paddingVertical: 18,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 12,
+    },
+    continueButtonText: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: "#FFFFFF",
     },
   });
