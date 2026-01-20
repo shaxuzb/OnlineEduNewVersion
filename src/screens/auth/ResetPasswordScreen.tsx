@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  StatusBar,
 } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
 import { Theme } from "../../types";

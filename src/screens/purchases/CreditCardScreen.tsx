@@ -49,7 +49,7 @@ export default function CreditCardScreen({
     try {
       const { data } = await $axiosPrivate.post(
         "transactions/subscribe/card/send-sms",
-        { orderId }
+        { orderId },
       );
       setLoading(false);
       navigation.navigate("OTPCardVerification", {
@@ -111,7 +111,12 @@ export default function CreditCardScreen({
       headerStyle: {
         backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
       },
-      headerTintColor: isDark ? "#fff" : "#000",
+      headerBackground: () => (
+        <View
+          style={{ flex: 1, backgroundColor: isDark ? "#0F172A" : "#F9FAFB" }}
+        ></View>
+      ),
+      headerTintColor: theme.colors.text,
       statusBarStyle: !isDark ? "dark" : "light",
     });
   }, [navigation, isDark]);
@@ -125,21 +130,6 @@ export default function CreditCardScreen({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Ionicons
-                name="arrow-back"
-                size={24}
-                color={isDark ? "#fff" : "#000"}
-              />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Karta orqali to'lash</Text>
-            <View style={{ width: 24 }} />
-          </View>
           {/* Card Form */}
           <View style={styles.formCard}>
             <View style={styles.formHeader}>
@@ -208,17 +198,17 @@ export default function CreditCardScreen({
                   </View>
 
                   {/* Submit Button */}
-                  <TouchableOpacity
-                    style={styles.payButton}
-                    onPress={submitForm}
-                    disabled={loading}
-                    activeOpacity={0.9}
+                  <LinearGradient
+                    colors={["#3a5dde", "#5e84e6"]}
+                    start={{ x: 0.5, y: 1.0 }}
+                    end={{ x: 0.5, y: 0.0 }}
+                    style={styles.payButtonGradient}
                   >
-                    <LinearGradient
-                      colors={["#3a5dde", "#5e84e6"]}
-                      start={{ x: 0.5, y: 1.0 }}
-                      end={{ x: 0.5, y: 0.0 }}
-                      style={styles.payButtonGradient}
+                    <TouchableOpacity
+                      style={styles.payButton}
+                      onPress={submitForm}
+                      disabled={loading}
+                      activeOpacity={0.9}
                     >
                       {loading ? (
                         <ActivityIndicator color="#fff" size="small" />
@@ -230,8 +220,8 @@ export default function CreditCardScreen({
                           </Text>
                         </>
                       )}
-                    </LinearGradient>
-                  </TouchableOpacity>
+                    </TouchableOpacity>
+                  </LinearGradient>
 
                   {/* Terms */}
                   <Text style={styles.termsText}>
@@ -429,15 +419,15 @@ const createStyles = (theme: Theme, isDark: boolean) =>
       color: "#5e84e6",
     },
     payButton: {
-      borderRadius: 16,
       overflow: "hidden",
-    },
-    payButtonGradient: {
       paddingVertical: 18,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
       gap: 12,
+    },
+    payButtonGradient: {
+      borderRadius: 16,
     },
     payButtonText: {
       fontSize: 16,

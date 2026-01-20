@@ -148,7 +148,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
       <KeyboardAvoidingView
         style={styles.chatContainer}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={50}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 70 : 50}
       >
         <SafeAreaView style={styles.container} edges={["bottom"]}>
           {/* Loading */}
@@ -245,8 +245,11 @@ const createStyles = (theme: Theme) =>
     messageContainer: {
       marginVertical: 4,
       maxWidth: "80%",
-      padding: moderateScale(10),
       borderRadius: moderateScale(14),
+    },
+    messageContent:{
+      padding: moderateScale(10),
+      
     },
     sentMessage: {
       alignSelf: "flex-end",
@@ -260,7 +263,7 @@ const createStyles = (theme: Theme) =>
       elevation: 1,
     },
     messageText: { fontSize: moderateScale(14), lineHeight: 20 },
-    sentMessageText: { color: "white" },
+    sentMessageText: { color: theme.colors.text },
     receivedMessageText: { color: "white" },
     messageFooter: {
       flexDirection: "row",

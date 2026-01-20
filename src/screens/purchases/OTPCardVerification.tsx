@@ -9,7 +9,6 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  StatusBar,
 } from "react-native";
 import Toast from "react-native-toast-message";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -18,8 +17,9 @@ import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 
 import { useTheme } from "@/src/context/ThemeContext";
 import { $axiosBase, $axiosPrivate } from "@/src/services/AxiosService";
-import { queryClient } from "@/src/utils/helpers/queryClient";
+import getQueryClient from "@/src/utils/helpers/queryClient";
 import { Theme } from "@/src/types";
+import { useAuth } from "@/src/context/AuthContext";
 
 const OTPCardVerification = ({
   navigation,
@@ -30,6 +30,8 @@ const OTPCardVerification = ({
 }) => {
   const { theme, isDark } = useTheme();
   const styles = createStyles(theme, isDark);
+  const queries = getQueryClient();
+  const { refetchPlan } = useAuth();
   const { phoneNumber, orderId } = route.params;
   const [otpCode, setOtpCode] = useState(["", "", "", "", "", ""]);
   const [countdown, setCountdown] = useState(60);
@@ -92,7 +94,7 @@ const OTPCardVerification = ({
         orderId: orderId,
         code,
       });
-      queryClient.clear();
+      queries.clear();
 
       Toast.show({
         type: "success",
@@ -101,11 +103,25 @@ const OTPCardVerification = ({
       });
 
       // Success screenga o'tish
-      navigation.navigate("PaymentSuccess", {
-        type: "card",
-        amount: "590,000",
-        plan: "Premium+ (1 yil)",
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: "MainTabs",
+            state: {
+              routes: [
+                {
+                  name: "Courses",
+                  state: {
+                    routes: [{ name: "CoursesList" }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
       });
+      refetchPlan();
     } catch (error: any) {
       Toast.show({
         type: "error",
@@ -272,25 +288,25 @@ const OTPCardVerification = ({
             </View>
 
             {/* Verify Button */}
-            <TouchableOpacity
-              style={[
-                styles.verifyButton,
-                (isVerifying || otpCode.join("").length !== 6) &&
-                  styles.verifyButtonDisabled,
-              ]}
-              onPress={handleManualVerify}
-              disabled={isVerifying || otpCode.join("").length !== 6}
-              activeOpacity={0.9}
+            <LinearGradient
+              colors={
+                otpCode.join("").length === 6 && !isVerifying
+                  ? ["#3a5dde", "#5e84e6"]
+                  : ["#94A3B8", "#64748B"]
+              }
+              start={{ x: 0.5, y: 1.0 }}
+              end={{ x: 0.5, y: 0.0 }}
+              style={styles.verifyButtonGradient}
             >
-              <LinearGradient
-                colors={
-                  otpCode.join("").length === 6 && !isVerifying
-                    ? ["#3a5dde", "#5e84e6"]
-                    : ["#94A3B8", "#64748B"]
-                }
-                start={{ x: 0.5, y: 1.0 }}
-                end={{ x: 0.5, y: 0.0 }}
-                style={styles.verifyButtonGradient}
+              <TouchableOpacity
+                style={[
+                  styles.verifyButton,
+                  (isVerifying || otpCode.join("").length !== 6) &&
+                    styles.verifyButtonDisabled,
+                ]}
+                onPress={handleManualVerify}
+                disabled={isVerifying || otpCode.join("").length !== 6}
+                activeOpacity={0.9}
               >
                 {isVerifying ? (
                   <ActivityIndicator color="white" size="small" />
@@ -300,8 +316,8 @@ const OTPCardVerification = ({
                     <Text style={styles.verifyButtonText}>Tasdiqlash</Text>
                   </>
                 )}
-              </LinearGradient>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </LinearGradient>
 
             {/* Resend Code */}
             <View style={styles.resendContainer}>
@@ -498,19 +514,19 @@ const createStyles = (theme: Theme, isDark: boolean) =>
       color: "#5e84e6",
     },
     verifyButton: {
-      borderRadius: 16,
       overflow: "hidden",
-      marginBottom: 24,
-    },
-    verifyButtonDisabled: {
-      opacity: 0.6,
-    },
-    verifyButtonGradient: {
       paddingVertical: 18,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
       gap: 12,
+    },
+    verifyButtonDisabled: {
+      opacity: 0.6,
+    },
+    verifyButtonGradient: {
+      borderRadius: 16,
+      marginBottom: 24,
     },
     verifyButtonText: {
       fontSize: 16,

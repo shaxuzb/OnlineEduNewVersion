@@ -15,11 +15,13 @@ import Toast, {
 } from "react-native-toast-message";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import AlertHost from "./src/components/modals/customalert/AlertHost";
+import { moderateScale } from "react-native-size-matters";
 SplashScreen.preventAutoHideAsync();
 
 const toastConfig: ToastConfig = {
   success: (props) => (
     <BaseToast
+      text1NumberOfLines={2}
       {...props}
       style={{
         borderLeftWidth: 6,
@@ -29,33 +31,37 @@ const toastConfig: ToastConfig = {
       }}
       contentContainerStyle={{ paddingHorizontal: 15 }}
       text1Style={{
-        fontSize: 16,
+        fontSize: moderateScale(14),
         fontWeight: "700",
         color: "#2E7D32",
       }}
       text2Style={{
-        fontSize: 14,
+        fontSize: moderateScale(10),
         color: "#388E3C",
       }}
     />
   ),
   error: (props) => (
     <ErrorToast
+      text1NumberOfLines={2}
       {...props}
       style={{
         borderLeftWidth: 6,
         borderLeftColor: "#F44336",
         backgroundColor: "#FFEBEE",
         borderRadius: 12,
+        overflow: "visible",
       }}
-      contentContainerStyle={{ paddingHorizontal: 15 }}
+      contentContainerStyle={{ paddingHorizontal: 10 }}
       text1Style={{
-        fontSize: 16,
+        fontSize: moderateScale(14),
         fontWeight: "700",
+        overflow: "visible",
+
         color: "#C62828",
       }}
       text2Style={{
-        fontSize: 14,
+        fontSize: moderateScale(10),
         color: "#E53935",
       }}
     />
@@ -64,7 +70,7 @@ const toastConfig: ToastConfig = {
 export default function App() {
   const { versionInfo, showUpdateSheet, setShowUpdateSheet, dismissUpdate } =
     useVersionCheck();
- 
+
   useEffect(() => {
     const prepare = async () => {
       try {
@@ -89,8 +95,8 @@ export default function App() {
           <BookmarkProvider>
             <SafeAreaProvider>
               <AppNavigation />
-               <AlertHost />
-              <Toast config={toastConfig} topOffset={30} />
+              <AlertHost />
+              <Toast config={toastConfig} topOffset={50} />
               {/* Update Notification Bottom Sheet */}
               {versionInfo && (
                 <UpdateNotificationSheet

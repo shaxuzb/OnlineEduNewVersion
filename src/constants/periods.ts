@@ -1,6 +1,6 @@
 export const Periods = {
-  DAY: {
-    value: "1 Kunlik",
+  P3D: {
+    value: "3 Kunlik",
   },
   P1M: {
     value: "1 Oylik",
@@ -12,6 +12,6 @@ export const Periods = {
     value: "6 Oylik",
   },
   P1Y: {
-    value: "1 Oylik",
+    value: "1 Yillik",
   },
 };

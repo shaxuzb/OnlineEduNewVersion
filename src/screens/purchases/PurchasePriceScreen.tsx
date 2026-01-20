@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import LinearGradient from "react-native-linear-gradient";
@@ -16,11 +17,8 @@ import { usePurchaseById } from "@/src/hooks/usePurchases";
 import { Periods } from "@/src/constants/periods";
 import { usePurchase } from "@/src/context/PurchaseContext";
 import { moderateScale } from "react-native-size-matters";
-// interface PromoCode {
-//   code: string;
-//   discount: number;
-//   type: "percentage" | "fixed";
-// }
+import { useSubscriptionAvailabilityMutation } from "@/src/hooks/useSubscriptionAvailabilityMutation";
+import Toast from "react-native-toast-message";
 
 export default function PurchasePriceScreen({
   navigation,
@@ -34,6 +32,7 @@ export default function PurchasePriceScreen({
   const { planId } = route.params;
   const { data, isLoading, isFetching, isSuccess } = usePurchaseById(planId);
   const { selectedItem, setSelectedItem } = usePurchase();
+  const { mutate, isPending } = useSubscriptionAvailabilityMutation();
   // const [promoCode, setPromoCode] = useState<string>("");
   // const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
   // const [isPromoValid, setIsPromoValid] = useState<boolean>(true);
@@ -50,13 +49,8 @@ export default function PurchasePriceScreen({
 
   const calculateSavings = (option: SubscriptionPlanOption) => {
     if (option.annualDiscountPercent === 0) return 0;
-    const originalPrice =
-      (option.price /
-        (option.periodDurationUnit === "YEAR"
-          ? 12
-          : option.periodDurationValue)) *
-      (option.periodDurationUnit === "YEAR" ? 12 : option.periodDurationValue);
-    return originalPrice - option.price;
+    const originalPrice = (option.price * option.annualDiscountPercent) / 100;
+    return originalPrice;
   };
 
   // const applyPromoCode = () => {
@@ -94,7 +88,28 @@ export default function PurchasePriceScreen({
 
   const handleContinue = () => {
     // Navigate to payment screen with selected data
-    navigation.navigate("Checkout");
+    if (selectedItem) {
+      onPressPlan(selectedItem);
+    } else {
+      Toast.show({
+        type: "error",
+        text1: "Bitta tarif tanlang!",
+      });
+    }
+  };
+  const onPressPlan = (item: SubscriptionPlanOption) => {
+    mutate(item.id, {
+      onSuccess: (res) => {
+        if (!res.isAvailable) {
+          Toast.show({
+            type: "error",
+            text1: res.reason?.uz,
+          });
+        } else {
+          navigation.navigate("Checkout");
+        }
+      },
+    });
   };
   useEffect(() => {
     if (isSuccess && data) {
@@ -104,12 +119,19 @@ export default function PurchasePriceScreen({
   }, [isSuccess, data]);
   useEffect(() => {
     navigation.setOptions({
-      headerShown: false,
+      headerShown: true,
+      headerTitle: "Ta'riflarni tanlash",
+      headerBackground: () => (
+        <View
+          style={{ flex: 1, backgroundColor: isDark ? "#0F172A" : "#F9FAFB" }}
+        ></View>
+      ),
+      headerTintColor: theme.colors.text,
       statusBarStyle: !isDark ? "dark" : "light",
     });
   }, [navigation]);
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
       {/* <StatusBar barStyle={isDark ? "light-content" : "dark-content"} /> */}
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -117,7 +139,7 @@ export default function PurchasePriceScreen({
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
@@ -126,9 +148,8 @@ export default function PurchasePriceScreen({
               size={24}
               color={isDark ? "#fff" : "#000"}
             />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           <Text style={styles.headerTitle}>{data?.name}</Text>
-          <View style={{ width: 24 }} />
         </View>
 
         <Text style={styles.subtitle}>{data?.description}</Text>
@@ -192,10 +213,12 @@ export default function PurchasePriceScreen({
                     ]}
                   >
                     {formatPrice(
-                      option.price /
+                      +(
+                        option.price /
                         (option.periodDurationUnit === "YEAR"
                           ? 12
                           : option.periodDurationValue)
+                      ).toFixed(2) as unknown as number,
                     )}
                   </Text>
                 </View>
@@ -371,23 +394,29 @@ export default function PurchasePriceScreen({
 
       {/* Continue Button */}
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.continueButton}
-          onPress={handleContinue}
-          activeOpacity={0.9}
+        <LinearGradient
+          colors={["#3a5dde", "#5e84e6"]}
+          start={{ x: 0.5, y: 1.0 }}
+          end={{ x: 0.5, y: 0.0 }}
+          style={[styles.continueButtonGradient, isPending && { opacity: 0.8 }]}
         >
-          <LinearGradient
-            colors={["#3a5dde", "#5e84e6"]}
-            start={{ x: 0.5, y: 1.0 }}
-            end={{ x: 0.5, y: 0.0 }}
-            style={styles.continueButtonGradient}
+          <TouchableOpacity
+            style={styles.continueButton}
+            onPress={handleContinue}
+            activeOpacity={0.9}
+            disabled={isPending}
           >
-            <FontAwesome name="credit-card-alt" size={20} color="#fff" />
+            {isPending ? (
+              <ActivityIndicator color="white" size="small" />
+            ) : (
+              <FontAwesome name="credit-card-alt" size={20} color="#fff" />
+            )}
+
             <Text style={styles.continueButtonText}>
               To'lovga o'tish • {formatPrice(calculateFinalPrice())}
             </Text>
-          </LinearGradient>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </LinearGradient>
       </View>
     </SafeAreaView>
   );
@@ -407,19 +436,8 @@ const createStyles = (theme: Theme, isDarkMode: boolean) =>
     header: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
-      paddingTop: 2,
-      marginBottom: 8,
-    },
-    backButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: isDarkMode
-        ? "rgba(255, 255, 255, 0.1)"
-        : "rgba(0, 0, 0, 0.05)",
-      alignItems: "center",
       justifyContent: "center",
+      paddingTop: moderateScale(10),
     },
     headerTitle: {
       fontSize: 28,
@@ -430,7 +448,7 @@ const createStyles = (theme: Theme, isDarkMode: boolean) =>
       fontSize: 16,
       color: isDarkMode ? "#94A3B8" : "#6B7280",
       textAlign: "center",
-      marginBottom: 32,
+      marginBottom: 20,
       lineHeight: 22,
     },
     optionsContainer: {
@@ -753,15 +771,15 @@ const createStyles = (theme: Theme, isDarkMode: boolean) =>
       borderTopColor: isDarkMode ? "#1E293B" : "#E5E7EB",
     },
     continueButton: {
-      borderRadius: 16,
-      overflow: "hidden",
-    },
-    continueButtonGradient: {
       paddingVertical: 18,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
       gap: 12,
+      overflow: "hidden",
+    },
+    continueButtonGradient: {
+      borderRadius: 16,
     },
     continueButtonText: {
       fontSize: 16,

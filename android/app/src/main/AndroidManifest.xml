@@ -26,6 +26,8 @@
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="onlineedu"/>
         <data android:scheme="exp+onlineedu"/>
+        <data android:scheme="mathme"/>
+        <data android:scheme="exp+mathme"/>
       </intent-filter>
     </activity>
   </application>

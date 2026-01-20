@@ -2,7 +2,6 @@ import {
   View,
   Text,
   ActivityIndicator,
-  Alert,
   StyleSheet,
   Dimensions,
 } from "react-native";
@@ -50,7 +49,7 @@ const PdfViewer = React.memo(
         source={{
           uri: `${Constants.expoConfig?.extra?.API_URL}/api/themeabstract/${themeId}`,
           headers: { Authorization: `Bearer ${authToken}` },
-          cache: true,
+          cache: false,
           method: "get",
         }}
         onLoadComplete={handleLoadComplete}

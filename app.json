@@ -2,7 +2,7 @@
   "expo": {
     "name": "MATH ME",
     "slug": "mathme",
-    "version": "1.0.20",
+    "version": "1.0.22",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mathme",
@@ -23,7 +23,8 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.rbsx.mathmeeducation",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIViewControllerBasedStatusBarAppearance": true
       }
     },
     "android": {

@@ -6,7 +6,7 @@ import {
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { FontAwesome5, Ionicons } from "@expo/vector-icons";
+import { FontAwesome5, FontAwesome6, Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 
 import { CoursesStackNavigator } from "./CoursesStackNavigator";
@@ -31,11 +31,6 @@ import PaymentOrders from "../screens/profile/screen/paymentorders";
 import SolutionScreen from "../screens/courses/SolutionScreen";
 import VideoPlayerScreen from "../screens/courses/videoplayer";
 import LinearGradient from "react-native-linear-gradient";
-import { PurchaseProvider } from "../context/PurchaseContext";
-import CheckoutScreen from "../screens/purchases/CheckoutScreen";
-import CreditCardScreen from "../screens/purchases/CreditCardScreen";
-import OTPCardVerification from "../screens/purchases/OTPCardVerification";
-import EmptyScreen from "../screens/empty";
 import ThemeAbstractScreen from "../screens/courses/ThemeAbstractScreen";
 import { useSession } from "../hooks/useSession";
 import { moderateScale } from "react-native-size-matters";
@@ -44,8 +39,11 @@ import NoConnection from "../components/NoConnection";
 
 import NetInfo from "@react-native-community/netinfo";
 import { useGeo } from "../hooks/useGeo";
-import PurchaseScreen from "../screens/purchases/PurchaseScreen";
-import PurchasePriceScreen from "../screens/purchases/PurchasePriceScreen";
+import { modalService } from "../components/modals/modalService";
+import { PurchaseStack } from "./PurchaseStack";
+import EmptyScreen from "../screens/empty";
+import { PurchaseModal } from "../screens/purchases/components/PurchaseModal";
+import { PurchaseProvider } from "../context/PurchaseContext";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -55,7 +53,9 @@ const MainTabNavigator = () => {
   const { isSuperAdmin } = useSession();
   const { plan } = useAuth();
   const { countryCode } = useGeo();
-
+  const handleShowPremiumModal = () => {
+    modalService.open();
+  };
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -78,18 +78,17 @@ const MainTabNavigator = () => {
         tabBarInactiveTintColor: theme.colors.tabBarInactive,
         tabBarStyle: {
           backgroundColor: theme.colors.tabBarBackground,
-          borderTopColor: "red",
           borderWidth: moderateScale(2),
+          borderTopWidth: moderateScale(2),
           borderColor: theme.colors.border,
           borderTopLeftRadius: moderateScale(20),
           borderTopEndRadius: moderateScale(20),
-          zIndex: 10,
           paddingTop: 0,
-          borderTopWidth: moderateScale(1),
+          borderBottomWidth: moderateScale(0),
         },
         tabBarButton: (props) => {
           const filteredProps = Object.fromEntries(
-            Object.entries(props).filter(([, value]) => value !== null)
+            Object.entries(props).filter(([, value]) => value !== null),
           );
           return <TouchableOpacity activeOpacity={1} {...filteredProps} />;
         },
@@ -113,9 +112,16 @@ const MainTabNavigator = () => {
         component={StatistikaScreen}
         listeners={{
           tabPress: (e) => {
-            if (plan) {
+            if (
+              !(
+                plan &&
+                plan.plan.subscriptionFeatures.find(
+                  (item) => item.code === "STATISTICS",
+                )
+              )
+            ) {
               e.preventDefault(); // ❌ screen ochilmasin
-              // setShowPremiumModal(true); // ✅ modal ochilsin
+              handleShowPremiumModal();
             }
           },
         }}
@@ -128,9 +134,14 @@ const MainTabNavigator = () => {
             <View style={{ position: "relative" }}>
               <Ionicons name="stats-chart" size={size} color={color} />
 
-              {plan && (
+              {!(
+                plan &&
+                plan.plan.subscriptionFeatures.find(
+                  (item) => item.code === "STATISTICS",
+                )
+              ) && (
                 <View style={{ position: "absolute", top: -6, right: -6 }}>
-                  <Ionicons name="lock-closed" size={14} color="gold" />
+                  <FontAwesome6 name="crown" size={14} color="gold" />
                 </View>
               )}
             </View>
@@ -154,6 +165,7 @@ const MainTabNavigator = () => {
             tabBarLabelStyle: {
               fontSize: +moderateScale(10).toFixed(0),
             },
+
             tabBarIcon: () => (
               <LinearGradient
                 colors={["#3a5dde", "#5e84e6"]}
@@ -236,7 +248,11 @@ const MainStackNavigator = () => (
     <Stack.Screen
       name="MainTabs"
       component={MainTabNavigator}
-      options={{ headerShown: false }}
+      options={{
+        headerShown: false,
+        freezeOnBlur: true,
+        headerBackTitle: "Orqaga",
+      }}
     />
     <Stack.Screen
       name="Chat"
@@ -245,6 +261,8 @@ const MainStackNavigator = () => (
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
         },
+        headerBackTitle: "Orqaga",
+
         headerShown: true,
         freezeOnBlur: true,
         headerTintColor: "white",
@@ -279,6 +297,7 @@ const MainStackNavigator = () => (
             />
           );
         },
+        headerBackTitle: "Orqaga",
         freezeOnBlur: true,
         headerTitleStyle: {
           fontSize: +moderateScale(18).toFixed(0),
@@ -303,6 +322,7 @@ const MainStackNavigator = () => (
             />
           );
         },
+        headerBackTitle: "Orqaga",
         freezeOnBlur: true,
         headerTitleStyle: {
           fontSize: +moderateScale(18).toFixed(0),
@@ -326,6 +346,7 @@ const MainStackNavigator = () => (
             />
           );
         },
+        headerBackTitle: "Orqaga",
         freezeOnBlur: true,
         headerTitleStyle: {
           fontSize: +moderateScale(18).toFixed(0),
@@ -349,6 +370,7 @@ const MainStackNavigator = () => (
             />
           );
         },
+        headerBackTitle: "Orqaga",
         freezeOnBlur: true,
         headerTitleStyle: {
           fontSize: +moderateScale(18).toFixed(0),
@@ -377,6 +399,7 @@ const MainStackNavigator = () => (
             />
           );
         },
+        headerBackTitle: "Orqaga",
         freezeOnBlur: true,
         headerTitleStyle: {
           fontSize: +moderateScale(18).toFixed(0),
@@ -400,6 +423,8 @@ const MainStackNavigator = () => (
             />
           );
         },
+        headerBackTitle: "",
+        headerTitleAlign: "center",
         freezeOnBlur: true,
         headerTitleStyle: {
           fontSize: +moderateScale(18).toFixed(0),
@@ -423,6 +448,7 @@ const MainStackNavigator = () => (
             />
           );
         },
+        headerBackTitle: "Orqaga",
         freezeOnBlur: true,
         headerTitleStyle: {
           fontSize: +moderateScale(18).toFixed(0),
@@ -436,6 +462,7 @@ const MainStackNavigator = () => (
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
         },
+        headerBackTitle: "Orqaga",
         headerBackground() {
           return (
             <LinearGradient
@@ -460,6 +487,7 @@ const MainStackNavigator = () => (
         animation: "ios_from_left",
         headerShown: true,
         headerTintColor: "white",
+        headerBackTitle: "Orqaga",
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
         },
@@ -486,6 +514,7 @@ const MainStackNavigator = () => (
       options={{
         title: "Shaxsiy ma'lumotlar",
         headerShadowVisible: false,
+        headerBackTitle: "Orqaga",
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
         },
@@ -508,78 +537,19 @@ const MainStackNavigator = () => (
 
     <Stack.Screen
       name="PurchaseGroup"
+      component={PurchaseStack}
       options={{
-        headerShown: false,
         animation: "ios_from_right",
+        headerShown: false,
+        
       }}
-    >
-      {() => (
-        <PurchaseProvider>
-          <Stack.Navigator
-            screenOptions={{
-              animation: "ios_from_right",
-              headerShown: false,
-              headerTintColor: "white",
-              headerStyle: {
-                backgroundColor: isTablet ? "#3a5dde" : undefined,
-              },
-              // headerBackground() {
-              //   return (
-              //     <LinearGradient
-              //       colors={["#3a5dde", "#5e84e6"]}
-              //       start={{ x: 0.5, y: 1.0 }}
-              //       end={{ x: 0.5, y: 0.0 }}
-              //       style={{ flex: 1 }}
-              //     />
-              //   );
-              // },
-              freezeOnBlur: true,
-              headerTitleAlign: "center",
-              headerTitleStyle: {
-                fontSize: +moderateScale(18).toFixed(0),
-              },
-            }}
-          >
-            <Stack.Screen
-              name="Purchase"
-              options={{
-                headerShown: false,
-              }}
-              component={PurchaseScreen}
-            />
-            <Stack.Screen name="Checkout" component={CheckoutScreen} />
-            <Stack.Screen
-              name="CreditCardScreen"
-              component={CreditCardScreen}
-              options={{
-                animation: "slide_from_bottom",
-                freezeOnBlur: true,
-              }}
-            />
-            <Stack.Screen
-              name="OTPCardVerification"
-              component={OTPCardVerification}
-              options={{
-                animation: "slide_from_bottom",
-                freezeOnBlur: true,
-              }}
-            />
-            <Stack.Screen
-              name="PurchasePrice"
-              component={PurchasePriceScreen}
-              options={{
-                headerShown: false,
-              }}
-            />
-          </Stack.Navigator>
-        </PurchaseProvider>
-      )}
-    </Stack.Screen>
+    />
     <Stack.Screen
       name="PaymentOrders"
       component={PaymentOrders}
       options={{
         title: "Mening to‘lovlarim",
+        headerBackTitle: "Orqaga",
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
         },
@@ -646,7 +616,10 @@ export default function AppNavigation() {
           backgroundColor={"transparent"}
           barStyle={"light-content"}
         />
-        {isAuthenticated ? <MainStackNavigator /> : <LoginScreen />}
+        <PurchaseProvider>
+          {isAuthenticated ? <MainStackNavigator /> : <LoginScreen />}
+          <PurchaseModal />
+        </PurchaseProvider>
       </ThemeProvider>
     </NavigationContainer>
   );

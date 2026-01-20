@@ -1,8 +1,10 @@
+import { modalService } from "@/src/components/modals/modalService";
+import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useQuizResults } from "@/src/hooks/useQuiz";
 import { QuizResultsResponse, Theme } from "@/src/types";
 import { BORDER_RADIUS, COLORS, FONT_SIZES, SPACING } from "@/src/utils";
-import { Ionicons } from "@expo/vector-icons";
+import { FontAwesome6, Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
@@ -25,6 +27,7 @@ export default function QuizResultsScreen({
 }) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
+  const { plan } = useAuth();
   const { testId, userId, themeId, mavzu } = route.params;
   const {
     data: quizResults,
@@ -83,7 +86,9 @@ export default function QuizResultsScreen({
       title: "IDS mavzulashtirilgan testlar to'plami",
       headerTitle: () => (
         <View style={headerRightStyles.container}>
-          <Text style={styles.headerTitle}>IDS mavzulashtirilgan testlar to'plami</Text>
+          <Text style={styles.headerTitle}>
+            IDS mavzulashtirilgan testlar to'plami
+          </Text>
         </View>
       ),
       freezeOnBlur: true,
@@ -186,12 +191,21 @@ export default function QuizResultsScreen({
         <TouchableOpacity
           style={[styles.button, styles.outlineButton]}
           onPress={() => {
-            navigation.navigate("QuizSolution", {
-              userId,
-              testId,
-              themeId,
-              mavzu,
-            });
+            if (
+              plan &&
+              plan.plan.subscriptionFeatures.find(
+                (item) => item.code === "SOLUTION"
+              )
+            ) {
+              navigation.navigate("QuizSolution", {
+                userId,
+                testId,
+                themeId,
+                mavzu,
+              });
+            } else {
+              modalService.open();
+            }
             // router.navigate({
             //   pathname: "/(root)/lesson/lessondetail/quiz/solution",
             //   params: {
@@ -203,7 +217,29 @@ export default function QuizResultsScreen({
             // });
           }}
         >
-          <Ionicons name="eye-outline" size={moderateScale(20)} color={theme.colors.primary} />
+          {!(plan &&
+            plan.plan.subscriptionFeatures.find(
+              (item) => item.code === "SOLUTION"
+            )) && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: moderateScale(-10),
+                  right: moderateScale(-8),
+                }}
+              >
+                <FontAwesome6
+                  name="crown"
+                  size={moderateScale(16)}
+                  color="#FFD700"
+                />
+              </View>
+            )}
+          <Ionicons
+            name="eye-outline"
+            size={moderateScale(20)}
+            color={theme.colors.primary}
+          />
           <Text style={styles.outlineText}>Natijani ko‘rish</Text>
         </TouchableOpacity>
 
@@ -211,7 +247,11 @@ export default function QuizResultsScreen({
           style={[styles.button, styles.primaryButton]}
           onPress={handleFinish}
         >
-          <Ionicons name="checkmark-circle" size={moderateScale(20)} color="white" />
+          <Ionicons
+            name="checkmark-circle"
+            size={moderateScale(20)}
+            color="white"
+          />
           <Text style={styles.primaryText}>Yakunlash</Text>
         </TouchableOpacity>
       </View>
@@ -242,7 +282,7 @@ const createStyles = (theme: Theme) =>
       alignItems: "center",
       backgroundColor: theme.colors.background,
     },
-   
+
     headerTitle: {
       fontSize: moderateScale(FONT_SIZES.lg),
       color: COLORS.white,
@@ -345,7 +385,7 @@ const createStyles = (theme: Theme) =>
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      paddingVertical: moderateScale(12),
+      paddingVertical: moderateScale(8),
       borderRadius: moderateScale(BORDER_RADIUS.base),
       gap: moderateScale(SPACING.xs),
     },

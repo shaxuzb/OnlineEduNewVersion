@@ -445,6 +445,41 @@ export interface SubscriptionPlanOption {
   annualDiscountPercent: number;
   state: string;
 }
+
+export interface UserSubscription {
+  id: number;
+  userId: number;
+  planId: number;
+  startAt: string;
+  endAt: string;
+  statusId: number;
+  replacedById: number | null;
+  sourceOrderId: number;
+  createdAt: string;
+  user: string;
+  userName: string;
+  remainingDays: number;
+  remainingAmount: number;
+  plan: {
+    id: number;
+    tierId: number;
+    periodId: number;
+    price: number;
+    stateId: number;
+    periodCode: string;
+    periodDurationValue: number;
+    periodDurationUnit: string;
+    state: string;
+    tier: string;
+    tierCode: string;
+    subscriptionFeatures: {
+      id: number;
+      code: string;
+      name: string;
+      description: string;
+    }[];
+  };
+}
 export interface SubscriptionPlan {
   id: number;
   code: string;

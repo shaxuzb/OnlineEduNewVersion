@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  StatusBar,
 } from "react-native";
 import { RegisterProvider, useRegister } from "../../context/RegisterContext";
 import { useTheme } from "../../context/ThemeContext";

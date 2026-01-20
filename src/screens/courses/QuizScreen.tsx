@@ -24,8 +24,7 @@ import {
 } from "@/src/hooks/useQuiz";
 import { AnswerKey, QuizAnswer, Theme } from "@/src/types";
 import { CustomStyledCard } from "@/src/components/ui/cards/CustomStyledCard";
-import { moderateScale, verticalScale } from "react-native-size-matters";
-import { scale } from "react-native-size-matters";
+import { moderateScale } from "react-native-size-matters";
 import { ScaledSheet } from "react-native-size-matters";
 
 const { width } = Dimensions.get("window");
@@ -486,10 +485,10 @@ export default function QuizScreen({
 
   useEffect(() => {
     navigation.setOptions({
-      title: "IDS mavzulashtirilgan testlar to'plami",
+      title: "IDS mavzulashtirilgan \n testlar  to'plami",
       headerTitle: ({ children }: { children: any }) => (
         <HeaderTitle
-          title={children || "IDS mavzulashtirilgan testlar to'plami"}
+          title={children}
         />
       ),
       freezeOnBlur: true,
@@ -562,17 +561,21 @@ export default function QuizScreen({
             />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={{ flexGrow: 1, flexShrink: 0 }}
-            onPress={handleShowTestModal}
-            disabled={isFinishing}
+          <CustomStyledCard
+            style={{
+              flexGrow: 1,
+              flexShrink: 0,
+              borderRadius: moderateScale(BORDER_RADIUS.sm),
+            }}
           >
-            <CustomStyledCard
+            <TouchableOpacity
               style={[
                 styles.actionButton,
                 styles.confirmButton,
                 // !isAnswerSelected && styles.confirmButtonDisabled,
               ]}
+              onPress={handleShowTestModal}
+              disabled={isFinishing}
             >
               {isFinishing ? (
                 <ActivityIndicator color="white" size="small" />
@@ -588,22 +591,28 @@ export default function QuizScreen({
                   </Text>
                 </>
               )}
-            </CustomStyledCard>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </CustomStyledCard>
         </View>
-        <TouchableOpacity
-          onPress={handleFinishTest}
-          activeOpacity={1}
-          disabled={submitResults.isPending}
+        <CustomStyledCard
+          style={{
+            marginTop: moderateScale(SPACING.sm),
+            borderRadius: moderateScale(BORDER_RADIUS.sm),
+          }}
         >
-          <CustomStyledCard style={styles.finishButton}>
+          <TouchableOpacity
+            onPress={handleFinishTest}
+            activeOpacity={1}
+            style={styles.finishButton}
+            disabled={submitResults.isPending}
+          >
             {submitResults.isPending ? (
               <ActivityIndicator color="white" size="small" />
             ) : (
               <Text style={styles.finishButtonText}>Testni yakunlash</Text>
             )}
-          </CustomStyledCard>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </CustomStyledCard>
       </View>
 
       {/* Test Navigation Popover */}
@@ -709,14 +718,17 @@ const TestModal = React.memo(
 // Alohida style sheet'lar
 const headerTitleStyles = ScaledSheet.create({
   container: {
+    flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "center",
-    paddingBottom: 5,
   },
   title: {
     fontSize: moderateScale(FONT_SIZES.lg),
     fontWeight: "bold",
+    alignItems: "center",
+    justifyContent: "center",
     textAlign: "center",
+    lineHeight: moderateScale(20),
     color: COLORS.white,
   },
 });
@@ -895,8 +907,6 @@ const createStyles = (theme: Theme) =>
     actionButton: {
       flex: 1,
       paddingVertical: moderateScale(SPACING.sm),
-      backgroundColor: theme.colors.card,
-      borderRadius: moderateScale(BORDER_RADIUS.sm),
 
       flexDirection: "row",
       alignItems: "center",
@@ -913,7 +923,6 @@ const createStyles = (theme: Theme) =>
       fontWeight: "500",
     },
     confirmButton: {
-      backgroundColor: COLORS.primary,
       flexDirection: "row",
       alignItems: "center",
     },
@@ -935,16 +944,9 @@ const createStyles = (theme: Theme) =>
     },
     finishButton: {
       paddingVertical: moderateScale(SPACING.sm),
-      borderRadius: moderateScale(BORDER_RADIUS.sm),
-      marginTop: moderateScale(SPACING.sm),
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
     },
     finishButtonText: {
       fontSize: moderateScale(FONT_SIZES.base),

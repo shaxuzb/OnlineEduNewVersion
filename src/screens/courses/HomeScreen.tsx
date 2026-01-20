@@ -242,30 +242,32 @@ const HomeScreen: React.FC = () => {
                           style={{
                             width: moderateScale(40),
                             height: moderateScale(40),
-                            padding: moderateScale(1),
                             borderRadius: moderateScale(150),
                           }}
                           end={{ x: 0.5, y: 0.0 }}
                         >
-                          <View
-                            style={{
-                              borderRadius: moderateScale(150),
-                              width: "100%",
-                              height: "100%",
-                              backgroundColor: "#3a5dde",
-                              justifyContent: "center",
-                              alignItems: "center",
-                            }}
-                          >
-                            <Text
+                          <View style={{ flex: 1, padding: moderateScale(1) }}>
+                            <View
                               style={{
-                                color: "white",
-                                fontSize: moderateScale(12),
-                                flexWrap: "nowrap",
+                                borderRadius: moderateScale(150),
+                                width: "100%",
+                                height: "100%",
+                                padding: moderateScale(1),
+                                backgroundColor: "#3a5dde",
+                                justifyContent: "center",
+                                alignItems: "center",
                               }}
                             >
-                              {s.percent.toFixed(1)}%
-                            </Text>
+                              <Text
+                                style={{
+                                  color: "white",
+                                  fontSize: moderateScale(12),
+                                  flexWrap: "nowrap",
+                                }}
+                              >
+                                {s.percent.toFixed(1)}%
+                              </Text>
+                            </View>
                           </View>
                         </LinearGradient>
                         <View
@@ -280,29 +282,30 @@ const HomeScreen: React.FC = () => {
                           start={{ x: 0.5, y: 1.0 }}
                           style={{
                             flexGrow: 1,
-                            padding: moderateScale(1),
                             borderRadius: moderateScale(40),
                           }}
                           end={{ x: 0.5, y: 0.0 }}
                         >
-                          <View
-                            style={{
-                              paddingVertical: moderateScale(2),
-                              paddingHorizontal: moderateScale(16),
-                              backgroundColor: "#3a5dde",
-                              borderRadius: moderateScale(40),
-                            }}
-                          >
-                            <Text
+                          <View style={{ padding: moderateScale(1) }}>
+                            <View
                               style={{
-                                fontSize: moderateScale(15),
-                                lineHeight: moderateScale(18),
-                                color: "white",
-                                fontWeight: "500",
+                                paddingVertical: moderateScale(2),
+                                paddingHorizontal: moderateScale(16),
+                                backgroundColor: "#3a5dde",
+                                borderRadius: moderateScale(40),
                               }}
                             >
-                              {s.subjectName}
-                            </Text>
+                              <Text
+                                style={{
+                                  fontSize: moderateScale(15),
+                                  lineHeight: moderateScale(18),
+                                  color: "white",
+                                  fontWeight: "500",
+                                }}
+                              >
+                                {s.subjectName}
+                              </Text>
+                            </View>
                           </View>
                         </LinearGradient>
                       </View>
@@ -329,30 +332,35 @@ const HomeScreen: React.FC = () => {
                     colors={["#718ff9ff", "#ffffffff"]}
                     start={{ x: 0.5, y: 1.0 }}
                     style={{
-                      padding: moderateScale(4),
                       borderRadius: moderateScale(150),
                     }}
                     end={{ x: 0.5, y: 0.0 }}
                   >
                     <View
                       style={{
-                        backgroundColor: "#3a5dde",
-                        borderRadius: moderateScale(150),
-                        aspectRatio: 1 / 1,
-
-                        justifyContent: "center",
-                        alignItems: "center",
+                        padding: moderateScale(4),
                       }}
                     >
-                      <Text
+                      <View
                         style={{
-                          color: "white",
-                          fontSize: moderateScale(42),
-                          fontWeight: "700",
+                          backgroundColor: "#3a5dde",
+                          borderRadius: moderateScale(150),
+                          aspectRatio: 1 / 1,
+
+                          justifyContent: "center",
+                          alignItems: "center",
                         }}
                       >
-                        {overallProgress}%
-                      </Text>
+                        <Text
+                          style={{
+                            color: "white",
+                            fontSize: moderateScale(38),
+                            fontWeight: "700",
+                          }}
+                        >
+                          {overallProgress}%
+                        </Text>
+                      </View>
                     </View>
                   </LinearGradient>
                 )}
@@ -423,19 +431,17 @@ const HomeScreen: React.FC = () => {
                       }}
                       key={index}
                     >
-                      <TouchableOpacity
-                        key={s.subjectId + index}
-                        onPress={() => handleSubjectPress(s)}
-                        activeOpacity={0.8}
-                        style={{
-                          zIndex: 11,
-                        }}
+                      <LinearGradient
+                        colors={["#3055ddff", "#5e84e6"]}
+                        start={{ x: 0.5, y: 1.0 }}
+                        end={{ x: 0.5, y: 0.0 }}
+                        style={styles.categoryGradientItem}
                       >
-                        <LinearGradient
-                          colors={["#3055ddff", "#5e84e6"]}
-                          start={{ x: 0.5, y: 1.0 }}
+                        <TouchableOpacity
+                          key={s.subjectId + index}
+                          onPress={() => handleSubjectPress(s)}
+                          activeOpacity={0.8}
                           style={styles.categoryItem}
-                          end={{ x: 0.5, y: 0.0 }}
                         >
                           <View style={[styles.categoryIconContainer]}>
                             {getSubjectIcon(s.subjectName)}
@@ -443,8 +449,8 @@ const HomeScreen: React.FC = () => {
                           <Text style={styles.categoryLabel}>
                             {s.subjectName}
                           </Text>
-                        </LinearGradient>
-                      </TouchableOpacity>
+                        </TouchableOpacity>
+                      </LinearGradient>
                     </View>
                   ))}
                 </View>
@@ -475,13 +481,15 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.text,
     },
     section: { marginVertical: 0 },
+    categoryGradientItem: {
+      borderRadius: moderateScale(12),
+    },
     categoryItem: {
       flexDirection: "column",
       alignItems: "center",
       padding: moderateScale(10),
       paddingHorizontal: moderateScale(5),
       aspectRatio: 1,
-      borderRadius: moderateScale(12),
       overflow: "hidden",
     },
     categoryIconContainer: {

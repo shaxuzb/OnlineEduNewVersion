@@ -8,23 +8,31 @@ import {
   Pressable,
   Platform,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import LinearGradient from "react-native-linear-gradient";
 import { moderateScale } from "react-native-size-matters";
 
 import { useTheme } from "@/src/context/ThemeContext";
-import { SubscriptionPlan, Theme } from "@/src/types";
+import { SubscriptionPlan, SubscriptionPlanOption, Theme } from "@/src/types";
 
 import { FontAwesome6 } from "@expo/vector-icons";
 import { usePurchases } from "@/src/hooks/usePurchases";
 import { Periods } from "@/src/constants/periods";
 import { numberSpacing } from "@/src/utils";
+import { usePurchase } from "@/src/context/PurchaseContext";
+import { useAuth } from "@/src/context/AuthContext";
+import { useSubscriptionAvailabilityMutation } from "@/src/hooks/useSubscriptionAvailabilityMutation";
+import Toast from "react-native-toast-message";
 
 function PurchaseScreen({ navigation }: { navigation: any }) {
   const { theme, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  const { data, isLoading, isFetching, refetch } = usePurchases();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme]);
+  const { setSelectedItem } = usePurchase();
+  const { mutate, isPending } = useSubscriptionAvailabilityMutation();
+
+  const { data, isFetching, refetch } = usePurchases();
 
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(refetch);
@@ -32,23 +40,49 @@ function PurchaseScreen({ navigation }: { navigation: any }) {
   }, [refetch]);
 
   const onSelectPrice = useCallback(
-    (planId: SubscriptionPlan["id"]) => {
-      navigation.navigate("PurchasePrice", {
-        planId,
-      });
+    (item: SubscriptionPlan) => {
+      if (item.code === "TESTPREMIUM") {
+        onPressPlan(item.plans[0]);
+      } else {
+        navigation.navigate("PurchasePrice", {
+          planId: item.id,
+        });
+      }
     },
     [
       /* navigation */
-    ]
+    ],
   );
+  const onPressPlan = (item: SubscriptionPlanOption) => {
+    mutate(item.id, {
+      onSuccess: (res) => {
+        if (!res.isAvailable) {
+          Toast.show({
+            type: "error",
+            text1: res.reason?.uz,
+          });
+        } else {
+          setSelectedItem(item);
+          navigation.navigate("Checkout");
+        }
+      },
+    });
+  };
   useEffect(() => {
     navigation.setOptions({
-      headerShown: false,
+      headerShown: true,
+      headerTitle: "Obuna rejalarini tanlash",
+      headerBackground: () => (
+        <View
+          style={{ flex: 1, backgroundColor: theme.colors.background }}
+        ></View>
+      ),
+      headerTintColor: theme.colors.text,
       statusBarStyle: !isDark ? "dark" : "light",
     });
   }, [navigation]);
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -58,7 +92,7 @@ function PurchaseScreen({ navigation }: { navigation: any }) {
       >
         {/* ===== HEADER ===== */}
         <View style={styles.header}>
-          <Text style={styles.kicker}>OBUNA</Text>
+          {/* <Text style={styles.kicker}></Text> */}
           <Text style={styles.headerTitle}>Onlayn Ta’lim Platformasi</Text>
           <Text style={styles.headerDescription}>
             Video darslar, testlar, konspektlar va o‘quv statistikasi orqali
@@ -72,9 +106,11 @@ function PurchaseScreen({ navigation }: { navigation: any }) {
             ? data?.map((p) => (
                 <PlanCard
                   key={p.id}
+                  isPending={isPending}
+                  isDark={isDark}
                   theme={theme}
-                  plan={p}
-                  onSelect={() => onSelectPrice(p.id)}
+                  itemPlan={p}
+                  onSelect={() => onSelectPrice(p)}
                 />
               ))
             : ""}
@@ -96,20 +132,30 @@ export default PurchaseScreen;
 
 const PlanCard = memo(function PlanCard({
   theme,
-  plan,
+  itemPlan,
+  isDark,
   onSelect,
+  isPending,
 }: {
   theme: Theme;
-  plan: SubscriptionPlan;
-  onSelect: (planId: number) => void;
+  isPending: boolean;
+  isDark: boolean;
+  itemPlan: SubscriptionPlan;
+  onSelect: (plan: SubscriptionPlan) => void;
 }) {
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  const isPremium = plan.code === "PREMIUM";
+  const styles = useMemo(() => createStyles(theme, isDark), [theme]);
+  const isPremium = itemPlan.code === "PREMIUM";
+  const { plan } = useAuth();
 
   const CardContainer: React.FC<{ children: React.ReactNode }> = ({
     children,
   }) => {
-    if (!isPremium) return <View style={styles.card}>{children}</View>;
+    if (!isPremium)
+      return (
+        <View style={styles.card}>
+          <View style={{ padding: 18 }}>{children}</View>
+        </View>
+      );
 
     return (
       <LinearGradient
@@ -118,14 +164,14 @@ const PlanCard = memo(function PlanCard({
         end={{ x: 0.5, y: 0.0 }}
         style={[styles.card, styles.cardPremium]}
       >
-        {children}
+        <View style={{ padding: 18 }}>{children}</View>
       </LinearGradient>
     );
   };
 
   return (
     <CardContainer>
-      {plan.code === "PREMIUM" && (
+      {itemPlan.code === "PREMIUM" && (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>ENG MASHHUR</Text>
         </View>
@@ -134,28 +180,28 @@ const PlanCard = memo(function PlanCard({
       <View style={styles.cardHeaderRow}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.cardTitle, isPremium && styles.premiumText]}>
-            {plan.name}
+            {itemPlan.name}
           </Text>
           <Text
             style={[styles.cardSubtitle, isPremium && styles.premiumSubText]}
           >
-            {plan.description}
+            {itemPlan.description}
           </Text>
         </View>
       </View>
 
       <View style={styles.priceRow}>
         <Text style={[styles.price, isPremium && styles.premiumText]}>
-          {numberSpacing(plan.plans[0]?.price)} UZS
+          {numberSpacing(itemPlan.plans[0]?.price)} UZS
         </Text>
         <Text style={[styles.period, isPremium && styles.premiumSubText]}>
-          {(Periods as any)[plan.plans[0]?.periodDurationUnit]?.value}
+          {(Periods as any)[itemPlan.plans[0]?.periodDurationUnit]?.value}
         </Text>
       </View>
 
       <View style={styles.features}>
-        {plan.features.map((item, idx) => (
-          <View key={`${plan.id}-${idx}`} style={styles.featureRow}>
+        {itemPlan.features.map((item, idx) => (
+          <View key={`${itemPlan.id}-${idx}`} style={styles.featureRow}>
             <View
               style={[styles.iconWrap, isPremium && styles.iconWrapPremium]}
             >
@@ -175,32 +221,62 @@ const PlanCard = memo(function PlanCard({
       {/* CTA */}
       {isPremium ? (
         <Pressable
-          onPress={() => onSelect(plan.id)}
+          onPress={() => onSelect(itemPlan)}
           style={({ pressed }) => [
             styles.cta,
             styles.ctaPremium,
             { opacity: pressed ? 0.88 : 1 },
           ]}
         >
-          <Text style={styles.ctaTextPremium}>Premium tarifni tanlash</Text>
+          <Text style={styles.ctaTextPremium}>
+            {itemPlan.name} tarifni tanlash
+          </Text>
         </Pressable>
       ) : (
         <LinearGradient
           colors={["#3a5dde", "#5e84e6"]}
           start={{ x: 0.5, y: 1.0 }}
           end={{ x: 0.5, y: 0.0 }}
-          style={styles.ctaGradient}
+          style={[styles.ctaGradient, isPending && { opacity: 0.8 }]}
         >
           <Pressable
-            onPress={() => onSelect(plan.id)}
+            onPress={() => onSelect(itemPlan)}
             style={({ pressed }) => [
               styles.cta,
               { opacity: pressed ? 0.9 : 1 },
             ]}
+            disabled={isPending}
           >
-            <Text style={styles.ctaText}>Standart tarifni tanlash</Text>
+            {isPending && <ActivityIndicator color="white" size="small" />}
+            <Text style={styles.ctaText}>{itemPlan.name} tarifni tanlash</Text>
           </Pressable>
         </LinearGradient>
+      )}
+      {plan && plan?.plan?.tierCode === itemPlan.code && (
+        <View style={{ marginTop: 10 }}>
+          <Text
+            style={[
+              {
+                fontWeight: "700",
+                fontSize: 13,
+                paddingVertical: 4,
+                paddingHorizontal: 10,
+                borderRadius: 999,
+                alignSelf: "flex-start",
+              },
+              isPremium
+                ? { backgroundColor: "#fff", color: "#3a5dde" }
+                : { backgroundColor: "#3a5dde", color: "#fff" },
+            ]}
+          >
+            Faol: Ha —{" "}
+            {plan.endAt
+              ? `Fev ${new Date(plan.endAt).getDate()}, ${new Date(
+                  plan.endAt,
+                ).getFullYear()} gacha amal qiladi`
+              : ""}
+          </Text>
+        </View>
       )}
     </CardContainer>
   );
@@ -208,7 +284,7 @@ const PlanCard = memo(function PlanCard({
 
 /* ================= STYLES ================= */
 
-const createStyles = (theme: Theme) =>
+const createStyles = (theme: Theme, isDarkMode: boolean) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -221,8 +297,17 @@ const createStyles = (theme: Theme) =>
     /* Header */
     header: {
       paddingHorizontal: 18,
-      paddingTop: 18,
       paddingBottom: 14,
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: isDarkMode
+        ? "rgba(255, 255, 255, 0.1)"
+        : "rgba(0, 0, 0, 0.05)",
+      alignItems: "center",
+      justifyContent: "center",
     },
     kicker: {
       fontSize: 12,
@@ -253,7 +338,6 @@ const createStyles = (theme: Theme) =>
     /* Card */
     card: {
       borderRadius: 22,
-      padding: 18,
       backgroundColor: theme.colors.card,
       borderWidth: 1,
       borderColor: theme.colors.border,
@@ -364,6 +448,8 @@ const createStyles = (theme: Theme) =>
     cta: {
       paddingVertical: moderateScale(14),
       borderRadius: 999,
+      flexDirection: "row",
+      gap: 6,
       alignItems: "center",
       justifyContent: "center",
     },

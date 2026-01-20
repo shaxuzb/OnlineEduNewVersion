@@ -4,8 +4,8 @@ import LoadingData from "@/src/components/exceptions/LoadingData";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useThemes } from "@/src/hooks/useThemes";
 import { ChapterTheme, Theme } from "@/src/types";
-import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useState } from "react";
+import { FontAwesome6, Ionicons } from "@expo/vector-icons";
+import React, { useEffect } from "react";
 import {
   SectionList,
   StyleSheet,
@@ -14,9 +14,10 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import PurchaseModal from "../purchases/components/PurchaseModal";
 import PageCard from "@/src/components/ui/cards/PageCard";
 import { moderateScale } from "react-native-size-matters";
+import { useAuth } from "@/src/context/AuthContext";
+import { modalService } from "@/src/components/modals/modalService";
 
 export default function SubjectScreen({
   navigation,
@@ -26,15 +27,14 @@ export default function SubjectScreen({
   route: any;
 }) {
   const { theme } = useTheme();
-  const [visible, setVisible] = useState(false);
   const styles = createStyles(theme);
-
+  const { plan } = useAuth();
   const { subjectId, subjectName, percent } = route.params;
 
   const { data, isLoading, isError, refetch } = useThemes(Number(subjectId));
 
   const handleThemePress = (chapterTheme: ChapterTheme) => {
-    if (chapterTheme.hasAccess) {
+    if (plan) {
       navigation.navigate("LessonDetail", {
         themeId: chapterTheme.id,
         percent: chapterTheme.percent,
@@ -42,18 +42,8 @@ export default function SubjectScreen({
         themeName: chapterTheme.name,
       });
     } else {
-      setVisible(true);
+       modalService.open();
     }
-  };
-  const handlePurchase = () => {
-    navigation.navigate("PurchaseGroup", {
-      screen: "PurchaseSubjectTheme",
-      params: {
-        subjectId: subjectId,
-        subjectName: subjectName,
-      },
-    });
-    setVisible(false);
   };
   useEffect(() => {
     navigation.setOptions({
@@ -104,6 +94,11 @@ export default function SubjectScreen({
                 activeOpacity={0.8}
                 onPress={() => handleThemePress(chapterTheme)}
               >
+                {!plan && (
+                  <View style={{ position: "absolute", top: -5, right: -5 }}>
+                    <FontAwesome6 name="crown" size={16} color="#FFD700" />
+                  </View>
+                )}
                 <View style={styles.themeLeft}>
                   <View style={styles.lockIconContainer}>
                     <Ionicons
@@ -149,11 +144,6 @@ export default function SubjectScreen({
         ) : (
           <EmptyData />
         )}
-        <PurchaseModal
-          visible={visible}
-          onClose={() => setVisible(false)}
-          onPurchase={handlePurchase}
-        />
       </PageCard>
     </SafeAreaView>
   );

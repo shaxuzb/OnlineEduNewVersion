@@ -14,7 +14,7 @@ import Payme from "@/src/assets/icons/payments/payme.svg";
 
 import { useTheme } from "@/src/context/ThemeContext";
 import { Theme } from "@/src/types";
-import { queryClient } from "@/src/utils/helpers/queryClient";
+import getQueryClient from "@/src/utils/helpers/queryClient";
 import { usePurchase } from "@/src/context/PurchaseContext";
 import Toast from "react-native-toast-message";
 
@@ -25,15 +25,12 @@ interface PaymentItem {
   paymentCode: string;
 }
 
-export default function CheckoutScreen({
-  navigation,
-}: {
-  navigation: any;
-}) {
+export default function CheckoutScreen({ navigation }: { navigation: any }) {
   const { theme, isDark } = useTheme();
   const styles = createStyles(theme, isDark);
-  const { selectedItem, setSelectedItem, submitPurchase } = usePurchase();
+  const { selectedItem, submitPurchase } = usePurchase();
 
+  const queries = getQueryClient();
   const [selectedPayment, setSelectedPayment] = useState<number>(1);
 
   const paymentItems: PaymentItem[] = [
@@ -69,8 +66,8 @@ export default function CheckoutScreen({
             paymentType: paymentCode,
           },
         });
-        queryClient.clear();
-        await queryClient.refetchQueries({ queryKey: ["themes"] });
+        queries.clear();
+        await queries.refetchQueries({ queryKey: ["themes"] });
         await Linking.openURL((data as any).paymentUrl);
         navigation.reset({
           index: 0,
@@ -100,30 +97,19 @@ export default function CheckoutScreen({
   };
   useEffect(() => {
     navigation.setOptions({
-      headerShown: false,
+      headerShown: true,
+      headerTitle: "To'lov",
+      headerBackground: () => (
+        <View
+          style={{ flex: 1, backgroundColor: isDark ? "#0F172A" : "#F9FAFB" }}
+        />
+      ),
+      headerTintColor: theme.colors.text,
       statusBarStyle: !isDark ? "dark" : "light",
     });
   }, [navigation]);
   return (
-    <SafeAreaView style={styles.container} edges={["bottom", "top"]}>
-      {/* <StatusBar barStyle={isDark ? "light-content" : "dark-content"} /> */}
-
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons
-            name="arrow-back"
-            size={24}
-            color={isDark ? "#fff" : "#000"}
-          />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>To'lov</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -215,7 +201,7 @@ export default function CheckoutScreen({
               {formatPrice(selectedItem?.price ?? 0)}
             </Text>
           </View>
-          {selectedItem?.annualDiscountPercent && (
+          {selectedItem?.annualDiscountPercent ? (
             <View style={styles.breakdownRow}>
               <Text style={styles.breakdownLabel}>Chegirma</Text>
               <View style={styles.discountBadge}>
@@ -224,7 +210,7 @@ export default function CheckoutScreen({
                 </Text>
               </View>
             </View>
-          )}
+          ) : null}
           <View style={styles.breakdownDivider} />
 
           <View style={[styles.breakdownRow, styles.totalRow]}>
@@ -269,28 +255,28 @@ export default function CheckoutScreen({
 
       {/* Continue Button */}
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.continueButton}
-          onPress={() =>
-            handlePaymentSelect(
-              paymentItems.find((p) => p.id === selectedPayment)?.paymentCode ||
-                ""
-            )
-          }
-          activeOpacity={0.9}
+        <LinearGradient
+          colors={["#3a5dde", "#5e84e6"]}
+          start={{ x: 0.5, y: 1.0 }}
+          end={{ x: 0.5, y: 0.0 }}
+          style={styles.continueButtonGradient}
         >
-          <LinearGradient
-            colors={["#3a5dde", "#5e84e6"]}
-            start={{ x: 0.5, y: 1.0 }}
-            end={{ x: 0.5, y: 0.0 }}
-            style={styles.continueButtonGradient}
+          <TouchableOpacity
+            style={styles.continueButton}
+            onPress={() =>
+              handlePaymentSelect(
+                paymentItems.find((p) => p.id === selectedPayment)
+                  ?.paymentCode || "",
+              )
+            }
+            activeOpacity={0.9}
           >
             <MaterialIcons name="lock" size={20} color="#fff" />
             <Text style={styles.continueButtonText}>
               Xavfsiz to'lash • {formatPrice(selectedItem?.price ?? 0)}
             </Text>
-          </LinearGradient>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </LinearGradient>
       </View>
     </SafeAreaView>
   );
@@ -572,15 +558,15 @@ const createStyles = (theme: Theme, isDark: boolean) =>
       borderTopColor: isDark ? "#1E293B" : "#E5E7EB",
     },
     continueButton: {
-      borderRadius: 14,
       overflow: "hidden",
-    },
-    continueButtonGradient: {
       paddingVertical: 18,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
       gap: 12,
+    },
+    continueButtonGradient: {
+      borderRadius: 14,
     },
     continueButtonText: {
       fontSize: 16,

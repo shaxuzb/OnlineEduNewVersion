@@ -1,15 +1,25 @@
+// SettingsDropdown.tsx
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef } from "react";
-import { Animated, Modal, Text, TouchableOpacity, View } from "react-native";
+import { 
+  Animated, 
+  Modal, 
+  Text, 
+  TouchableOpacity, 
+  View, 
+  StyleSheet,
+  Dimensions 
+} from "react-native";
 import { moderateScale } from "react-native-size-matters";
+
+const { height: screenHeight } = Dimensions.get('window');
 
 export const SettingsDropdown: React.FC<{
   visible: boolean;
   onClose: () => void;
-  styles: any;
   playbackRate: number;
   onPlaybackRateChange: (rate: number) => void;
-}> = ({ visible, onClose, playbackRate, onPlaybackRateChange, styles }) => {
+}> = ({ visible, onClose, playbackRate, onPlaybackRateChange }) => {
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -53,6 +63,7 @@ export const SettingsDropdown: React.FC<{
       transparent
       animationType="fade"
       onRequestClose={onClose}
+      statusBarTranslucent
     >
       <TouchableOpacity
         style={styles.dropdownOverlay}
@@ -71,7 +82,7 @@ export const SettingsDropdown: React.FC<{
           <View style={styles.dropdownHeader}>
             <Text style={styles.dropdownTitle}>Tezlik</Text>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={moderateScale(22)} color="#FFF" />
+              <Ionicons name="close" size={moderateScale(24)} color="#FFF" />
             </TouchableOpacity>
           </View>
 
@@ -88,6 +99,7 @@ export const SettingsDropdown: React.FC<{
                   onPlaybackRateChange(rate.value);
                   onClose();
                 }}
+                activeOpacity={0.7}
               >
                 <Text
                   style={[
@@ -99,7 +111,7 @@ export const SettingsDropdown: React.FC<{
                   {rate.label}
                 </Text>
                 {playbackRate === rate.value && (
-                  <Ionicons name="checkmark" size={moderateScale(18)} color="#007AFF" />
+                  <Ionicons name="checkmark" size={moderateScale(20)} color="#007AFF" />
                 )}
               </TouchableOpacity>
             ))}
@@ -109,3 +121,65 @@ export const SettingsDropdown: React.FC<{
     </Modal>
   );
 };
+
+const styles = StyleSheet.create({
+  dropdownOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "flex-start",
+    paddingTop: screenHeight * 0.1,
+  },
+  dropdownContainer: {
+    backgroundColor: "rgba(28, 28, 30, 0.95)",
+    marginHorizontal: 20,
+    borderRadius: 14,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#3A3A3C",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  dropdownHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#3A3A3C",
+  },
+  dropdownTitle: {
+    color: "#FFF",
+    fontSize: moderateScale(18),
+    fontWeight: "600",
+  },
+  playbackRatesContainer: {
+    gap: 12,
+  },
+  playbackRateButton: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: moderateScale(14),
+    paddingHorizontal: moderateScale(16),
+    borderRadius: moderateScale(10),
+    backgroundColor: "rgba(44, 44, 46, 0.9)",
+  },
+  playbackRateButtonActive: {
+    backgroundColor: "rgba(0, 122, 255, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(0, 122, 255, 0.3)",
+  },
+  playbackRateText: {
+    color: "#FFF",
+    fontSize: moderateScale(16),
+    fontWeight: "500",
+  },
+  playbackRateTextActive: {
+    color: "#007AFF",
+    fontWeight: "600",
+  },
+});

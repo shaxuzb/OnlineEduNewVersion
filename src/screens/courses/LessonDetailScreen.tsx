@@ -19,10 +19,12 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { FontAwesome6, Ionicons } from "@expo/vector-icons";
 import EmptyModal from "@/src/components/exceptions/EmptyModal";
 import Toast from "react-native-toast-message";
 import { moderateScale } from "react-native-size-matters";
+import { useAuth } from "@/src/context/AuthContext";
+import { modalService } from "@/src/components/modals/modalService";
 
 const { width } = Dimensions.get("window");
 
@@ -35,6 +37,7 @@ export default function LessonDetailScreen({
 }) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
+  const { plan } = useAuth();
   const { themeId, themeName, themeOrdinalNumber, percent } = route.params;
   const {
     addBookmark,
@@ -99,46 +102,67 @@ export default function LessonDetailScreen({
 
   const handlePlayVideo = () => {
     // Navigate to video player screen
-    if (!data?.video?.fileId) {
-      setEmptyModal({
-        open: true,
-        title: "Video dars mavjud emas",
-        description: "Ushbu mavzu uchun video dars hali yuklanmagan.",
-      });
+    if (
+      plan &&
+      plan.plan.subscriptionFeatures.find((item) => item.code === "LESSON")
+    ) {
+      if (!data?.video?.fileId) {
+        setEmptyModal({
+          open: true,
+          title: "Video dars mavjud emas",
+          description: "Ushbu mavzu uchun video dars hali yuklanmagan.",
+        });
+      } else {
+        navigation.navigate("VideoPlayer", {
+          lessonTitle: data?.name,
+          videoFileId: data?.video.fileId,
+          mavzu: `${data?.ordinalNumber}-mavzu`,
+        });
+      }
     } else {
-      navigation.navigate("VideoPlayer", {
-        lessonTitle: data?.name,
-        videoFileId: data?.video.fileId,
-        mavzu: `${data?.ordinalNumber}-mavzu`,
-      });
+      modalService.open();
     }
   };
   const handleThemeAbstract = () => {
-    // if (data?.testId) {
-    navigation.navigate("ThemeAbstract", {
-      themeId: data?.id,
-      // percent: percent,
-      // title: "Mashqlar",
-      mavzu: `${data?.ordinalNumber}-mavzu`,
-    });
-    // } else {
-    //   Alert.alert("Warning", "Test biriktirilmagan");
-    // }
-  };
-  const handleMashqlar = () => {
-    if (data?.testId) {
-      navigation.navigate("QuizScreen", {
-        testId: data?.testId,
-        percent: percent,
-        title: "Mashqlar",
+    if (
+      plan &&
+      plan.plan.subscriptionFeatures.find((item) => item.code === "ABSTRACT")
+    ) {
+      // if (data?.testId) {
+      navigation.navigate("ThemeAbstract", {
+        themeId: data?.id,
+        // percent: percent,
+        // title: "Mashqlar",
         mavzu: `${data?.ordinalNumber}-mavzu`,
       });
+      // } else {
+      //   Alert.alert("Warning", "Test biriktirilmagan");
+      // }
     } else {
-      setEmptyModal({
-        open: true,
-        title: "Testlar hali mavjud emas",
-        description: "Bu mavzu bo‘yicha testlar hali joylanmagan.",
-      });
+      modalService.open();
+    }
+  };
+  const handleMashqlar = () => {
+    if (
+      plan &&
+      plan.plan.subscriptionFeatures.find((item) => item.code === "TEST")
+    ) {
+      if (data?.testId) {
+        navigation.navigate("QuizScreen", {
+          testId: data?.testId,
+          percent: percent,
+          title: "Mashqlar",
+          mavzu: `${data?.ordinalNumber}-mavzu`,
+        });
+      } else {
+        setEmptyModal({
+          open: true,
+          title: "Testlar hali mavjud emas",
+          description: "Bu mavzu bo‘yicha testlar hali joylanmagan.",
+        });
+      }
+    } else {
+      modalService.open();
     }
   };
   useEffect(() => {
@@ -227,9 +251,33 @@ export default function LessonDetailScreen({
               style={[styles.videoPlayer]}
               onPress={handlePlayVideo}
             >
+              {!(
+                plan &&
+                plan.plan.subscriptionFeatures.find(
+                  (item) => item.code === "LESSON"
+                )
+              ) && (
+                <View
+                  style={{
+                    position: "absolute",
+                    top: moderateScale(8),
+                    right: moderateScale(8),
+                  }}
+                >
+                  <FontAwesome6
+                    name="crown"
+                    size={moderateScale(22)}
+                    color="#FFD700"
+                  />
+                </View>
+              )}
               <View style={styles.playButtonContainer}>
                 <View style={styles.playButton}>
-                  <Ionicons name="play" size={moderateScale(32)} color="white" />
+                  <Ionicons
+                    name="play"
+                    size={moderateScale(32)}
+                    color="white"
+                  />
                 </View>
               </View>
             </Pressable>
@@ -245,6 +293,26 @@ export default function LessonDetailScreen({
               style={styles.actionButton}
               onPress={handleThemeAbstract}
             >
+              {!(
+                plan &&
+                plan.plan.subscriptionFeatures.find(
+                  (item) => item.code === "ABSTRACT"
+                )
+              ) && (
+                <View
+                  style={{
+                    position: "absolute",
+                    top: moderateScale(5),
+                    right: moderateScale(5),
+                  }}
+                >
+                  <FontAwesome6
+                    name="crown"
+                    size={moderateScale(16)}
+                    color="#FFD700"
+                  />
+                </View>
+              )}
               <View style={styles.actionIconContainer}>
                 <Write width={60} height={60} />
               </View>
@@ -260,6 +328,26 @@ export default function LessonDetailScreen({
               style={styles.actionButton}
               onPress={handleMashqlar}
             >
+              {!(
+                plan &&
+                plan.plan.subscriptionFeatures.find(
+                  (item) => item.code === "TEST"
+                )
+              ) && (
+                <View
+                  style={{
+                    position: "absolute",
+                    top: moderateScale(5),
+                    right: moderateScale(5),
+                  }}
+                >
+                  <FontAwesome6
+                    name="crown"
+                    size={moderateScale(16)}
+                    color="#FFD700"
+                  />
+                </View>
+              )}
               <View style={styles.actionIconContainer}>
                 <Test width={60} height={60} />
               </View>

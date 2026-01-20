@@ -28,7 +28,7 @@ import * as SecureStore from "expo-secure-store";
 import Toast from "react-native-toast-message";
 import { BORDER_RADIUS, COLORS, FONT_SIZES, SPACING } from "@/src/utils";
 import { useTheme } from "@/src/context/ThemeContext";
-import { useQuizResults, useTestPdf, useThemeTest } from "@/src/hooks/useQuiz";
+import { useQuizResults, useThemeTest } from "@/src/hooks/useQuiz";
 import { AnswerKey, Theme } from "@/src/types";
 import { CustomStyledCard } from "@/src/components/ui/cards/CustomStyledCard";
 import LinearGradient from "react-native-linear-gradient";
@@ -149,7 +149,6 @@ const TestGridItem = React.memo(
   ({
     testNumber,
     orderNumber,
-    isCurrent,
     isAnswered,
     isCorrect,
     onSelect,
@@ -203,7 +202,7 @@ export default function SolutionScreen({
     error: resultsError,
   } = useQuizResults(Number(userId), Number(themeId));
 
-  const { data: pdfBlob, isLoading } = useTestPdf(Number(testId));
+  // const { data: pdfBlob, isLoading } = useTestPdf(Number(testId));
   const { data: testData } = useThemeTest(Number(testId));
 
   const [showTestIndex, setShowTestIndex] = useState(1);
@@ -370,7 +369,14 @@ export default function SolutionScreen({
                   color={theme.colors.text}
                   size={moderateScale(28)}
                 />
-                <Text style={{ color: theme.colors.text,fontSize: moderateScale(12) }}>Video yechim</Text>
+                <Text
+                  style={{
+                    color: theme.colors.text,
+                    fontSize: moderateScale(12),
+                  }}
+                >
+                  Video yechim
+                </Text>
               </TouchableOpacity>
             </View>
             <View style={styles.solutionViewImageContainer}>
@@ -449,7 +455,12 @@ export default function SolutionScreen({
                 disabled={showTestIndex === 1}
                 color={showTestIndex === 1 ? COLORS.textMuted : COLORS.primary}
               />
-              <Text style={{ color: theme.colors.text, fontSize: moderateScale(14) }}>
+              <Text
+                style={{
+                  color: theme.colors.text,
+                  fontSize: moderateScale(14),
+                }}
+              >
                 {showTestIndex}-test
               </Text>
               <Ionicons
@@ -471,19 +482,23 @@ export default function SolutionScreen({
                 }}
               />
             </TouchableOpacity>
-            <TouchableOpacity
-              activeOpacity={1}
+            <CustomStyledCard
               style={{
                 flexGrow: 1,
+                borderRadius: moderateScale(BORDER_RADIUS.base),
+                marginTop: moderateScale(SPACING.sm),
               }}
-              onPress={() => setShowSolution(!showSolution)}
             >
-              <CustomStyledCard style={styles.finishButton}>
+              <TouchableOpacity
+                activeOpacity={1}
+                style={styles.finishButton}
+                onPress={() => setShowSolution(!showSolution)}
+              >
                 <Text style={styles.choiceButtonText}>
                   {showSolution ? "Pdf kitobini ko'rish" : "Yechimlarni kurish"}
                 </Text>
-              </CustomStyledCard>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </CustomStyledCard>
           </View>
         </View>
       </PageCard>
@@ -877,20 +892,12 @@ const createStyles = (theme: Theme) =>
       opacity: 0.6,
     },
     finishButton: {
-      backgroundColor: "#e74c3c",
       paddingVertical: moderateScale(SPACING.sm),
-      borderRadius: moderateScale(BORDER_RADIUS.base),
-      marginTop: moderateScale(SPACING.sm),
       flexDirection: "row",
       alignItems: "center",
       flexShrink: 0,
       flexGrow: 1,
       justifyContent: "center",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
     },
     popoverContainer: {
       backgroundColor: theme.colors.card,

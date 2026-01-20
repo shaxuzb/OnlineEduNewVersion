@@ -1,8 +1,10 @@
+import { modalService } from "@/src/components/modals/modalService";
+import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useThemeTestStatistics } from "@/src/hooks/useStatistics";
 import { Theme, ThemeTestStatisticWrongAnswers } from "@/src/types";
 import { BORDER_RADIUS, FONT_SIZES, SPACING } from "@/src/utils";
-import { Ionicons } from "@expo/vector-icons";
+import { FontAwesome6, Ionicons } from "@expo/vector-icons";
 import React, { memo, useCallback, useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
@@ -26,6 +28,7 @@ function StatistikaTestScreen({
   const { theme } = useTheme();
   const styles = createStyles(theme);
 
+  const { plan } = useAuth();
   // Get route params
   const { testId, userId, subjectId, themeName, themeId } = route.params;
 
@@ -131,7 +134,7 @@ function StatistikaTestScreen({
                       <View key={subTestNo}>
                         <Text
                           style={{
-                            fontSize: moderateScale(14),
+                            fontSize: moderateScale(16),
                             marginBottom: 8,
                             color: theme.colors.text,
                           }}
@@ -172,23 +175,43 @@ function StatistikaTestScreen({
             <TouchableOpacity
               style={[styles.button, styles.outlineButton]}
               onPress={() => {
-                navigation.navigate("QuizSolution", {
-                  userId,
-                  testId,
-                  themeId: themeId,
-                  percent: data?.percent,
-                });
-                // router.navigate({
-                //   pathname: "/(root)/lesson/lessondetail/quiz/solution",
-                //   params: {
-                //     userId,
-                //     testId,
-                //     themeId,
-                //     mavzu,
-                //   },
-                // });
+                if (
+                  plan &&
+                  plan.plan.subscriptionFeatures.find(
+                    (item) => item.code === "SOLUTION"
+                  )
+                ) {
+                  navigation.navigate("QuizSolution", {
+                    userId,
+                    testId,
+                    themeId: themeId,
+                    percent: data?.percent,
+                  });
+                } else {
+                  modalService.open();
+                }
               }}
             >
+              {!(
+                plan &&
+                plan.plan.subscriptionFeatures.find(
+                  (item) => item.code === "SOLUTION"
+                )
+              ) && (
+                <View
+                  style={{
+                    position: "absolute",
+                    top: moderateScale(-10),
+                    right: moderateScale(-8),
+                  }}
+                >
+                  <FontAwesome6
+                    name="crown"
+                    size={moderateScale(16)}
+                    color="#FFD700"
+                  />
+                </View>
+              )}
               <Ionicons
                 name="eye-outline"
                 size={moderateScale(18)}
@@ -274,12 +297,12 @@ const createStyles = (theme: Theme) =>
       paddingVertical: SPACING.sm,
     },
     statsLabel: {
-      fontSize: moderateScale(FONT_SIZES.sm),
+      fontSize: moderateScale(FONT_SIZES.base),
       color: theme.colors.text,
       fontWeight: "500",
     },
     statsValue: {
-      fontSize: moderateScale(FONT_SIZES.sm),
+      fontSize: moderateScale(FONT_SIZES.base),
       color: theme.colors.text,
       fontWeight: "bold",
     },
@@ -296,7 +319,7 @@ const createStyles = (theme: Theme) =>
       elevation: 2,
     },
     wrongAnswersTitle: {
-      fontSize: moderateScale(FONT_SIZES.sm),
+      fontSize: moderateScale(FONT_SIZES.base),
       color: theme.colors.text,
       fontWeight: "600",
       marginBottom: SPACING.base,
@@ -317,12 +340,12 @@ const createStyles = (theme: Theme) =>
       marginBottom: moderateScale(SPACING.xs - 2),
     },
     wrongNumberText: {
-      fontSize: moderateScale(FONT_SIZES.xs),
+      fontSize: moderateScale(FONT_SIZES.sm),
       color: theme.colors.error,
       fontWeight: "600",
     },
     encouragementText: {
-      fontSize: moderateScale(FONT_SIZES.sm),
+      fontSize: moderateScale(FONT_SIZES.base),
       color: theme.colors.text,
       fontWeight: "500",
       textAlign: "center",
@@ -363,7 +386,7 @@ const createStyles = (theme: Theme) =>
     outlineText: {
       color: theme.colors.primary,
       fontWeight: "600",
-      fontSize: moderateScale(FONT_SIZES.sm),
+      fontSize: moderateScale(FONT_SIZES.base),
     },
     retryButton: {
       backgroundColor: theme.colors.card,
@@ -371,7 +394,7 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.colors.primary,
     },
     retryButtonText: {
-      fontSize: moderateScale(FONT_SIZES.sm),
+      fontSize: moderateScale(FONT_SIZES.base),
       color: theme.colors.primary,
       fontWeight: "600",
     },
@@ -379,7 +402,7 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.primary,
     },
     finishButtonText: {
-      fontSize: moderateScale(FONT_SIZES.sm),
+      fontSize: moderateScale(FONT_SIZES.base),
       color: "white",
       fontWeight: "600",
     },
