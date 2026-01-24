@@ -74,10 +74,11 @@ function PurchaseScreen({ navigation }: { navigation: any }) {
       headerTitle: "Obuna rejalarini tanlash",
       headerBackground: () => (
         <View
-          style={{ flex: 1, backgroundColor: theme.colors.background }}
+          style={{flex: 1, backgroundColor: isDark ? "#0F172A" : "#F9FAFB" }}
         ></View>
       ),
       headerTintColor: theme.colors.text,
+      headerBackTitle: "Orqaga",
       statusBarStyle: !isDark ? "dark" : "light",
     });
   }, [navigation]);

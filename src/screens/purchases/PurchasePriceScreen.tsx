@@ -126,6 +126,7 @@ export default function PurchasePriceScreen({
           style={{ flex: 1, backgroundColor: isDark ? "#0F172A" : "#F9FAFB" }}
         ></View>
       ),
+      headerBackTitle: "Orqaga",
       headerTintColor: theme.colors.text,
       statusBarStyle: !isDark ? "dark" : "light",
     });

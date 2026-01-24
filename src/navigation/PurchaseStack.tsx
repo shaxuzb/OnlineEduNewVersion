@@ -1,5 +1,4 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { PurchaseProvider } from "../context/PurchaseContext";
 import PurchaseScreen from "../screens/purchases/PurchaseScreen";
 import { moderateScale } from "react-native-size-matters";
 import CheckoutScreen from "../screens/purchases/CheckoutScreen";
@@ -21,8 +20,20 @@ export function PurchaseStack() {
         }}
       >
         <Stack.Screen
-          name="Purchase"
+          name="PurchaseScreen"
+          options={{
+            headerShown: true,
+            headerTitle: "Obuna rejalarini tanlash",
+          }}
           component={PurchaseScreen}
+          />
+        <Stack.Screen
+          name="PurchasePrice"
+          options={{
+            headerShown: true,
+            headerTitle: "Kurs sotib olish",
+          }}
+          component={PurchasePriceScreen}
         />
         <Stack.Screen name="Checkout" component={CheckoutScreen} />
         <Stack.Screen
@@ -33,15 +44,8 @@ export function PurchaseStack() {
         <Stack.Screen
           name="OTPCardVerification"
           component={OTPCardVerification}
-          options={{ animation: "slide_from_bottom" }}
-        />
-        <Stack.Screen
-          name="PurchasePrice"
-          options={{
-            headerShown: true,
-            headerTitle: "Kurs sotib olish",
-          }}
-          component={PurchasePriceScreen}
+          options={{ animation: "slide_from_bottom",
+           }}
         />
       </Stack.Navigator>
   );
