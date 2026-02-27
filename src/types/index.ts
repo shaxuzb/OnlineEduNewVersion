@@ -221,6 +221,18 @@ export interface ChapterTheme {
   price: number;
   state: string;
   isLocked?: boolean; // Custom property for locked state
+  chapter: string;
+  hasAbstractFile: boolean;
+  hasAnswerVideos: boolean;
+  hasTestPdf: boolean;
+  questionsWithPhotoCount: number;
+  questionsWithVideoCount: number;
+  subject: string;
+  subjectId: number;
+  testFileName: string;
+  testId: number;
+  totalQuestionCount: number;
+  video: string;
 }
 
 export interface ChapterWithThemes {
@@ -271,6 +283,10 @@ export interface AnswerKey {
   subTestNo: number;
   partLabel: string | null;
   correctAnswer: string;
+  testPhotos: {
+    fileId: string;
+    relativePath: string;
+  }[];
   answerType: number; // 0 for text, 1 for multiple choice
   options: string | null; // JSON string of options array
   points: number;
@@ -284,6 +300,7 @@ export interface ThemeTest {
   originalName: string;
   questionCount: number;
   testTypeId: number;
+
   answerKeys: AnswerKey[];
 }
 
@@ -315,10 +332,12 @@ export interface QuizResultAnswer {
   questionNumber: number;
   dbQuestionNumber: number;
   answerFileId: string;
+  partLabel: string;
   photos: {
     fileId: string;
     relativePath: string;
   }[];
+  answerKeyId: number;
   partIndex: number;
   answer: string;
   subTestNo: number;
@@ -358,6 +377,7 @@ export interface NewsResponse {
 // Statistics types
 export interface SubjectStatistic {
   subjectId: number;
+  subjectCode: string;
   subjectName: string;
   correctSum: number;
   totalSum: number;
@@ -394,6 +414,7 @@ export interface ChapterWithThemesStatistic {
 export interface ThemeTestStatisticWrongAnswers {
   subTestNo: number;
   dbQuestionNumber: number;
+  partLabel: string;
   questionNumber: number;
 }
 export interface ThemeTestStatistic {
@@ -489,4 +510,55 @@ export interface SubscriptionPlan {
   state: string;
   features: SubscriptionPlanFeature[];
   plans: SubscriptionPlanOption[];
+}
+
+export interface VideoSource {
+  uri: string;
+  type?: string;
+  headers?: { [key: string]: string };
+}
+
+export interface VideoPlayerProps {
+  source: VideoSource;
+  title?: string;
+  poster?: string;
+  autoPlay?: boolean;
+  onBackPress?: () => void;
+  onEnd?: () => void;
+  onError?: (error: any) => void;
+}
+
+export interface VideoState {
+  paused: boolean;
+  fullscreen: boolean;
+  currentTime: number;
+  duration: number;
+  playbackRate: number;
+  showControls: boolean;
+  loading: boolean;
+  showSettings: boolean;
+  volume: number;
+  muted: boolean;
+  buffering: boolean;
+  seeking: boolean;
+  seekPosition: number;
+}
+
+export interface ControlActions {
+  play: () => void;
+  pause: () => void;
+  seek: (time: number) => void;
+  toggleFullscreen: () => void;
+  changePlaybackRate: (rate: number) => void;
+  toggleMute: () => void;
+  changeVolume: (volume: number) => void;
+  skipForward: (seconds?: number) => void;
+  skipBackward: (seconds?: number) => void;
+  showControls: (show: boolean) => void;
+}
+
+export interface PlaybackRateOption {
+  label: string;
+  value: number;
+  icon: string;
 }

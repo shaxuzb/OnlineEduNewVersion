@@ -26,6 +26,7 @@ import { AnswerKey, QuizAnswer, Theme } from "@/src/types";
 import { CustomStyledCard } from "@/src/components/ui/cards/CustomStyledCard";
 import { moderateScale } from "react-native-size-matters";
 import { ScaledSheet } from "react-native-size-matters";
+import { useIsFocused, usePreventRemove } from "@react-navigation/native";
 
 const { width } = Dimensions.get("window");
 
@@ -39,7 +40,13 @@ interface LocalQuizAnswer {
 // Memoized komponentlar
 const HeaderTitle = React.memo(({ title }: { title: string }) => (
   <View style={headerTitleStyles.container}>
-    <Text style={headerTitleStyles.title}>{title}</Text>
+    <Text
+      style={headerTitleStyles.title}
+      adjustsFontSizeToFit
+      numberOfLines={2}
+    >
+      {title}
+    </Text>
   </View>
 ));
 
@@ -83,7 +90,7 @@ const PdfViewer = React.memo(
       Alert.alert(
         "Xatolik",
         "PDF faylni ochishda xatolik yuz berdi. Fayl mavjudligini tekshiring.",
-        [{ text: "OK" }]
+        [{ text: "OK" }],
       );
       console.error("PDF Error:", error);
     }, []);
@@ -122,7 +129,7 @@ const PdfViewer = React.memo(
         )}
       />
     );
-  }
+  },
 );
 
 const OptionButton = React.memo(
@@ -153,11 +160,13 @@ const OptionButton = React.memo(
           styles.optionButtonText,
           isSelected === option && styles.optionButtonTextSelected,
         ]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
       >
         {option}
       </Text>
     </TouchableOpacity>
-  )
+  ),
 );
 
 const TestGridItem = React.memo(
@@ -174,16 +183,16 @@ const TestGridItem = React.memo(
     handleConfirm: (
       selectedOption: any,
       currentQuestion: any,
-      currentSubTestNo: any
+      currentSubTestNo: any,
     ) => void;
     styles: any;
   }) => {
     const questionOptions = useMemo(
       () => (item?.options ? JSON.parse(item.options) : []),
-      [item]
+      [item],
     );
     const currentAnswer = answers.find(
-      (a) => a.questionId === item.dbQuestionNumber
+      (a) => a.questionId === item.dbQuestionNumber,
     );
     return (
       <View
@@ -194,7 +203,13 @@ const TestGridItem = React.memo(
           marginTop: 2,
         }}
       >
-        <Text style={[styles.testGridItemText]}>{item.questionNumber}</Text>
+        <Text
+          style={[styles.testGridItemText]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
+          {item.questionNumber}
+        </Text>
         <View
           style={{
             flexDirection: "row",
@@ -216,7 +231,7 @@ const TestGridItem = React.memo(
         </View>
       </View>
     );
-  }
+  },
 );
 
 export default function QuizScreen({
@@ -231,7 +246,7 @@ export default function QuizScreen({
 
   const { testId, mavzu, percent } = route.params;
   const numericTestId = Number(testId);
-
+  const isFocused = useIsFocused();
   // API hooks
   const {
     data: testData,
@@ -253,7 +268,7 @@ export default function QuizScreen({
   // Memoized values
   const totalQuestions = useMemo(
     () => testData?.questionCount || 0,
-    [testData]
+    [testData],
   );
   const groupedSubTest = useMemo(() => {
     if (!testData) return [];
@@ -269,7 +284,7 @@ export default function QuizScreen({
 
     // Har bir guruhdan faqat birinchi elementni olish
     const result = Object.values(groups).map(
-      (group) => (group as AnswerKey[])[0].subTestNo
+      (group) => (group as AnswerKey[])[0].subTestNo,
     );
 
     return result;
@@ -313,7 +328,7 @@ export default function QuizScreen({
       [
         { text: "Bekor qilish", style: "cancel" },
         { text: "Chiqish", onPress: () => navigation.goBack() },
-      ]
+      ],
     );
   }, []);
 
@@ -344,7 +359,7 @@ export default function QuizScreen({
         return [...filtered, newAnswer];
       });
     },
-    [selectedOption, totalQuestions]
+    [selectedOption, totalQuestions],
   );
 
   // const handleEditAnswer = useCallback(() => {
@@ -393,7 +408,7 @@ export default function QuizScreen({
                   subTestNo: answer.subTestNo,
                   partIndex:
                     testData?.answerKeys?.find(
-                      (ak) => ak.dbQuestionNumber === answer.questionId
+                      (ak) => ak.dbQuestionNumber === answer.questionId,
                     )?.partIndex || 0,
                   answer: answer.selectedOption || "",
                 }));
@@ -425,12 +440,12 @@ export default function QuizScreen({
                 [
                   { text: "Bekor qilish", style: "cancel" },
                   { text: "Qayta urinish", onPress: () => handleFinishTest() },
-                ]
+                ],
               );
             }
           },
         },
-      ]
+      ],
     );
   }, [
     currentUserId,
@@ -479,20 +494,31 @@ export default function QuizScreen({
     if (!testData?.answerKeys) return [];
 
     return testData.answerKeys.filter(
-      (item) => item.subTestNo === showTestIndex
+      (item) => item.subTestNo === showTestIndex,
     );
   }, [testData, showTestIndex]);
-
+  usePreventRemove(isFocused, ({ data }) => {
+    Alert.alert(
+      "Testni tark etish",
+      "Haqiqatan ham testni tark etmoqchimisiz?",
+      [
+        { text: "Bekor qilish", style: "cancel" },
+        {
+          text: "Chiqish",
+          onPress: () => navigation.dispatch(data.action),
+        },
+      ],
+    );
+  });
   useEffect(() => {
     navigation.setOptions({
-      title: "IDS mavzulashtirilgan \n testlar  to'plami",
+      title: "IDS mavzulashtirilgan testlar  to'plami",
       headerTitle: ({ children }: { children: any }) => (
-        <HeaderTitle
-          title={children}
-        />
+        <HeaderTitle title={children} />
       ),
+      headerBackTitle: ".",
       freezeOnBlur: true,
-      headerRight: () => <HeaderRight percent={percent} />,
+      // headerRight: () => <HeaderRight percent={percent} />,
     });
   }, [navigation]);
   // Loading and error states
@@ -645,7 +671,7 @@ const TestModal = React.memo(
     handleConfirm: (
       selectedOption: any,
       currentQuestion: any,
-      currentSubTestNo: any
+      currentSubTestNo: any,
     ) => void;
     onClose: () => void;
     styles: any;
@@ -712,7 +738,7 @@ const TestModal = React.memo(
         </View>
       </View>
     );
-  }
+  },
 );
 
 // Alohida style sheet'lar
@@ -878,11 +904,12 @@ const createStyles = (theme: Theme) =>
       marginHorizontal: SPACING.sm,
     },
     optionButton: {
-      width: (25 / 385) * width,
+      width: (26 / 385) * width,
       aspectRatio: 1 / 1,
       borderRadius: (8 / 375) * width,
       backgroundColor: theme.colors.card,
       borderWidth: 1,
+      marginBottom: SPACING.xs,
       borderColor: theme.colors.textMuted,
       justifyContent: "center",
       alignItems: "center",
@@ -907,7 +934,7 @@ const createStyles = (theme: Theme) =>
     actionButton: {
       flex: 1,
       paddingVertical: moderateScale(SPACING.sm),
-
+      borderRadius: moderateScale(BORDER_RADIUS.sm),
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",

@@ -38,7 +38,7 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
 
     const totalPercent = statistics.reduce(
       (sum: number, stat: SubjectStatistic) => sum + stat.percent,
-      0
+      0,
     );
     return Math.round(totalPercent / statistics.length);
   }, [statistics]);
@@ -55,6 +55,7 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
       subjectId: item.subjectId,
       subjectName: item.subjectName,
       subjectPercent: item.percent,
+      subjectCode: item.subjectCode,
     });
   }, []);
   const getSubjectColor = useCallback((percentage: number) => {
@@ -125,6 +126,8 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
                           styles.centerPercentage,
                           { color: theme.colors.primary },
                         ]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
                       >
                         {overallProgress}%
                       </Text>
@@ -168,12 +171,7 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
                   activeOpacity={0.7}
                 >
                   {/* Subject Icon */}
-                  <LinearGradient
-                    colors={["#3a5ede1f", "#5e85e61f"]}
-                    start={{ x: 0.5, y: 1.0 }}
-                    end={{ x: 0.5, y: 0.0 }}
-                    style={styles.subjectIcon}
-                  >
+                  <View style={styles.subjectIcon}>
                     <LinearGradient
                       colors={["#3a5dde", "#5e84e6"]}
                       start={{ x: 0.5, y: 1.0 }}
@@ -184,17 +182,14 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
                         {stat.subjectName.charAt(0).toUpperCase()}
                       </Text>
                     </LinearGradient>
-                  </LinearGradient>
+                  </View>
 
                   <View style={styles.courseStatContent}>
                     <View style={styles.courseStatHeader}>
                       <Text style={styles.courseStatName}>
                         {stat.subjectName}
                       </Text>
-                      <LinearGradient
-                        colors={["#3a5ede16", "#5e85e615"]}
-                        start={{ x: 0.5, y: 1.0 }}
-                        end={{ x: 0.5, y: 0.0 }}
+                      <View
                         style={[
                           styles.percentageBadge,
                           {
@@ -208,7 +203,7 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
                         >
                           {stat.percent}%
                         </Text>
-                      </LinearGradient>
+                      </View>
                     </View>
 
                     <View style={styles.courseStatDetails}>
@@ -438,6 +433,7 @@ const createStyles = (theme: Theme) =>
     subjectIcon: {
       width: moderateScale(52),
       height: moderateScale(52),
+      backgroundColor: "#3a5ede1f",
       borderRadius: moderateScale(14),
       alignItems: "center",
       justifyContent: "center",
@@ -447,8 +443,8 @@ const createStyles = (theme: Theme) =>
       width: moderateScale(36),
       height: moderateScale(36),
       borderRadius: moderateScale(10),
-      alignItems: "center",
       justifyContent: "center",
+      alignItems: "center",
     },
     subjectIconText: {
       fontSize: moderateScale(FONT_SIZES.base),

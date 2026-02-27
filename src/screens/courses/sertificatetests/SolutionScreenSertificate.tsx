@@ -20,20 +20,18 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Pdf from "react-native-pdf";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
 import Constants from "expo-constants";
-import * as SecureStore from "expo-secure-store";
 import Toast from "react-native-toast-message";
 import { BORDER_RADIUS, COLORS, FONT_SIZES, SPACING } from "@/src/utils";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useQuizResults, useThemeTest } from "@/src/hooks/useQuiz";
 import { AnswerKey, Theme } from "@/src/types";
-import { CustomStyledCard } from "@/src/components/ui/cards/CustomStyledCard";
 import LinearGradient from "react-native-linear-gradient";
 import PageCard from "@/src/components/ui/cards/PageCard";
 import { GestureViewer } from "react-native-gesture-image-viewer";
+import MathView from "react-native-math-view";
 import Animated, {
   runOnJS,
   useAnimatedScrollHandler,
@@ -43,8 +41,10 @@ import { moderateScale } from "react-native-size-matters";
 const { width } = Dimensions.get("window");
 
 interface LocalQuizAnswer {
+  id: number;
   questionId: number;
   videoFileId: string;
+  partLabel: string;
   orderNumber: number;
   selectedOption: string | null;
   isConfirmed: boolean;
@@ -96,61 +96,6 @@ const ErrorState = React.memo(({ onRetry }: { onRetry: () => void }) => (
   </SafeAreaView>
 ));
 
-const PdfViewer = React.memo(
-  ({ testId, authToken }: { testId: number; authToken: string | null }) => {
-    const theme = useTheme();
-    const styles = useMemo(() => createStyles(theme.theme), [theme.theme]);
-
-    const handleLoadComplete = useCallback((numberOfPages: number) => {
-      console.log("PDF loaded with", numberOfPages, "pages");
-    }, []);
-
-    const handleError = useCallback((error: any) => {
-      Alert.alert(
-        "Xatolik",
-        "PDF faylni ochishda xatolik yuz berdi. Fayl mavjudligini tekshiring.",
-        [{ text: "OK" }],
-      );
-      console.error("PDF Error:", error);
-    }, []);
-
-    if (!authToken) {
-      return (
-        <View style={styles.errorContainer}>
-          <Ionicons name="document-outline" size={64} color={COLORS.gray} />
-          <Text style={styles.errorTitle}>Autentifikatsiya xatosi</Text>
-        </View>
-      );
-    }
-
-    return (
-      <Pdf
-        source={{
-          uri: `${Constants.expoConfig?.extra?.API_URL}/api/theme-test/${testId}/pdf`,
-          headers: { Authorization: `Bearer ${authToken}` },
-          cache: true,
-          method: "get",
-        }}
-        onLoadComplete={handleLoadComplete}
-        onError={handleError}
-        style={styles.pdf}
-        trustAllCerts={false}
-        enablePaging={false}
-        horizontal={false}
-        spacing={0}
-        password=""
-        scale={1}
-        enableDoubleTapZoom
-        minScale={1}
-        maxScale={5}
-        renderActivityIndicator={() => (
-          <ActivityIndicator size="large" color={COLORS.primary} />
-        )}
-      />
-    );
-  },
-);
-
 const TestGridItem = React.memo(
   ({
     testNumber,
@@ -160,15 +105,15 @@ const TestGridItem = React.memo(
     onSelect,
     styles,
   }: {
-    testNumber: number;
-    orderNumber: number;
+    testNumber: any;
+    orderNumber: any;
     isAnswered: any;
     isCurrent: boolean;
     isCorrect: any;
-    onSelect: (testNumber: number) => void;
+    onSelect: () => void;
     styles: any;
   }) => (
-    <TouchableOpacity key={testNumber} onPress={() => onSelect(testNumber)}>
+    <TouchableOpacity key={testNumber} onPress={onSelect}>
       <LinearGradient
         start={{ x: 0.5, y: 1.0 }}
         end={{ x: 0.5, y: 0.0 }}
@@ -181,7 +126,11 @@ const TestGridItem = React.memo(
         }
         style={[styles.testGridItem]}
       >
-        <Text style={[styles.testGridItemText, styles.testGridItemTextActive]}>
+        <Text
+          style={[styles.testGridItemText, styles.testGridItemTextActive]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
           {orderNumber}
         </Text>
       </LinearGradient>
@@ -189,7 +138,7 @@ const TestGridItem = React.memo(
   ),
 );
 
-export default function SolutionScreen({
+export default function SolutionScreenSertificate({
   navigation,
   route,
 }: {
@@ -198,7 +147,7 @@ export default function SolutionScreen({
 }) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { themeId, userId, testId, mavzu, percent } = route.params;
+  const { themeId, userId, testId, percent } = route.params;
 
   // API hooks
   const {
@@ -212,46 +161,42 @@ export default function SolutionScreen({
   const { data: testData } = useThemeTest(Number(testId));
 
   const [showTestIndex, setShowTestIndex] = useState(1);
-  const [showSolution, setShowSolution] = useState(false);
   // State management
-  const [currentQuestion, setCurrentQuestion] = useState<number>(1);
+  const [currentQuestion, setCurrentQuestion] =
+    useState<LocalQuizAnswer | null>(null);
   const [selectedOption, setSelectedOption] = useState<LocalQuizAnswer | null>(
     null,
   );
   const [answers, setAnswers] = useState<LocalQuizAnswer[]>([]);
-  const [authToken, setAuthToken] = useState<string | null>(null);
   // Memoized values
-  const totalQuestions = testData?.questionCount || 0;
   const currentAnswerKey = testData?.answerKeys?.find(
-    (ak) => ak.dbQuestionNumber === currentQuestion,
+    (ak) => ak.dbQuestionNumber === currentQuestion?.questionId,
   );
 
   const isMultipleChoice = currentAnswerKey?.answerType === 1;
 
-  useEffect(() => {
-    const loadAuthToken = async () => {
-      try {
-        const sessionData = await SecureStore.getItemAsync("session");
-        if (sessionData) {
-          const { token } = JSON.parse(sessionData);
-          setAuthToken(token);
-        }
-      } catch (error) {
-        console.error("Error loading auth token:", error);
-      }
-    };
-
-    loadAuthToken();
-  }, []);
-
   // Load saved answer when question changes
   useEffect(() => {
     if (resultsSuccess) {
+      setCurrentQuestion({
+        correctAnswer: quizResults[0].answers[0].correctAnswer,
+        isConfirmed: !!quizResults[0].answers[0].answer,
+        videoFileId: quizResults[0].answers[0].answerFileId,
+        id: quizResults[0].answers[0].answerKeyId,
+        partLabel: quizResults[0].answers[0].partLabel,
+        photos: quizResults[0].answers[0].photos,
+        isCorrect: quizResults[0].answers[0].isCorrect,
+        questionId: quizResults[0].answers[0].dbQuestionNumber,
+        orderNumber: quizResults[0].answers[0].questionNumber,
+        selectedOption: quizResults[0].answers[0].answer,
+      });
       setAnswers(
         quizResults[0].answers.map((item) => ({
           correctAnswer: item.correctAnswer,
           isConfirmed: !!item.answer,
           videoFileId: item.answerFileId,
+          id: item.answerKeyId,
+          partLabel: item.partLabel,
           photos: item.photos,
           isCorrect: item.isCorrect,
           questionId: item.dbQuestionNumber,
@@ -262,7 +207,8 @@ export default function SolutionScreen({
     }
   }, [resultsSuccess]);
   useEffect(() => {
-    const savedAnswer = answers.find((a) => a.questionId === currentQuestion);
+    const savedAnswer =
+      answers.find((a) => a.questionId === currentQuestion?.questionId) || null;
     if (savedAnswer) {
       setSelectedOption(savedAnswer);
     } else {
@@ -280,8 +226,8 @@ export default function SolutionScreen({
       ],
     );
   }, []);
-  const handleTestSelect = useCallback((testNumber: number) => {
-    setCurrentQuestion(testNumber);
+  const handleTestSelect = useCallback((test: LocalQuizAnswer) => {
+    setCurrentQuestion(test);
   }, []);
   const handlePressSolutionVideo = useCallback(() => {
     if (selectedOption?.videoFileId) {
@@ -313,6 +259,7 @@ export default function SolutionScreen({
         }, {}),
     );
   }, [testData, showTestIndex]);
+
   const groupedSubTest = useMemo(() => {
     if (!testData) return [];
     const groups: { [key: number]: AnswerKey[] } = {};
@@ -333,8 +280,9 @@ export default function SolutionScreen({
     return result;
   }, [testData]);
   const currentAnswer = useMemo(() => {
-    return answers.find((item) => item.questionId === currentQuestion);
+    return answers.find((item) => item.id === currentQuestion?.id);
   }, [answers, currentQuestion]);
+
   useEffect(() => {
     navigation.setOptions({
       title: "IDS mavzulashtirilgan testlar to'plami",
@@ -358,10 +306,11 @@ export default function SolutionScreen({
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       <PageCard>
         {/* PDF Content */}
-        {showSolution ? (
+        {
           <View style={styles.solutionViewContainer}>
             <View style={styles.solutionViewHeader}>
               <Text style={styles.solutionViewTitle}>
+                {currentAnswerKey?.partLabel}
                 {currentAnswerKey?.questionNumber} - savol yechimi
               </Text>
               <TouchableOpacity
@@ -422,21 +371,15 @@ export default function SolutionScreen({
               /> */}
             </View>
           </View>
-        ) : (
-          <View style={styles.pdfContainer}>
-            <PdfViewer testId={Number(testId)} authToken={authToken} />
-          </View>
-        )}
+        }
 
         {/* Quiz Controls */}
         <View style={styles.quizControls}>
-          {showSolution && (
-            <AnswerView answer={currentAnswer} styles={styles} />
-          )}
+          <AnswerView answer={currentAnswer} styles={styles} />
           <TestModal
             groupedTestData={groupedTestData}
             answers={answers}
-            currentQuestion={currentQuestion}
+            currentQuestion={currentQuestion?.questionId ?? 0}
             onTestSelect={handleTestSelect}
             styles={styles}
           />
@@ -488,7 +431,7 @@ export default function SolutionScreen({
                 }}
               />
             </TouchableOpacity>
-            <CustomStyledCard
+            {/* <CustomStyledCard
               style={{
                 flexGrow: 1,
                 borderRadius: moderateScale(BORDER_RADIUS.base),
@@ -504,7 +447,7 @@ export default function SolutionScreen({
                   {showSolution ? "Pdf kitobini ko'rish" : "Yechimlarni kurish"}
                 </Text>
               </TouchableOpacity>
-            </CustomStyledCard>
+            </CustomStyledCard> */}
           </View>
         </View>
       </PageCard>
@@ -523,7 +466,7 @@ const TestModal = React.memo(
     groupedTestData: [string, any][];
     answers: LocalQuizAnswer[];
     currentQuestion: number;
-    onTestSelect: (testNumber: number) => void;
+    onTestSelect: (test: LocalQuizAnswer) => void;
     styles: any;
   }) => {
     const subtestCounters: Record<number, number> = {};
@@ -558,30 +501,28 @@ const TestModal = React.memo(
                 {rowItems.map((item: any) => {
                   const { subTestNo: currentSubTestNo, dbQuestionNumber } =
                     item;
-
                   if (!subtestCounters[currentSubTestNo]) {
                     subtestCounters[currentSubTestNo] = 1;
                   } else {
                     subtestCounters[currentSubTestNo]++;
                   }
-                  const isCorrect = answers.find(
-                    (a) => a.questionId === item.dbQuestionNumber,
-                  )?.isCorrect;
+                  const answer = answers.find(
+                    (a) => a?.id === item.id,
+                  ) as LocalQuizAnswer;
+                  const isCorrect = answer?.isCorrect;
                   const orderNumber = item.questionNumber;
-                  const isAnswered = answers.find(
-                    (a) => a.questionId === dbQuestionNumber,
-                  )?.isConfirmed;
+                  const isAnswered = answer?.isConfirmed;
                   const isCurrent = dbQuestionNumber === currentQuestion;
 
                   return (
                     <TestGridItem
-                      key={dbQuestionNumber}
-                      testNumber={dbQuestionNumber}
-                      orderNumber={orderNumber}
+                      key={item?.id}
+                      testNumber={item?.id}
+                      orderNumber={answer?.partLabel + orderNumber}
                       isAnswered={isAnswered}
                       isCurrent={isCurrent}
                       isCorrect={isCorrect}
-                      onSelect={onTestSelect}
+                      onSelect={() => onTestSelect(answer)}
                       styles={styles}
                     />
                   );
@@ -709,11 +650,22 @@ const AnswerView = React.memo(
       <View style={styles.answerViewContainer}>
         <View>
           <Text style={styles.answerViewText}>
-            To'g'ri javob: {answer?.correctAnswer}
+            To'g'ri javob:
+            <MathView
+              math={answer?.correctAnswer ?? ""}
+              style={styles.mathViewSelectedAnswer}
+            />
           </Text>
           <Text style={styles.answerViewText}>
             Belgilangan javob:{" "}
-            {answer?.selectedOption === "" ? "Bo'sh" : answer?.selectedOption}
+            <MathView
+              math={
+                answer?.selectedOption === ""
+                  ? "Bo'sh"
+                  : (answer?.selectedOption ?? "")
+              }
+              style={styles.mathViewSelectedAnswer}
+            />
           </Text>
         </View>
         <View>
@@ -1010,5 +962,11 @@ const createStyles = (theme: Theme) =>
     },
     solutionViewImage: {
       flex: 1,
+    },
+    mathViewSelectedAnswer: {
+      fontSize: moderateScale(FONT_SIZES.lg),
+      color: theme.colors.text,
+      width: "35%",
+      height: moderateScale(20),
     },
   });

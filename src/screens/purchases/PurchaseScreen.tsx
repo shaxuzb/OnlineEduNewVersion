@@ -17,7 +17,7 @@ import { moderateScale } from "react-native-size-matters";
 import { useTheme } from "@/src/context/ThemeContext";
 import { SubscriptionPlan, SubscriptionPlanOption, Theme } from "@/src/types";
 
-import { FontAwesome6 } from "@expo/vector-icons";
+import { FontAwesome6, Octicons } from "@expo/vector-icons";
 import { usePurchases } from "@/src/hooks/usePurchases";
 import { Periods } from "@/src/constants/periods";
 import { numberSpacing } from "@/src/utils";
@@ -74,11 +74,30 @@ function PurchaseScreen({ navigation }: { navigation: any }) {
       headerTitle: "Obuna rejalarini tanlash",
       headerBackground: () => (
         <View
-          style={{flex: 1, backgroundColor: isDark ? "#0F172A" : "#F9FAFB" }}
+          style={{ flex: 1, backgroundColor: isDark ? "#0F172A" : "#F9FAFB" }}
         ></View>
       ),
+      headerLeft: () => {
+        return (
+          <Pressable
+            onPress={() => {
+              navigation.goBack();
+            }}
+            style={{
+              width: 30,
+            }}
+          >
+            <Octicons
+              name={Platform.OS === "ios" ? "chevron-left" : "arrow-left"}
+              size={
+                Platform.OS === "ios" ? moderateScale(34) : moderateScale(22)
+              }
+              color={isDark ? "#fff" : "#000"}
+            />
+          </Pressable>
+        );
+      },
       headerTintColor: theme.colors.text,
-      headerBackTitle: "Orqaga",
       statusBarStyle: !isDark ? "dark" : "light",
     });
   }, [navigation]);

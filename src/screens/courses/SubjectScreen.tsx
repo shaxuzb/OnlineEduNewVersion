@@ -29,20 +29,37 @@ export default function SubjectScreen({
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const { plan } = useAuth();
-  const { subjectId, subjectName, percent } = route.params;
+  const { subjectId, subjectName, percent, subjectCode } = route.params;
 
   const { data, isLoading, isError, refetch } = useThemes(Number(subjectId));
 
   const handleThemePress = (chapterTheme: ChapterTheme) => {
     if (plan) {
-      navigation.navigate("LessonDetail", {
-        themeId: chapterTheme.id,
-        percent: chapterTheme.percent,
-        themeOrdinalNumber: chapterTheme.ordinalNumber,
-        themeName: chapterTheme.name,
-      });
+      if (subjectCode === "NATIONAL") {
+        if (chapterTheme?.testId) {
+          navigation.navigate("QuizScreenSertificate", {
+            testId: chapterTheme.testId,
+            percent: 2,
+            title: "Mashqlar",
+            mavzu: `${chapterTheme.ordinalNumber}-mavzu`,
+          });
+        } else {
+          // setEmptyModal({
+          //   open: true,
+          //   title: "Testlar hali mavjud emas",
+          //   description: "Bu mavzu bo‘yicha testlar hali joylanmagan.",
+          // });
+        }
+      } else {
+        navigation.navigate("LessonDetail", {
+          themeId: chapterTheme.id,
+          percent: chapterTheme.percent,
+          themeOrdinalNumber: chapterTheme.ordinalNumber,
+          themeName: chapterTheme.name,
+        });
+      }
     } else {
-       modalService.open();
+      modalService.open();
     }
   };
   useEffect(() => {
@@ -76,10 +93,11 @@ export default function SubjectScreen({
           <SectionList
             sections={
               data?.results?.map((chapter) => ({
-                title: `${chapter.ordinalNumber}-bob. ${chapter.name}`,
+                title: `${chapter.name}`,
                 data: chapter.themes,
               })) ?? []
             }
+            stickyHeaderHiddenOnScroll={true}
             keyExtractor={(item, index) => item.id.toString() + index}
             renderSectionHeader={({ section: { title } }) => (
               <Text style={styles.chapterSectionTitle}>{title}</Text>

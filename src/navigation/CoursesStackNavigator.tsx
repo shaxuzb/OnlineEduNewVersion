@@ -40,8 +40,7 @@ export function CoursesStackNavigator() {
               />
             );
           },
-
-          headerBackTitle: "Orqaga",
+          headerBackButtonDisplayMode: "minimal",
           headerTitleStyle: {
             fontSize: +moderateScale(18).toFixed(0),
           },

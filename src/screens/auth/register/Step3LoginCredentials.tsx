@@ -59,8 +59,6 @@ const Step3LoginCredentials: React.FC<Step3LoginCredentialsProps> = ({
     try {
       await submitRegistration(values);
     } catch (error: any) {
-      console.log(JSON.stringify(error.response));
-
       if (error.status === 409) {
         onClose();
         Toast.show({

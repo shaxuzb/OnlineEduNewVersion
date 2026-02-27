@@ -1,18 +1,19 @@
 // SettingsDropdown.tsx
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef } from "react";
-import { 
-  Animated, 
-  Modal, 
-  Text, 
-  TouchableOpacity, 
-  View, 
+import {
+  Animated,
+  Modal,
+  Text,
+  TouchableOpacity,
+  View,
   StyleSheet,
-  Dimensions 
+  Dimensions,
+  ScrollView,
 } from "react-native";
 import { moderateScale } from "react-native-size-matters";
 
-const { height: screenHeight } = Dimensions.get('window');
+const { height: screenHeight } = Dimensions.get("window");
 
 export const SettingsDropdown: React.FC<{
   visible: boolean;
@@ -62,62 +63,69 @@ export const SettingsDropdown: React.FC<{
       visible={visible}
       transparent
       animationType="fade"
+      supportedOrientations={["portrait", "landscape"]}
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <TouchableOpacity
-        style={styles.dropdownOverlay}
-        activeOpacity={1}
-        onPress={onClose}
-      >
-        <Animated.View
-          style={[
-            styles.dropdownContainer,
-            {
-              opacity,
-              transform: [{ translateY }],
-            },
-          ]}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }}>
+        <TouchableOpacity
+          style={styles.dropdownOverlay}
+          activeOpacity={1}
+          onPress={onClose}
         >
-          <View style={styles.dropdownHeader}>
-            <Text style={styles.dropdownTitle}>Tezlik</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={moderateScale(24)} color="#FFF" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.playbackRatesContainer}>
-            {playbackRates.map((rate) => (
-              <TouchableOpacity
-                key={rate.value}
-                style={[
-                  styles.playbackRateButton,
-                  playbackRate === rate.value &&
-                    styles.playbackRateButtonActive,
-                ]}
-                onPress={() => {
-                  onPlaybackRateChange(rate.value);
-                  onClose();
-                }}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.playbackRateText,
-                    playbackRate === rate.value &&
-                      styles.playbackRateTextActive,
-                  ]}
-                >
-                  {rate.label}
-                </Text>
-                {playbackRate === rate.value && (
-                  <Ionicons name="checkmark" size={moderateScale(20)} color="#007AFF" />
-                )}
+          <Animated.View
+            style={[
+              styles.dropdownContainer,
+              {
+                opacity,
+                transform: [{ translateY }],
+              },
+            ]}
+          >
+            <View style={styles.dropdownHeader}>
+              <Text style={styles.dropdownTitle}>Tezlik</Text>
+              <TouchableOpacity onPress={onClose}>
+                <Ionicons name="close" size={moderateScale(24)} color="#FFF" />
               </TouchableOpacity>
-            ))}
-          </View>
-        </Animated.View>
-      </TouchableOpacity>
+            </View>
+
+            <View style={styles.playbackRatesContainer}>
+              {playbackRates.map((rate) => (
+                <TouchableOpacity
+                  key={rate.value}
+                  style={[
+                    styles.playbackRateButton,
+                    playbackRate === rate.value &&
+                      styles.playbackRateButtonActive,
+                  ]}
+                  onPress={() => {
+                    onPlaybackRateChange(rate.value);
+                    onClose();
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.playbackRateText,
+                      playbackRate === rate.value &&
+                        styles.playbackRateTextActive,
+                    ]}
+                  >
+                    {rate.label}
+                  </Text>
+                  {playbackRate === rate.value && (
+                    <Ionicons
+                      name="checkmark"
+                      size={moderateScale(20)}
+                      color="#007AFF"
+                    />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Animated.View>
+        </TouchableOpacity>
+      </ScrollView>
     </Modal>
   );
 };

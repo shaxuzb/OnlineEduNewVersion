@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
-  StatusBar,
   ScrollView,
   Platform,
   ActivityIndicator,
@@ -19,7 +18,10 @@ import { usePurchase } from "@/src/context/PurchaseContext";
 import { modalService } from "@/src/components/modals/modalService";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useNavigation } from "@react-navigation/native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Periods } from "@/src/constants/periods";
 import { useSubscriptionAvailabilityMutation } from "@/src/hooks/useSubscriptionAvailabilityMutation";
 import { SubscriptionPlanOption } from "@/src/types";
@@ -64,12 +66,13 @@ const COLORS = {
 
 export const PurchaseModal = (/* { isDark }: PurchaseModalProps */) => {
   const { isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const theme: any = isDark ? COLORS.dark : COLORS.light;
   const { mutate, isPending } = useSubscriptionAvailabilityMutation();
   const { data, isSuccess } = usePurchases();
   const { selectedItem, setSelectedItem } = usePurchase();
-
+  const [error, setError] = useState<string | null>(null);
   const plans = useMemo(() => data ?? [], [data]);
 
   const [selectedPlan, setSelectedPlan] = useState(plans[0]);
@@ -86,12 +89,21 @@ export const PurchaseModal = (/* { isDark }: PurchaseModalProps */) => {
     mutate(item.id, {
       onSuccess: (res) => {
         if (!res.isAvailable) {
+          setError(res.reason?.uz ?? "");
           Toast.show({
             type: "error",
             text1: res.reason?.uz,
           });
         } else {
-          navigation.navigate("Checkout");
+          setError(null);
+          navigation.navigate("PurchaseGroup", { screen: "PurchaseScreen" });
+
+          // Keyin setTimeout orqali Checkout ga o'tish
+          setTimeout(() => {
+            navigation.navigate("Checkout");
+            setVisible(false);
+            modalService.close();
+          }, 100);
         }
       },
     });
@@ -124,9 +136,13 @@ export const PurchaseModal = (/* { isDark }: PurchaseModalProps */) => {
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      <SafeAreaView
-        style={{ flex: 1, backgroundColor: "transparent" }}
-        // edges={["top"]}
+      <View
+        style={{
+          flex: 1,
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom,
+          backgroundColor: "transparent",
+        }}
       >
         <BlurView
           intensity={theme.blurIntensity}
@@ -136,154 +152,155 @@ export const PurchaseModal = (/* { isDark }: PurchaseModalProps */) => {
         />
 
         <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.inner}>
-            {/* Header */}
-            <View style={styles.header}>
-              <Text style={[styles.title, { color: theme.textPrimary }]}>
-                Obunalar
-              </Text>
-              <TouchableOpacity style={styles.close} onPress={onClose}>
-                <Ionicons
-                  name="close"
-                  size={scale(24)}
-                  color={theme.textPrimary}
-                />
-              </TouchableOpacity>
-            </View>
+          {/* <View style={styles.inner}> */}
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: theme.textPrimary }]}>
+              Obunalar
+            </Text>
+            <TouchableOpacity style={styles.close} onPress={onClose}>
+              <Ionicons
+                name="close"
+                size={scale(24)}
+                color={theme.textPrimary}
+              />
+            </TouchableOpacity>
+          </View>
 
-            {/* Plan tabs */}
-            <View style={[styles.tabs, { backgroundColor: theme.tabBg }]}>
-              {plans.map((plan) => (
-                <TouchableOpacity
-                  key={plan.id}
+          {/* Plan tabs */}
+          <View style={[styles.tabs, { backgroundColor: theme.tabBg }]}>
+            {plans.map((plan) => (
+              <TouchableOpacity
+                key={plan.id}
+                style={[
+                  styles.tab,
+                  selectedPlan?.id === plan.id && {
+                    backgroundColor: theme.tabActive,
+                  },
+                ]}
+                onPress={() => {
+                  setSelectedPlan(plan);
+                  setSelectedItem(plan.plans[0]);
+                }}
+              >
+                <Text
                   style={[
-                    styles.tab,
-                    selectedPlan?.id === plan.id && {
-                      backgroundColor: theme.tabActive,
+                    styles.tabText,
+                    {
+                      color:
+                        selectedPlan?.id === plan.id
+                          ? theme.textPrimary
+                          : theme.textSecondary,
                     },
                   ]}
-                  onPress={() => {
-                    setSelectedPlan(plan);
-                    setSelectedItem(plan.plans[0]);
-                  }}
                 >
-                  <Text
-                    style={[
-                      styles.tabText,
-                      {
-                        color:
-                          selectedPlan?.id === plan.id
-                            ? theme.textPrimary
-                            : theme.textSecondary,
-                      },
-                    ]}
-                  >
-                    {plan.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                  {plan.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-            {/* Periods */}
-            {selectedPlan && (
-              <View style={styles.periods}>
-                {selectedPlan.plans.map((period) => (
-                  <TouchableOpacity
-                    key={period.id}
-                    style={[
-                      styles.period,
-                      {
-                        backgroundColor: theme.card,
-                        borderColor: theme.border,
-                      },
-                      selectedItem?.id === period.id && {
-                        backgroundColor: theme.cardActive,
-                        borderColor: theme.accent,
-                      },
-                    ]}
-                    onPress={() => setSelectedItem(period)}
-                  >
-                    <View style={styles.headerContainer}>
-                      <View style={styles.periodHeader}>
+          {/* Periods */}
+          {selectedPlan && (
+            <View style={styles.periods}>
+              {selectedPlan.plans.map((period) => (
+                <TouchableOpacity
+                  key={period.id}
+                  style={[
+                    styles.period,
+                    {
+                      backgroundColor: theme.card,
+                      borderColor: theme.border,
+                    },
+                    selectedItem?.id === period.id && {
+                      backgroundColor: theme.cardActive,
+                      borderColor: theme.accent,
+                    },
+                  ]}
+                  onPress={() => setSelectedItem(period)}
+                >
+                  <View style={styles.headerContainer}>
+                    <View style={styles.periodHeader}>
+                      <Text
+                        style={[
+                          styles.periodName,
+                          { color: theme.textPrimary },
+                          selectedItem?.id === period.id && {
+                            color: theme.textPrimary,
+                          },
+                        ]}
+                      >
+                        {(Periods as any)[period.periodCode]?.value}
+                      </Text>
+
+                      {period.annualDiscountPercent > 0 && (
+                        <View style={styles.discount}>
+                          <Text style={styles.discountText}>
+                            −{period.annualDiscountPercent}%
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    {period.periodCode !== "P3D" &&
+                      period.periodCode !== "P1M" && (
                         <Text
                           style={[
-                            styles.periodName,
+                            styles.price,
                             { color: theme.textPrimary },
                             selectedItem?.id === period.id && {
                               color: theme.textPrimary,
                             },
                           ]}
                         >
-                          {(Periods as any)[period.periodCode]?.value}
+                          {formatPrice(period.price)} so‘m
                         </Text>
-
-                        {period.annualDiscountPercent > 0 && (
-                          <View style={styles.discount}>
-                            <Text style={styles.discountText}>
-                              −{period.annualDiscountPercent}%
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                      {period.periodCode !== "P3D" &&
-                        period.periodCode !== "P1M" && (
-                          <Text
-                            style={[
-                              styles.price,
-                              { color: theme.textPrimary },
-                              selectedItem?.id === period.id && {
-                                color: theme.textPrimary,
-                              },
-                            ]}
-                          >
-                            {formatPrice(period.price)} so‘m
-                          </Text>
-                        )}
-                    </View>
-
-                    <Text
-                      style={[
-                        styles.monthly,
-                        {
-                          color:
-                            selectedItem?.id === period.id
-                              ? theme.textPrimary
-                              : theme.textSecondary,
-                        },
-                      ]}
-                    >
-                      {period.periodCode === "P3D"
-                        ? formatPrice(period.price)
-                        : formatPrice(getMonthly(period))}{" "}
-                      so‘m{period.periodCode !== "P3D" && "/oy"}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-
-            {/* Features */}
-            {selectedPlan && (
-              <View style={[styles.features, { backgroundColor: theme.card }]}>
-                {selectedPlan.features.map((f) => (
-                  <View key={f.id} style={styles.feature}>
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={scale(18)}
-                      color={theme.success}
-                    />
-                    <Text
-                      style={[styles.featureText, { color: theme.textPrimary }]}
-                    >
-                      {f.description}
-                    </Text>
+                      )}
                   </View>
-                ))}
-              </View>
-            )}
-          </View>
+
+                  <Text
+                    style={[
+                      styles.monthly,
+                      {
+                        color:
+                          selectedItem?.id === period.id
+                            ? theme.textPrimary
+                            : theme.textSecondary,
+                      },
+                    ]}
+                  >
+                    {period.periodCode === "P3D"
+                      ? formatPrice(period.price)
+                      : formatPrice(getMonthly(period))}{" "}
+                    so‘m{period.periodCode !== "P3D" && "/oy"}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* Features */}
+          {selectedPlan && (
+            <View style={[styles.features, { backgroundColor: theme.card }]}>
+              {selectedPlan.features.map((f) => (
+                <View key={f.id} style={styles.feature}>
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={scale(18)}
+                    color={theme.success}
+                  />
+                  <Text
+                    style={[styles.featureText, { color: theme.textPrimary }]}
+                  >
+                    {f.description}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+          {/* </View> */}
         </ScrollView>
         <View style={{ paddingHorizontal: scale(14) }}>
+          {error && <Text style={{ color: "red" }}>{error}</Text>}
           <LinearGradient
             colors={[theme.accent, isDark ? "#4f46e5" : "#4f46e5"]}
             style={[styles.gradient, isPending && { opacity: 0.8 }]}
@@ -301,7 +318,7 @@ export const PurchaseModal = (/* { isDark }: PurchaseModalProps */) => {
             </TouchableOpacity>
           </LinearGradient>
         </View>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 };

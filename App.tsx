@@ -16,6 +16,7 @@ import Toast, {
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import AlertHost from "./src/components/modals/customalert/AlertHost";
 import { moderateScale } from "react-native-size-matters";
+import { ScreenGuardProvider } from "./src/providers/ScreenGuardProvider";
 SplashScreen.preventAutoHideAsync();
 
 const toastConfig: ToastConfig = {
@@ -93,20 +94,22 @@ export default function App() {
       <ThemeProvider>
         <AuthProvider>
           <BookmarkProvider>
-            <SafeAreaProvider>
-              <AppNavigation />
-              <AlertHost />
-              <Toast config={toastConfig} topOffset={50} />
-              {/* Update Notification Bottom Sheet */}
-              {versionInfo && (
-                <UpdateNotificationSheet
-                  visible={showUpdateSheet}
-                  versionInfo={versionInfo}
-                  onClose={() => setShowUpdateSheet(false)}
-                  onUpdateLater={handleUpdateLater}
-                />
-              )}
-            </SafeAreaProvider>
+            <ScreenGuardProvider>
+              <SafeAreaProvider>
+                <AppNavigation />
+                <AlertHost />
+                <Toast config={toastConfig} topOffset={50} />
+                {/* Update Notification Bottom Sheet */}
+                {versionInfo && (
+                  <UpdateNotificationSheet
+                    visible={showUpdateSheet}
+                    versionInfo={versionInfo}
+                    onClose={() => setShowUpdateSheet(false)}
+                    onUpdateLater={handleUpdateLater}
+                  />
+                )}
+              </SafeAreaProvider>
+            </ScreenGuardProvider>
           </BookmarkProvider>
         </AuthProvider>
       </ThemeProvider>

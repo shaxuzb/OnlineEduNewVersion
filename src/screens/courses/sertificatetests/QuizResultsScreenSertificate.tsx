@@ -18,7 +18,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { moderateScale } from "react-native-size-matters";
 
-export default function QuizResultsScreen({
+export default function QuizResultsScreenSertificate({
   navigation,
   route,
 }: {
@@ -86,7 +86,11 @@ export default function QuizResultsScreen({
       title: "IDS mavzulashtirilgan testlar to'plami",
       headerTitle: () => (
         <View style={headerRightStyles.container}>
-          <Text style={styles.headerTitle} numberOfLines={2} adjustsFontSizeToFit>
+          <Text
+            style={styles.headerTitle}
+            numberOfLines={2}
+            adjustsFontSizeToFit
+          >
             IDS mavzulashtirilgan testlar to'plami
           </Text>
         </View>
@@ -96,6 +100,7 @@ export default function QuizResultsScreen({
       headerLeft: () => <Text></Text>,
     });
   }, [navigation]);
+  
   if (resultsLoading)
     return (
       <SafeAreaView style={styles.centerContainer}>
@@ -125,7 +130,11 @@ export default function QuizResultsScreen({
         <View style={styles.content}>
           {/* Circle */}
           <View style={styles.percentageCircle}>
-            <Text style={styles.percentageText} numberOfLines={1} adjustsFontSizeToFit>
+            <Text
+              style={styles.percentageText}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
               {quizResults[0].percent.toFixed(0)}%
             </Text>
           </View>
@@ -169,6 +178,7 @@ export default function QuizResultsScreen({
                         (num, index) => (
                           <View key={index} style={styles.badge}>
                             <Text style={styles.badgeText}>
+                              {num?.partLabel}
                               {num.questionNumber}
                             </Text>
                           </View>
@@ -197,7 +207,7 @@ export default function QuizResultsScreen({
                 (item) => item.code === "SOLUTION",
               )
             ) {
-              navigation.navigate("QuizSolution", {
+              navigation.navigate("QuizSolutionSertificate", {
                 userId,
                 testId,
                 themeId,

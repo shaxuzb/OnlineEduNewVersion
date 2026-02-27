@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
       ios: "linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.7) 100%)",
       android: "rgba(0,0,0,0.3)"
     }) as any,
-    paddingTop: Platform.OS === 'ios' ? 40 : 16,
+    paddingTop: 16,
   },
   topControls: {
     flexDirection: "row",

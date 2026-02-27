@@ -1,5 +1,5 @@
 // SeekRipple.tsx
-import Icon from '@expo/vector-icons/Ionicons';
+import Icon from "@expo/vector-icons/Ionicons";
 import React from "react";
 import { StyleSheet, Text } from "react-native";
 import Animated, {
@@ -7,21 +7,19 @@ import Animated, {
   withTiming,
   SharedValue,
 } from "react-native-reanimated";
-import { moderateScale } from 'react-native-size-matters';
+import { moderateScale } from "react-native-size-matters";
 
 interface SeekRippleProps {
   side: "left" | "right";
-  active: SharedValue<boolean>;
+  active: SharedValue<number>;
   text: string;
 }
 
 const SeekRipple: React.FC<SeekRippleProps> = ({ side, active, text }) => {
   const rippleStyle = useAnimatedStyle(() => {
     return {
-      opacity: withTiming(active.value ? 1 : 0, { duration: 300 }),
-      transform: [
-        { scale: withTiming(active.value ? 1 : 0.8, { duration: 300 }) },
-      ],
+      opacity: active.value,
+      transform: [{ scale: 0.8 + active.value * 0.2 }],
     };
   });
 
@@ -55,6 +53,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     width: "30%",
     zIndex: 10,
+    backgroundColor: "red",
   },
   leftRipple: {
     left: 0,

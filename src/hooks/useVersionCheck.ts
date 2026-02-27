@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import VersionService, { VersionInfo } from "../services/versionService";
@@ -40,7 +40,7 @@ export const useVersionCheck = (): UseVersionCheckReturn => {
   const isVersionDismissed = async (version: string): Promise<boolean> => {
     try {
       const dismissedVersion = await AsyncStorage.getItem(
-        DISMISSED_VERSION_KEY
+        DISMISSED_VERSION_KEY,
       );
       return dismissedVersion === version;
     } catch {
@@ -59,17 +59,14 @@ export const useVersionCheck = (): UseVersionCheckReturn => {
 
   // Main check function
   const checkForUpdates = useCallback(async () => {
-    if (Platform.OS === 'web') return;
+    if (Platform.OS === "web") return;
     if (isCheckingRef.current) return;
 
     isCheckingRef.current = true;
     setIsChecking(true);
 
     try {
-      // Always use real GitHub API
       const result = await VersionService.checkForUpdates();
-      // console.log('Version check result:', result);
-
       setVersionInfo(result);
 
       if (result.updateAvailable) {
@@ -94,7 +91,7 @@ export const useVersionCheck = (): UseVersionCheckReturn => {
       try {
         await AsyncStorage.setItem(
           DISMISSED_VERSION_KEY,
-          versionInfo.storeVersion
+          versionInfo.storeVersion,
         );
       } catch (error) {
         // console.error("Failed to dismiss update:", error);
@@ -109,14 +106,14 @@ export const useVersionCheck = (): UseVersionCheckReturn => {
       hasCheckedRef.current = true;
 
       // console.log('Initializing version check...');
-      
+
       // Clear cache for testing - remove this in production
       await AsyncStorage.removeItem(LAST_CHECK_KEY);
       await AsyncStorage.removeItem(DISMISSED_VERSION_KEY);
-      
+
       const shouldCheckNow = await shouldCheck();
       // console.log('Should check for updates:', shouldCheckNow);
-      
+
       if (shouldCheckNow) {
         // console.log('Starting version check...');
         checkForUpdates();

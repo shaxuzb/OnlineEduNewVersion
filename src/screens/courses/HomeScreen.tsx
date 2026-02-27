@@ -69,7 +69,14 @@ const HomeScreen: React.FC = () => {
         subjectId: subject.subjectId,
         percent: subject.percent,
         subjectName: subject.subjectName,
+        subjectCode: subject.subjectCode,
       });
+      // (navigation as any).navigate("QuizSolutionSertificate", {
+      //   userId,
+      //   testId: 129,
+      //   themeId: 141,
+      //   mavzu: "sa",
+      // });
     },
     [navigation],
   );
@@ -276,6 +283,8 @@ const HomeScreen: React.FC = () => {
                                     fontSize: moderateScale(12),
                                     flexWrap: "nowrap",
                                   }}
+                                  numberOfLines={1}
+                                  adjustsFontSizeToFit
                                 >
                                   {s.percent.toFixed(1)}%
                                 </Text>
@@ -368,7 +377,10 @@ const HomeScreen: React.FC = () => {
                               color: "white",
                               fontSize: moderateScale(38),
                               fontWeight: "700",
+                              padding: moderateScale(3),
                             }}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
                           >
                             {overallProgress}%
                           </Text>

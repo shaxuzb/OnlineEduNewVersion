@@ -15,7 +15,7 @@ import { ChapterThemeStatistic, Theme } from "@/src/types";
 import LoadingData from "@/src/components/exceptions/LoadingData";
 import ErrorData from "@/src/components/exceptions/ErrorData";
 import NoTestResultsModal from "../components/NoTestResultsModal";
-import { moderateScale } from "react-native-size-matters";
+import { moderateScale, s } from "react-native-size-matters";
 
 export default function StatistikaSubjectScreen({
   navigation,
@@ -32,11 +32,12 @@ export default function StatistikaSubjectScreen({
     themeOrdinalNumber: number;
     themeName: string;
   } | null>(null);
-  const { userId, subjectId, subjectName, subjectPercent } = route.params;
+  const { userId, subjectId, subjectName, subjectPercent, subjectCode } =
+    route.params;
 
   const { data, isLoading, isError, refetch } = useThemeStatistics(
     Number(userId),
-    Number(subjectId)
+    Number(subjectId),
   );
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() => {
@@ -51,6 +52,7 @@ export default function StatistikaSubjectScreen({
         navigation.navigate("StatistikaDetailTest", {
           subjectId,
           testId: chapterTheme.testId,
+          subjectCode,
           themeId: chapterTheme.id,
           themePercent: chapterTheme.percent,
           userId,
@@ -65,14 +67,17 @@ export default function StatistikaSubjectScreen({
         });
       }
     },
-    [navigation, subjectId, userId, chapterThemeData]
+    [navigation, subjectId, userId, chapterThemeData],
   );
   useEffect(() => {
     navigation.setOptions({
       title: subjectName.toString(),
       freezeOnBlur: true,
+      headerBackButtonDisplayMode: "minimal",
       headerRight: () => (
-        <Text style={{ color: "white", fontSize: moderateScale(14) }}>{subjectPercent}%</Text>
+        <Text style={{ color: "white", fontSize: moderateScale(14) }}>
+          {subjectPercent}%
+        </Text>
       ),
     });
   }, [navigation]);
@@ -160,7 +165,7 @@ const ThemeItem = React.memo(
         )}
       </View>
     </TouchableOpacity>
-  )
+  ),
 );
 
 /* --- Styles --- */

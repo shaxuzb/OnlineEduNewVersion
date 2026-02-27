@@ -30,13 +30,14 @@ function StatistikaTestScreen({
 
   const { plan } = useAuth();
   // Get route params
-  const { testId, userId, subjectId, themeName, themeId } = route.params;
+  const { testId, userId, subjectId, themeName, themeId, subjectCode } =
+    route.params;
 
   // API hooks
   const { data, isLoading, error, refetch } = useThemeTestStatistics(
     Number(userId),
     Number(subjectId),
-    Number(testId)
+    Number(testId),
   );
   const groupedTestData = useMemo(() => {
     if (!data) return [];
@@ -47,7 +48,7 @@ function StatistikaTestScreen({
         group.push(key);
         acc[key.subTestNo] = group;
         return acc;
-      }, {})
+      }, {}),
     );
   }, [data]);
   useEffect(() => {
@@ -73,6 +74,7 @@ function StatistikaTestScreen({
           {/* <Text style={styles.headerSubtitle}>Natija</Text> */}
         </View>
       ),
+      headerBackButtonDisplayMode: "minimal",
       headerRight: () => <Text style={{ width: 55 }}></Text>,
       headerTintColor: "white",
     });
@@ -106,7 +108,13 @@ function StatistikaTestScreen({
             <View style={styles.content}>
               <View style={styles.percentageContainer}>
                 <View style={styles.percentageCircle}>
-                  <Text style={styles.percentageText}>{data?.percent}%</Text>
+                  <Text
+                    style={styles.percentageText}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
+                    {data?.percent}%
+                  </Text>
                 </View>
               </View>
 
@@ -152,10 +160,11 @@ function StatistikaTestScreen({
                             (num, index) => (
                               <View key={index} style={styles.wrongNumberBadge}>
                                 <Text style={styles.wrongNumberText}>
+                                  {num.partLabel}
                                   {num.questionNumber}
                                 </Text>
                               </View>
-                            )
+                            ),
                           )}
                         </View>
                       </View>
@@ -178,15 +187,24 @@ function StatistikaTestScreen({
                 if (
                   plan &&
                   plan.plan.subscriptionFeatures.find(
-                    (item) => item.code === "SOLUTION"
+                    (item) => item.code === "SOLUTION",
                   )
                 ) {
-                  navigation.navigate("QuizSolution", {
-                    userId,
-                    testId,
-                    themeId: themeId,
-                    percent: data?.percent,
-                  });
+                  if (subjectCode === "NATIONAL") {
+                    return navigation.navigate("QuizSolutionSertificate", {
+                      userId,
+                      testId,
+                      themeId: themeId,
+                      percent: data?.percent,
+                    });
+                  } else {
+                    navigation.navigate("QuizSolution", {
+                      userId,
+                      testId,
+                      themeId: themeId,
+                      percent: data?.percent,
+                    });
+                  }
                 } else {
                   modalService.open();
                 }
@@ -195,7 +213,7 @@ function StatistikaTestScreen({
               {!(
                 plan &&
                 plan.plan.subscriptionFeatures.find(
-                  (item) => item.code === "SOLUTION"
+                  (item) => item.code === "SOLUTION",
                 )
               ) && (
                 <View
@@ -259,8 +277,9 @@ const createStyles = (theme: Theme) =>
       marginBottom: SPACING.xl,
     },
     percentageCircle: {
-      width: moderateScale(130),
-      height: moderateScale(130),
+      aspectRatio: 2 / 2,
+      width: moderateScale(150),
+      padding: moderateScale(6),
       borderRadius: moderateScale(75),
       backgroundColor: theme.colors.card,
       justifyContent: "center",

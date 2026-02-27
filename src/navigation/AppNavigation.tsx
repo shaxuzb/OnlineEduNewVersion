@@ -21,7 +21,7 @@ import { useAuth } from "../context/AuthContext";
 import SystemNavigationBar from "react-native-system-navigation-bar";
 import StatistikaSubjectScreen from "../screens/statistics/details/StatistikaSubjectScreen";
 import StatistikaTestScreen from "../screens/statistics/details/StatistikaTestScreen";
-import { StatusBar } from "react-native";
+import { StatusBar, StyleSheet } from "react-native";
 import PaymentOrders from "../screens/profile/screen/paymentorders";
 import SolutionScreen from "../screens/courses/SolutionScreen";
 import VideoPlayerScreen from "../screens/courses/videoplayer";
@@ -36,10 +36,12 @@ import { PurchaseStack } from "./PurchaseStack";
 import { PurchaseModal } from "../screens/purchases/components/PurchaseModal";
 import { PurchaseProvider } from "../context/PurchaseContext";
 import MainTabNavigator from "./maintab";
+import QuizScreenSertificate from "../screens/courses/sertificatetests/QuizScreenSertificate";
+import QuizResultsScreenSertificate from "../screens/courses/sertificatetests/QuizResultsScreenSertificate";
+import SolutionScreenSertificate from "../screens/courses/sertificatetests/SolutionScreenSertificate";
 
 const Stack = createNativeStackNavigator();
 const isTablet = DeviceInfo.isTablet();
-
 
 const MainStackNavigator = () => (
   <Stack.Navigator
@@ -67,8 +69,7 @@ const MainStackNavigator = () => (
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
         },
-        headerBackTitle: "Orqaga",
-
+        headerBackButtonDisplayMode: "minimal",
         headerShown: true,
         freezeOnBlur: true,
         headerTintColor: "white",
@@ -128,7 +129,7 @@ const MainStackNavigator = () => (
             />
           );
         },
-        headerBackTitle: "Orqaga",
+        headerBackButtonDisplayMode: "minimal",
         freezeOnBlur: true,
         headerTitleStyle: {
           fontSize: +moderateScale(18).toFixed(0),
@@ -152,7 +153,6 @@ const MainStackNavigator = () => (
             />
           );
         },
-        headerBackTitle: "Orqaga",
         freezeOnBlur: true,
         headerTitleStyle: {
           fontSize: +moderateScale(18).toFixed(0),
@@ -176,7 +176,7 @@ const MainStackNavigator = () => (
             />
           );
         },
-        headerBackTitle: "Orqaga",
+        headerBackButtonDisplayMode: "minimal",
         freezeOnBlur: true,
         headerTitleStyle: {
           fontSize: +moderateScale(18).toFixed(0),
@@ -205,7 +205,32 @@ const MainStackNavigator = () => (
             />
           );
         },
-        headerBackTitle: "Orqaga",
+        headerBackButtonDisplayMode: "minimal",
+        freezeOnBlur: true,
+        headerTitleStyle: {
+          fontSize: +moderateScale(18).toFixed(0),
+        },
+      }}
+    />
+    <Stack.Screen
+      name="QuizScreenSertificate"
+      component={QuizScreenSertificate}
+      options={{
+        headerStyle: {
+          backgroundColor: isTablet ? "#3a5dde" : undefined,
+        },
+        headerBackground() {
+          return (
+            <LinearGradient
+              colors={["#3a5dde", "#5e84e6"]}
+              start={{ x: 0.5, y: 1.0 }}
+              end={{ x: 0.5, y: 0.0 }}
+              style={{ flex: 1 }}
+            />
+          );
+        },
+        headerBackButtonDisplayMode: "minimal",
+        headerTitleAlign: "center",
         freezeOnBlur: true,
         headerTitleStyle: {
           fontSize: +moderateScale(18).toFixed(0),
@@ -229,7 +254,7 @@ const MainStackNavigator = () => (
             />
           );
         },
-        headerBackTitle: "",
+        headerBackButtonDisplayMode: "minimal",
         headerTitleAlign: "center",
         freezeOnBlur: true,
         headerTitleStyle: {
@@ -254,7 +279,31 @@ const MainStackNavigator = () => (
             />
           );
         },
-        headerBackTitle: "Orqaga",
+        headerBackButtonDisplayMode: "minimal",
+        freezeOnBlur: true,
+        headerTitleStyle: {
+          fontSize: +moderateScale(18).toFixed(0),
+        },
+      }}
+    />
+    <Stack.Screen
+      name="QuizResultsSertificate"
+      component={QuizResultsScreenSertificate}
+      options={{
+        headerStyle: {
+          backgroundColor: isTablet ? "#3a5dde" : undefined,
+        },
+        headerBackground() {
+          return (
+            <LinearGradient
+              colors={["#3a5dde", "#5e84e6"]}
+              start={{ x: 0.5, y: 1.0 }}
+              end={{ x: 0.5, y: 0.0 }}
+              style={{ flex: 1 }}
+            />
+          );
+        },
+        headerBackButtonDisplayMode: "minimal",
         freezeOnBlur: true,
         headerTitleStyle: {
           fontSize: +moderateScale(18).toFixed(0),
@@ -268,7 +317,31 @@ const MainStackNavigator = () => (
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
         },
-        headerBackTitle: "Orqaga",
+        headerBackButtonDisplayMode: "minimal",
+        headerBackground() {
+          return (
+            <LinearGradient
+              colors={["#3a5dde", "#5e84e6"]}
+              start={{ x: 0.5, y: 1.0 }}
+              end={{ x: 0.5, y: 0.0 }}
+              style={{ flex: 1 }}
+            />
+          );
+        },
+        freezeOnBlur: true,
+        headerTitleStyle: {
+          fontSize: +moderateScale(18).toFixed(0),
+        },
+      }}
+    />
+    <Stack.Screen
+      name="QuizSolutionSertificate"
+      component={SolutionScreenSertificate}
+      options={{
+        headerStyle: {
+          backgroundColor: isTablet ? "#3a5dde" : undefined,
+        },
+        headerBackButtonDisplayMode: "minimal",
         headerBackground() {
           return (
             <LinearGradient
@@ -293,7 +366,7 @@ const MainStackNavigator = () => (
         animation: "ios_from_left",
         headerShown: true,
         headerTintColor: "white",
-        headerBackTitle: "Orqaga",
+        headerBackButtonDisplayMode: "minimal",
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
         },
@@ -320,7 +393,7 @@ const MainStackNavigator = () => (
       options={{
         title: "Shaxsiy ma'lumotlar",
         headerShadowVisible: false,
-        headerBackTitle: "Orqaga",
+        headerBackButtonDisplayMode: "minimal",
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
         },
@@ -347,7 +420,6 @@ const MainStackNavigator = () => (
       options={{
         animation: "ios_from_right",
         headerShown: false,
-        
       }}
     />
     <Stack.Screen
@@ -355,7 +427,7 @@ const MainStackNavigator = () => (
       component={PaymentOrders}
       options={{
         title: "Mening to‘lovlarim",
-        headerBackTitle: "Orqaga",
+        headerBackButtonDisplayMode: "minimal",
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
         },
