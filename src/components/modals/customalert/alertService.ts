@@ -1,10 +1,15 @@
+export type AlertType = "default" | "error" | "warning" | "success";
+
 export interface AlertConfig {
-  title: string;
+  type?: AlertType;
+  title?: string;
   description?: string;
   cancelText?: string;
   okText?: string;
+  showCancel?: boolean;
   onOk?: () => void;
   onCancel?: () => void;
+  iconName?: string;
 }
 
 type Listener = (config: AlertConfig | null) => void;

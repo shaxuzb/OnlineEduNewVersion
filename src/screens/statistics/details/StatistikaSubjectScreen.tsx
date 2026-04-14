@@ -48,7 +48,9 @@ export default function StatistikaSubjectScreen({
 
   const handleThemePress = useCallback(
     (chapterTheme: ChapterThemeStatistic) => {
-      if (!chapterTheme.isLocked && chapterTheme.testId) {
+      console.log(chapterTheme);
+
+      if (chapterTheme.isSolved && chapterTheme.testId) {
         navigation.navigate("StatistikaDetailTest", {
           subjectId,
           testId: chapterTheme.testId,

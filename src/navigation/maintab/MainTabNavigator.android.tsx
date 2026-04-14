@@ -106,7 +106,7 @@ const isTablet = DeviceInfo.isTablet();
             <View style={{ position: "relative" }}>
               <Ionicons name="stats-chart" size={size} color={color} />
 
-              {!(
+              {!isSuperAdmin && !(
                 plan &&
                 plan.plan.subscriptionFeatures.find(
                   (item) => item.code === "STATISTICS",

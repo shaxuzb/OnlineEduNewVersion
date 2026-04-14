@@ -14,8 +14,6 @@ export function useThemeTest(testId: number) {
   return useQuery({
     queryKey: quizKeys.themeTest(testId),
     queryFn: () => quizService.getThemeTest(testId),
-    staleTime: 5 * 60 * 1000, // 5 minutes cache
-    gcTime: 30 * 60 * 1000, // 30 minutes garbage collection
     enabled: !!testId, // Only run if testId is provided
   });
 }
@@ -24,8 +22,6 @@ export function useTestPdf(testId: number) {
   return useQuery({
     queryKey: quizKeys.testPdf(testId),
     queryFn: () => quizService.getTestPdf(testId),
-    staleTime: 10 * 60 * 1000, // 10 minutes cache
-    gcTime: 60 * 60 * 1000, // 1 hour garbage collection
     enabled: !!testId, // Only run if testId is provided
   });
 }
@@ -52,8 +48,6 @@ export function useQuizResults(userId: number, themeId: number) {
   return useQuery({
     queryKey: quizKeys.quizResults(userId, themeId),
     queryFn: () => quizService.getQuizResults(userId, themeId),
-    staleTime: 2 * 60 * 1000, // 2 minutes cache
-    gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
     enabled: !!userId && !!themeId, // Only run if both userId and themeId are provided
   });
 }

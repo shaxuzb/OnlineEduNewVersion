@@ -18,14 +18,12 @@ import { usePurchase } from "@/src/context/PurchaseContext";
 import { modalService } from "@/src/components/modals/modalService";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useNavigation } from "@react-navigation/native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Periods } from "@/src/constants/periods";
 import { useSubscriptionAvailabilityMutation } from "@/src/hooks/useSubscriptionAvailabilityMutation";
 import { SubscriptionPlanOption } from "@/src/types";
 import Toast from "react-native-toast-message";
+import { useAuth } from "@/src/context/AuthContext";
 
 // Agar loyihangizda theme hook mavjud bo'lsa shunday ishlatasiz:
 // import { useTheme } from '@/src/context/ThemeContext';
@@ -66,6 +64,7 @@ const COLORS = {
 
 export const PurchaseModal = (/* { isDark }: PurchaseModalProps */) => {
   const { isDark } = useTheme();
+  const { plan } = useAuth();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const theme: any = isDark ? COLORS.dark : COLORS.light;
@@ -297,10 +296,56 @@ export const PurchaseModal = (/* { isDark }: PurchaseModalProps */) => {
               ))}
             </View>
           )}
-          {/* </View> */}
+          {selectedPlan.code === "TESTPREMIUM" && (
+            <View
+              style={[styles.descriptionCard, { backgroundColor: theme.card }]}
+            >
+              <Text
+                style={[styles.descriptionText, { color: theme.textSecondary }]}
+              >
+                Test Premium faqat <Text style={styles.bold}>3 kun</Text>{" "}
+                davomida ishlaydi.
+                {"\n\n"}
+                Ushbu vaqt ichida <Text style={styles.bold}>Algebra</Text>,{" "}
+                <Text style={styles.bold}>Geometriya</Text> va{" "}
+                <Text style={styles.bold}>Milliy Sertifikat</Text> bo‘limlaridan
+                faqat <Text style={styles.bold}>1–2 mavzular</Text> ochiq
+                bo‘ladi.
+                {"\n\n"}
+                Premiumdagi barcha imkoniyatlarni aynan shu mavzularda sinab
+                ko‘rish mumkin.
+              </Text>
+            </View>
+          )}
         </ScrollView>
         <View style={{ paddingHorizontal: scale(14) }}>
           {error && <Text style={{ color: "red" }}>{error}</Text>}
+          {plan && plan?.plan?.tierCode === selectedPlan.code && (
+            <View style={{ marginBottom: 10 }}>
+              <Text
+                style={[
+                  {
+                    fontWeight: "700",
+                    fontSize: 13,
+                    paddingVertical: 4,
+                    paddingHorizontal: 10,
+                    borderRadius: 999,
+                    alignSelf: "flex-start",
+                  },
+                  selectedPlan.code === "PREMIUM"
+                    ? { backgroundColor: "#fff", color: "#3a5dde" }
+                    : { backgroundColor: "#3a5dde", color: "#fff" },
+                ]}
+              >
+                Faol: Ha —{" "}
+                {plan.endAt
+                  ? `Fev ${new Date(plan.endAt).getDate()}, ${new Date(
+                      plan.endAt,
+                    ).getFullYear()} gacha amal qiladi`
+                  : ""}
+              </Text>
+            </View>
+          )}
           <LinearGradient
             colors={[theme.accent, isDark ? "#4f46e5" : "#4f46e5"]}
             style={[styles.gradient, isPending && { opacity: 0.8 }]}
@@ -453,6 +498,25 @@ const styles = StyleSheet.create({
   },
   laterText: {
     fontSize: scale(14),
+    fontWeight: "600",
+  },
+
+  descriptionCard: {
+    padding: 12,
+    borderRadius: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+
+  descriptionText: {
+    fontSize: 14,
+    lineHeight: 22,
+  },
+
+  bold: {
     fontWeight: "600",
   },
 });

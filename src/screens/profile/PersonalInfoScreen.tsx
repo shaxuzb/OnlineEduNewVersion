@@ -47,6 +47,7 @@ function UserDetailScreen() {
       },
       onError: (err: any) => {
         alertService.open({
+          type: "error",
           title: "Xatolik",
           description:
             "Hisobni o'chirishda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.",
@@ -324,6 +325,7 @@ function UserDetailScreen() {
             disabled={mutation.isPending}
             onPress={() => {
               alertService.open({
+                type: "warning",
                 title: "Hisobni o‘chirish",
                 description:
                   "Hisobingiz butunlay o‘chiriladi. Bu amalni ortga qaytarib bo‘lmaydi!",
@@ -608,3 +610,4 @@ const createStyles = (theme: Theme) =>
       fontWeight: "700",
     },
   });
+

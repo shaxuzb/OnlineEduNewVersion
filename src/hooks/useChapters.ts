@@ -11,8 +11,6 @@ export function useChapters(subjectId: number) {
   return useQuery<ChaptersResponse>({
     queryKey: chaptersKeys.bySubject(subjectId),
     queryFn: () => chaptersService.getChaptersBySubjectId(subjectId),
-    staleTime: 10 * 60 * 1000, // 10 minutes cache
-    gcTime: 60 * 60 * 1000, // 1 hour garbage collection
   });
 }
 

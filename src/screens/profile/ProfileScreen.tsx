@@ -5,11 +5,15 @@ import { useGeo } from "@/src/hooks/useGeo";
 import { useSession } from "@/src/hooks/useSession";
 import { Theme } from "@/src/types";
 import { Ionicons } from "@expo/vector-icons";
+import BottomSheet, {
+  BottomSheetBackdrop,
+  BottomSheetBackdropProps,
+  BottomSheetView,
+} from "@gorhom/bottom-sheet";
 import { useNavigation } from "@react-navigation/native";
-import React, { memo, useEffect } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   Alert,
-  Image,
   Linking,
   Pressable,
   ScrollView,
@@ -18,6 +22,7 @@ import {
   Text,
   View,
 } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { moderateScale } from "react-native-size-matters";
 
@@ -27,18 +32,21 @@ const menuItems = [
     title: "Shaxsiy ma'lumotlar",
     icon: "person-outline",
     hasArrow: true,
+    code: "personal_info",
   },
   {
     id: 3,
     title: "Tungi rejim",
     icon: "moon-outline",
     hasToggle: true,
+    code: "dark_mode",
   },
   {
     id: 4,
     title: "A'loqa",
     icon: "mail-outline",
     hasArrow: true,
+    code: "contact",
   },
   // {
   //   id: 5,
@@ -51,8 +59,13 @@ const menuItems = [
     title: "Kurs to'lovlari",
     icon: "card-outline",
     hasArrow: true,
+    code: "payment_orders",
   },
 ];
+
+const TELEGRAM_URL = "https://t.me/bobomurod_math";
+const SUPPORT_PHONE_NUMBER = "+998934620036";
+const SUPPORT_PHONE_DISPLAY = "+998 93 462 00 36";
 
 function ProfileScreen() {
   const navigation = useNavigation();
@@ -61,8 +74,32 @@ function ProfileScreen() {
   const styles = createStyles(theme);
   const { isSuperAdmin } = useSession();
   const { countryCode } = useGeo();
+  const contactBottomSheetRef = useRef<BottomSheet>(null);
+  const snapPoints = useMemo(() => [moderateScale(230)], []);
+
+  const openContactBottomSheet = useCallback(() => {
+    contactBottomSheetRef.current?.snapToIndex(0);
+  }, []);
+
+  const closeContactBottomSheet = useCallback(() => {
+    contactBottomSheetRef.current?.close();
+  }, []);
+
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        appearsOnIndex={0}
+        disappearsOnIndex={-1}
+        pressBehavior="close"
+      />
+    ),
+    [],
+  );
+
   const handleLogout = () => {
     alertService.open({
+      type: "warning",
       title: "Chiqish",
       description: "Rostdan ham tizimdan chiqmoqchimisiz?",
       okText: "Chiqish",
@@ -80,16 +117,24 @@ function ProfileScreen() {
     //   },
     // ]);
   };
-  const handleLinkToAdmin = async () => {
-    await Linking.openURL("https://t.me/richdev_1");
-  };
+
+  const handleLinkToAdmin = useCallback(async () => {
+    await Linking.openURL(TELEGRAM_URL);
+    closeContactBottomSheet();
+  }, [closeContactBottomSheet]);
+
+  const handleCallSupport = useCallback(async () => {
+    await Linking.openURL(`tel:${SUPPORT_PHONE_NUMBER}`);
+    closeContactBottomSheet();
+  }, [closeContactBottomSheet]);
+
   const handleMenuItemPress = (item: (typeof menuItems)[0]) => {
     if (item.id === 1) {
       // Shaxsiy ma'lumotlar
       (navigation as any).navigate("PersonalInfo");
     } else if (item.id === 4) {
       // A'loqa
-      handleLinkToAdmin();
+      openContactBottomSheet();
     } else if (item.id === 5) {
       // Dastur haqida
       Alert.alert("Ma'lumot", "Dastur haqida bo'limi hali tayyor emas");
@@ -97,6 +142,17 @@ function ProfileScreen() {
       // Kurs to'lovlari
       (navigation as any).navigate("PaymentOrders");
     }
+  };
+  const getInitials = (name?: string) => {
+    if (!name) return "U";
+
+    const parts = name.trim().split(" ");
+
+    if (parts.length === 1) {
+      return parts[0][0]?.toUpperCase();
+    }
+
+    return parts[0][0]?.toUpperCase() + parts[1][0]?.toUpperCase();
   };
   useEffect(() => {
     navigation.setOptions({
@@ -127,6 +183,7 @@ function ProfileScreen() {
       ),
     });
   }, [navigation]);
+
   return (
     <SafeAreaView style={styles.container} edges={[]}>
       {/* Header */}
@@ -135,14 +192,20 @@ function ProfileScreen() {
         {/* Profile Section */}
         <View style={styles.profileSection}>
           <View style={styles.profileHeader}>
-            <View style={styles.avatarContainer}>
-              <Image
-                source={{
-                  uri: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150&q=80",
-                }}
-                style={styles.avatar}
-              />
-            </View>
+            <LinearGradient
+              colors={["#3a5dde", "#5e84e6"]}
+              start={{ x: 0.5, y: 1.0 }}
+              end={{ x: 0.5, y: 0.0 }}
+              style={{
+                borderRadius: moderateScale(50),
+              }}
+            >
+              <View style={styles.avatarContainer}>
+                <Text style={styles.avatarText}>
+                  {getInitials(user?.fullName || user?.userName)}
+                </Text>
+              </View>
+            </LinearGradient>
           </View>
           <Text style={styles.userName}>
             {user?.fullName || user?.userName || "Foydalanuvchi"}
@@ -154,7 +217,8 @@ function ProfileScreen() {
         <View style={styles.menuContainer}>
           {menuItems
             .filter(
-              (item) => !(item.id === 6 && isSuperAdmin && countryCode === "UZ")
+              (item) =>
+                !(item.id === 6 && isSuperAdmin && countryCode === "UZ"),
             )
             .map((item, index) => {
               return (
@@ -230,10 +294,78 @@ function ProfileScreen() {
           </Pressable>
         </View>
       </ScrollView>
+
+      <BottomSheet
+        ref={contactBottomSheetRef}
+        index={-1}
+        snapPoints={snapPoints}
+        backdropComponent={renderBackdrop}
+        enablePanDownToClose
+        backgroundStyle={styles.contactSheetBackground}
+        handleIndicatorStyle={styles.contactHandleIndicator}
+      >
+        <BottomSheetView style={styles.contactSheetContent}>
+          <View style={styles.contactSheetHeader}>
+            <Text style={styles.contactSheetTitle}>Aloqa</Text>
+            <Pressable
+              style={styles.contactCloseButton}
+              onPress={closeContactBottomSheet}
+            >
+              <Ionicons
+                name="close"
+                size={moderateScale(20)}
+                color={theme.colors.text}
+              />
+            </Pressable>
+          </View>
+
+          <Pressable
+            style={styles.contactActionButton}
+            onPress={handleLinkToAdmin}
+          >
+            <Ionicons
+              name="paper-plane-outline"
+              size={moderateScale(22)}
+              color={theme.colors.primary}
+            />
+            <View style={styles.contactActionTextContainer}>
+              <Text style={styles.contactActionTitle}>Telegramda yozish</Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={moderateScale(20)}
+              color={theme.colors.textMuted}
+            />
+          </Pressable>
+
+          <Pressable
+            style={styles.contactActionButton}
+            onPress={handleCallSupport}
+          >
+            <Ionicons
+              name="call-outline"
+              size={moderateScale(22)}
+              color={theme.colors.primary}
+            />
+            <View style={styles.contactActionTextContainer}>
+              <Text style={styles.contactActionTitle}>
+                {SUPPORT_PHONE_DISPLAY}
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={moderateScale(20)}
+              color={theme.colors.textMuted}
+            />
+          </Pressable>
+        </BottomSheetView>
+      </BottomSheet>
     </SafeAreaView>
   );
 }
+
 export default memo(ProfileScreen);
+
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
@@ -265,9 +397,13 @@ const createStyles = (theme: Theme) =>
       width: moderateScale(100),
       height: moderateScale(100),
       borderRadius: moderateScale(50),
-      backgroundColor: theme.colors.primaryDark,
       justifyContent: "center",
       alignItems: "center",
+    },
+    avatarText: {
+      fontSize: moderateScale(32),
+      fontWeight: "700",
+      color: "#fff",
     },
     avatar: {
       width: moderateScale(80),
@@ -330,5 +466,59 @@ const createStyles = (theme: Theme) =>
       fontSize: moderateScale(14),
       color: theme.colors.error,
       fontWeight: "500",
+    },
+    contactSheetBackground: {
+      backgroundColor: theme.colors.card,
+      borderTopLeftRadius: moderateScale(20),
+      borderTopRightRadius: moderateScale(20),
+    },
+    contactHandleIndicator: {
+      backgroundColor: theme.colors.border,
+    },
+    contactSheetContent: {
+      paddingHorizontal: moderateScale(16),
+      paddingBottom: moderateScale(16),
+      gap: moderateScale(10),
+    },
+    contactSheetHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: moderateScale(6),
+    },
+    contactSheetTitle: {
+      fontSize: moderateScale(16),
+      fontWeight: "600",
+      color: theme.colors.text,
+    },
+    contactCloseButton: {
+      width: moderateScale(32),
+      height: moderateScale(32),
+      borderRadius: moderateScale(16),
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    contactActionButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      borderRadius: moderateScale(12),
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      paddingVertical: moderateScale(12),
+      paddingHorizontal: moderateScale(12),
+      gap: moderateScale(10),
+    },
+    contactActionTextContainer: {
+      flex: 1,
+    },
+    contactActionTitle: {
+      fontSize: moderateScale(14),
+      fontWeight: "600",
+      color: theme.colors.text,
+    },
+    contactActionSubtitle: {
+      marginTop: moderateScale(2),
+      fontSize: moderateScale(12),
+      color: theme.colors.textSecondary,
     },
   });

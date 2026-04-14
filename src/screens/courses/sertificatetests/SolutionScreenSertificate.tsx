@@ -681,7 +681,7 @@ const AnswerView = React.memo(
                   ? require("@/src/assets/icons/solution/correct.png")
                   : require("@/src/assets/icons/solution/incorrect.png")
             }
-            resizeMode="center"
+            resizeMode="contain"
           />
         </View>
       </View>

@@ -178,7 +178,7 @@ export type TabParamList = {
 export interface Subject {
   id: number;
   name: string;
-  descritpion: string | null; // Note: API has typo 'descritpion'
+  description: string | null; // Note: API has typo 'description'
   stateId: number;
   state: string;
   paidThemesCount: number;
@@ -213,7 +213,7 @@ export interface ChapterTheme {
   name: string;
   chapterId: number;
   ordinalNumber: number;
-  descritpion: string | null; // API typo kept as-is
+  description: string | null; // API typo kept as-is
   content: string | null;
   stateId: number;
   percent: number;
@@ -260,7 +260,7 @@ export interface ThemeDetail {
   subjectId: number;
   testId: number;
   ordinalNumber: number;
-  descritpion: string | null;
+  description: string | null;
   content: string | null;
   chapter: string;
   subject: string;
@@ -272,6 +272,7 @@ export interface ThemeDetail {
     stateId: number;
     state: string;
   };
+  features: { code: string }[];
 }
 
 // Quiz/Test related types
@@ -396,6 +397,7 @@ export interface ChapterThemeStatistic {
   stateId: number;
   state: string;
   percent: number;
+  isSolved: boolean;
   isLocked: boolean;
 }
 

@@ -53,7 +53,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     width: "30%",
     zIndex: 10,
-    backgroundColor: "red",
   },
   leftRipple: {
     left: 0,

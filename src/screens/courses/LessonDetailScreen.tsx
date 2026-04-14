@@ -55,7 +55,7 @@ export default function LessonDetailScreen({
   });
   // Get lesson data from route params
   const { data, isLoading, isError, refetch } = useThemeDetails(
-    Number(themeId)
+    Number(themeId),
   );
 
   // Check if current lesson is bookmarked
@@ -103,8 +103,8 @@ export default function LessonDetailScreen({
   const handlePlayVideo = () => {
     // Navigate to video player screen
     if (
-      plan &&
-      plan.plan.subscriptionFeatures.find((item) => item.code === "LESSON")
+      data?.features &&
+      data?.features.find((item) => item.code === "LESSON")
     ) {
       if (!data?.video?.fileId) {
         setEmptyModal({
@@ -123,10 +123,11 @@ export default function LessonDetailScreen({
       modalService.open();
     }
   };
+
   const handleThemeAbstract = () => {
     if (
-      plan &&
-      plan.plan.subscriptionFeatures.find((item) => item.code === "ABSTRACT")
+      data?.features &&
+      data?.features.find((item) => item.code === "ABSTRACT")
     ) {
       // if (data?.testId) {
       navigation.navigate("ThemeAbstract", {
@@ -143,10 +144,7 @@ export default function LessonDetailScreen({
     }
   };
   const handleMashqlar = () => {
-    if (
-      plan &&
-      plan.plan.subscriptionFeatures.find((item) => item.code === "TEST")
-    ) {
+    if (data?.features && data?.features.find((item) => item.code === "TEST")) {
       if (data?.testId) {
         navigation.navigate("QuizScreen", {
           testId: data?.testId,
@@ -252,10 +250,8 @@ export default function LessonDetailScreen({
               onPress={handlePlayVideo}
             >
               {!(
-                plan &&
-                plan.plan.subscriptionFeatures.find(
-                  (item) => item.code === "LESSON"
-                )
+                data?.features &&
+                data?.features.find((item) => item.code === "LESSON")
               ) && (
                 <View
                   style={{
@@ -294,10 +290,8 @@ export default function LessonDetailScreen({
               onPress={handleThemeAbstract}
             >
               {!(
-                plan &&
-                plan.plan.subscriptionFeatures.find(
-                  (item) => item.code === "ABSTRACT"
-                )
+                data?.features &&
+                data?.features.find((item) => item.code === "ABSTRACT")
               ) && (
                 <View
                   style={{
@@ -329,10 +323,8 @@ export default function LessonDetailScreen({
               onPress={handleMashqlar}
             >
               {!(
-                plan &&
-                plan.plan.subscriptionFeatures.find(
-                  (item) => item.code === "TEST"
-                )
+                data?.features &&
+                data?.features.find((item) => item.code === "TEST")
               ) && (
                 <View
                   style={{

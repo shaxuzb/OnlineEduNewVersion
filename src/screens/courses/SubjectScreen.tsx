@@ -7,6 +7,7 @@ import { ChapterTheme, Theme } from "@/src/types";
 import { FontAwesome6, Ionicons } from "@expo/vector-icons";
 import React, { useEffect } from "react";
 import {
+  Alert,
   SectionList,
   StyleSheet,
   Text,
@@ -16,8 +17,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import PageCard from "@/src/components/ui/cards/PageCard";
 import { moderateScale } from "react-native-size-matters";
-import { useAuth } from "@/src/context/AuthContext";
 import { modalService } from "@/src/components/modals/modalService";
+import { alertService } from "@/src/components/modals/customalert/alertService";
 
 export default function SubjectScreen({
   navigation,
@@ -28,13 +29,12 @@ export default function SubjectScreen({
 }) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { plan } = useAuth();
   const { subjectId, subjectName, percent, subjectCode } = route.params;
 
   const { data, isLoading, isError, refetch } = useThemes(Number(subjectId));
 
   const handleThemePress = (chapterTheme: ChapterTheme) => {
-    if (plan) {
+    if (chapterTheme.hasAccess) {
       if (subjectCode === "NATIONAL") {
         if (chapterTheme?.testId) {
           navigation.navigate("QuizScreenSertificate", {
@@ -44,6 +44,14 @@ export default function SubjectScreen({
             mavzu: `${chapterTheme.ordinalNumber}-mavzu`,
           });
         } else {
+          alertService.open({
+            type: "warning",
+            title: "Test tayyor emas",
+            description:
+              "Test hali yuklanmagan. Tayyor bo‘lgach, siz uni boshlashingiz mumkin.",
+            showCancel: false,
+            okText: "Yopish",
+          });
           // setEmptyModal({
           //   open: true,
           //   title: "Testlar hali mavjud emas",
@@ -112,7 +120,7 @@ export default function SubjectScreen({
                 activeOpacity={0.8}
                 onPress={() => handleThemePress(chapterTheme)}
               >
-                {!plan && (
+                {!chapterTheme.hasAccess && (
                   <View style={{ position: "absolute", top: -5, right: -5 }}>
                     <FontAwesome6 name="crown" size={16} color="#FFD700" />
                   </View>
@@ -133,7 +141,9 @@ export default function SubjectScreen({
                   </View>
                   <View style={styles.themeInfo}>
                     <Text style={styles.themeNumber}>
-                      {chapterTheme.ordinalNumber}-mavzu:
+                      {subjectCode === "NATIONAL"
+                        ? chapterTheme.content
+                        : `${chapterTheme.ordinalNumber}-mavzu`}
                     </Text>
                     <Text
                       style={[
@@ -145,12 +155,25 @@ export default function SubjectScreen({
                       {chapterTheme.name}
                     </Text>
                   </View>
-                  <View>
-                    <Text style={styles.loadingText}>
+                  {subjectCode !== "NATIONAL" && (
+                    <View>
+                      <Text style={styles.loadingText}>
+                        {chapterTheme.percent}%
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                {subjectCode === "NATIONAL" && (
+                  <>
+                    <Text style={styles.themeCountloadingText}>
                       {chapterTheme.percent}%
                     </Text>
-                  </View>
-                </View>
+
+                    <Text style={styles.themeCount}>
+                      {chapterTheme.description}
+                    </Text>
+                  </>
+                )}
               </TouchableOpacity>
             )}
             initialNumToRender={10}
@@ -202,7 +225,6 @@ const createStyles = (theme: Theme) =>
       alignItems: "center",
     },
     loadingText: {
-      marginTop: 12,
       fontSize: moderateScale(12),
       color: theme.colors.textSecondary,
     },
@@ -262,8 +284,19 @@ const createStyles = (theme: Theme) =>
       marginBottom: 4,
     },
     themeCount: {
-      fontSize: 12,
+      fontSize: moderateScale(16),
+      color: theme.colors.text,
+      fontWeight: "500",
+      position: "absolute",
+      bottom: 10,
+      right: 10,
+    },
+    themeCountloadingText: {
+      fontSize: moderateScale(12),
       color: theme.colors.textSecondary,
+      position: "absolute",
+      top: 5,
+      right: 5,
     },
     chapterContainer: {
       marginBottom: 8,

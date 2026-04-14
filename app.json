@@ -2,7 +2,7 @@
   "expo": {
     "name": "MATH ME",
     "slug": "mathme",
-    "version": "1.0.23",
+    "version": "1.0.26",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mathme",
