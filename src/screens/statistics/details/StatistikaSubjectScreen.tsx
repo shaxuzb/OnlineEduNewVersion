@@ -48,13 +48,12 @@ export default function StatistikaSubjectScreen({
 
   const handleThemePress = useCallback(
     (chapterTheme: ChapterThemeStatistic) => {
-      console.log(chapterTheme);
-
       if (chapterTheme.isSolved && chapterTheme.testId) {
         navigation.navigate("StatistikaDetailTest", {
           subjectId,
           testId: chapterTheme.testId,
           subjectCode,
+          mavzu: `${chapterTheme.ordinalNumber}-MS imtihoni`,
           themeId: chapterTheme.id,
           themePercent: chapterTheme.percent,
           userId,

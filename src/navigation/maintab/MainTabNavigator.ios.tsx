@@ -4,6 +4,9 @@ import { useTheme } from "../../context/ThemeContext";
 import { useSession } from "../../hooks/useSession";
 import { useAuth } from "../../context/AuthContext";
 import { useGeo } from "../../hooks/useGeo";
+import { useChat } from "../../hooks/useChat";
+import { useAppIconBadge } from "../../hooks/useAppIconBadge";
+import { useCurrentUserId } from "../../hooks/useQuiz";
 import { modalService } from "../../components/modals/modalService";
 import { moderateScale } from "react-native-size-matters";
 import { FontAwesome6, Ionicons } from "@expo/vector-icons";
@@ -13,18 +16,26 @@ import LinearGradient from "react-native-linear-gradient";
 import SaveScreen from "../../screens/save/SaveScreen";
 import { CoursesStackNavigator } from "../CoursesStackNavigator";
 import StatistikaScreen from "../../screens/statistics/StatistikaScreen";
- 
+
 const Tab = createBottomTabNavigator();
 const isTablet = DeviceInfo.isTablet();
- const MainTabNavigator = () => {
+const MainTabNavigator = () => {
   const { theme } = useTheme();
   const { isSuperAdmin } = useSession();
   const { plan } = useAuth();
   const { countryCode } = useGeo();
+  const userId = useCurrentUserId();
+  const { data: chatMessages = [] } = useChat(Number(userId), {
+    refetchInterval: 10000,
+  });
+  const unreadChatCount = (chatMessages ?? []).filter(
+    (msg) => msg.senderType === 1 && !msg.isRead,
+  ).length;
+  useAppIconBadge(unreadChatCount);
   const handleShowPremiumModal = () => {
     modalService.open();
   };
-  
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -194,6 +205,12 @@ const isTablet = DeviceInfo.isTablet();
           freezeOnBlur: true,
           tabBarLabelStyle: {
             fontSize: +moderateScale(10).toFixed(0),
+          },
+          tabBarBadge: unreadChatCount > 0 ? unreadChatCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: "#e74c3c",
+            color: "white",
+            fontWeight: "700",
           },
         }}
         listeners={({ navigation }) => ({

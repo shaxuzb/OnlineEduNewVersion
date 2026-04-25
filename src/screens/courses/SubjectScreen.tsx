@@ -7,7 +7,6 @@ import { ChapterTheme, Theme } from "@/src/types";
 import { FontAwesome6, Ionicons } from "@expo/vector-icons";
 import React, { useEffect } from "react";
 import {
-  Alert,
   SectionList,
   StyleSheet,
   Text,
@@ -37,11 +36,32 @@ export default function SubjectScreen({
     if (chapterTheme.hasAccess) {
       if (subjectCode === "NATIONAL") {
         if (chapterTheme?.testId) {
-          navigation.navigate("QuizScreenSertificate", {
-            testId: chapterTheme.testId,
-            percent: 2,
-            title: "Mashqlar",
-            mavzu: `${chapterTheme.ordinalNumber}-mavzu`,
+          alertService.open({
+            type: "default",
+            iconName: "time-outline",
+            title: "Imtihon rejimini tanlang",
+            description: "Testni qanday ishlamoqchisiz?",
+            cancelText: "Bekor qilish",
+            secondaryText: "Vaqtga qo'ymasdan",
+            okText: "Vaqtga qo'yib",
+            onSecondary: () => {
+              navigation.navigate("QuizScreenSertificate", {
+                testId: chapterTheme.testId,
+                percent: 2,
+                title: "Mashqlar",
+                mavzu: `${chapterTheme.ordinalNumber}-MS imtihoni`,
+                testMode: "untimed",
+              });
+            },
+            onOk: () => {
+              navigation.navigate("QuizScreenSertificate", {
+                testId: chapterTheme.testId,
+                percent: 2,
+                title: "Mashqlar",
+                mavzu: `${chapterTheme.ordinalNumber}-MS imtihoni`,
+                testMode: "timed",
+              });
+            },
           });
         } else {
           alertService.open({

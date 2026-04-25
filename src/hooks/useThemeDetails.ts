@@ -1,8 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
-import { themeDetailService } from '../services/themeDetailsService';
+import { useQuery } from "@tanstack/react-query";
+import { themeDetailService } from "../services/themeDetailsService";
 
 export const themesDetailKeys = {
-  themeDetail: (themeId: number) => ['themeDetail', themeId] as const,
+  themeDetail: (themeId: number) => ["themeDetail", themeId] as const,
 };
 
 export function useThemeDetails(themeId: number) {

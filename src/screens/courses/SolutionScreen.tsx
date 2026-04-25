@@ -3,7 +3,6 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import {
@@ -11,8 +10,7 @@ import {
   Alert,
   Dimensions,
   Image,
-  Modal,
-  Pressable,
+  LayoutChangeEvent,
   ScrollView,
   SectionList,
   StyleSheet,
@@ -22,7 +20,6 @@ import {
 } from "react-native";
 import Pdf from "react-native-pdf";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BlurView } from "expo-blur";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 import Toast from "react-native-toast-message";
@@ -33,11 +30,10 @@ import { AnswerKey, Theme } from "@/src/types";
 import { CustomStyledCard } from "@/src/components/ui/cards/CustomStyledCard";
 import LinearGradient from "react-native-linear-gradient";
 import PageCard from "@/src/components/ui/cards/PageCard";
-import { GestureViewer } from "react-native-gesture-image-viewer";
-import Animated, {
-  runOnJS,
-  useAnimatedScrollHandler,
-} from "react-native-reanimated";
+import {
+  GestureViewer,
+  useGestureViewerState,
+} from "react-native-gesture-image-viewer";
 import { moderateScale } from "react-native-size-matters";
 
 const { width } = Dimensions.get("window");
@@ -388,6 +384,8 @@ export default function SolutionScreen({
             <View style={styles.solutionViewImageContainer}>
               {currentAnswer && currentAnswer.photos.length > 0 ? (
                 <ImageViewer
+                  key={`solution-${currentAnswer.questionId}`}
+                  viewerKey={`q-${currentAnswer.questionId}`}
                   images={currentAnswer?.photos.map((item) => ({
                     fileId: item.fileId,
                     relativePath: `${Constants.expoConfig?.extra?.API_URL}${item.relativePath}`,
@@ -600,38 +598,64 @@ const TestModal = React.memo(
   },
 );
 const ImageViewer = React.memo(
-  ({ images, theme }: { images: LocalQuizAnswer["photos"]; theme: Theme }) => {
-    const [visible, setVisible] = useState(false);
-    const [selectedIndex, setSelectedIndex] = useState(0);
-    const scrollRef = useRef<Animated.ScrollView>(null);
+  ({
+    images,
+    theme,
+    viewerKey,
+  }: {
+    images: LocalQuizAnswer["photos"];
+    theme: Theme;
+    viewerKey: string;
+  }) => {
+    const imageSignature = useMemo(
+      () => images.map((item) => item.fileId).join("|"),
+      [images],
+    );
+    const viewerId = useMemo(
+      () => `solution-inline-${viewerKey}-${imageSignature}-${images.length}`,
+      [viewerKey, imageSignature, images.length],
+    );
+    const { currentIndex, totalCount } = useGestureViewerState(viewerId);
+    const imageUris = useMemo(
+      () => images.map((item) => item.relativePath),
+      [images],
+    );
+    const [viewerSize, setViewerSize] = useState({
+      width: width - moderateScale(SPACING.sm),
+      height: moderateScale(320),
+    });
+
+    const handleViewerLayout = useCallback((event: LayoutChangeEvent) => {
+      const { width: layoutWidth, height: layoutHeight } = event.nativeEvent.layout;
+      if (layoutWidth <= 0 || layoutHeight <= 0) return;
+
+      setViewerSize((prev) => {
+        if (
+          Math.abs(prev.width - layoutWidth) < 1 &&
+          Math.abs(prev.height - layoutHeight) < 1
+        ) {
+          return prev;
+        }
+        return { width: layoutWidth, height: layoutHeight };
+      });
+    }, []);
+
     const renderImage = useCallback((imageUrl: string) => {
       return (
         <Image
           source={{ uri: imageUrl }}
-          style={{ flex: 1, width: "95%" }}
+          style={{ flex: 1, width: "100%", height: "100%" }}
           resizeMode="contain"
         />
       );
     }, []);
-    const openModal = () => setVisible(true);
-    const onClose = () => setVisible(false);
-    const onScroll = useAnimatedScrollHandler({
-      onScroll: (event) => {
-        const x = event.contentOffset.x;
-        const index = Math.round(x / width);
-        runOnJS(setSelectedIndex)(index); // 🔥 Har bir slaydda index yangilanadi
-      },
-    });
-    useEffect(() => {
-      setSelectedIndex(0);
-      scrollRef.current?.scrollTo({ x: 0, y: 0, animated: false });
-    }, [images]);
+
     return (
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, paddingHorizontal: moderateScale(SPACING.xs) }}>
         <View
           style={{
             alignItems: "flex-end",
-            paddingHorizontal: SPACING.lg,
+            paddingHorizontal: SPACING.base,
           }}
         >
           <Text
@@ -639,60 +663,34 @@ const ImageViewer = React.memo(
               color: theme.colors.text,
             }}
           >
-            {selectedIndex + 1}/{images.length}
+            {Math.min(currentIndex + 1, totalCount || images.length)}/
+            {totalCount || images.length}
           </Text>
         </View>
-        <Animated.ScrollView
-          ref={scrollRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScroll={onScroll}
-          scrollEventThrottle={16}
-        >
-          {images.map((img) => (
-            <Pressable
-              key={img.fileId}
-              style={{
-                flex: 1,
-                alignItems: "center",
-                justifyContent: "center",
-                width: width - 4,
-              }}
-              onPress={openModal}
-            >
-              <Image
-                source={{ uri: img.relativePath }}
-                style={{ width: "95%", height: 300 }}
-                resizeMode="contain"
-              />
-            </Pressable>
-          ))}
-        </Animated.ScrollView>
-        <Modal
-          transparent
-          onRequestClose={onClose}
-          visible={visible}
-          backdropColor={"green"}
-        >
-          <BlurView
-            intensity={10} // 0 dan 100 gacha, qanchalik blur bo‘lishini belgilaydi
-            tint="dark"
-            experimentalBlurMethod="dimezisBlurView"
-            style={{ ...StyleSheet.absoluteFillObject }}
-          />
+        <View style={{ flex: 1 }} onLayout={handleViewerLayout}>
           <GestureViewer
-            data={images.map((item) => item.relativePath)}
-            initialIndex={selectedIndex}
-            backdropStyle={{
-              backgroundColor: "transparent",
-            }}
+            id={viewerId}
+            data={imageUris}
+            initialIndex={0}
+            width={viewerSize.width}
+            height={viewerSize.height}
             renderItem={renderImage}
             ListComponent={ScrollView}
-            maxZoomScale={3}
-            onDismiss={() => setVisible(false)}
+            dismiss={{ enabled: false }}
+            backdropStyle={{ backgroundColor: theme.colors.card }}
+            containerStyle={{
+              backgroundColor: theme.colors.card,
+            }}
+            listProps={{
+              showsHorizontalScrollIndicator: false,
+              removeClippedSubviews: true,
+            }}
+            maxZoomScale={2.5}
+            enableHorizontalSwipe
+            enablePinchZoom
+            enableDoubleTapZoom
           />
-        </Modal>
+        </View>
       </View>
     );
   },

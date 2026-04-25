@@ -9,14 +9,9 @@ import React, {
 import {
   ActivityIndicator,
   Alert,
-  BackHandler,
   Dimensions,
-  Image,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  SectionList,
+  FlatList,
+  ListRenderItemInfo,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -24,7 +19,6 @@ import {
 } from "react-native";
 import Pdf from "react-native-pdf";
 import { SafeAreaView } from "react-native-safe-area-context";
-import MathView from "react-native-math-view";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 import { BORDER_RADIUS, COLORS, FONT_SIZES, SPACING } from "@/src/utils";
@@ -34,14 +28,9 @@ import {
   useSubmitTestResults,
   useThemeTest,
 } from "@/src/hooks/useQuiz";
-import { QuizAnswer, Theme, ThemeTest } from "@/src/types";
-import Animated, {
-  runOnJS,
-  useAnimatedScrollHandler,
-} from "react-native-reanimated";
-import { BlurView } from "expo-blur";
-import { GestureViewer } from "react-native-gesture-image-viewer";
+import { QuizAnswer, Theme } from "@/src/types";
 import { moderateScale } from "react-native-size-matters";
+import MathView from "react-native-math-view";
 import MathLiveModalKeyboard, {
   MathLiveModalRef,
 } from "@/src/components/MathKeyboard";
@@ -52,36 +41,49 @@ import {
 } from "@react-navigation/native";
 
 const { width } = Dimensions.get("window");
+const TIMED_TEST_DURATION_SECONDS = 2.5 * 60 * 60;
 
 interface LocalQuizAnswer {
+  answerKeyId: number;
   questionId: number;
+  partIndex: number;
   selectedOption: string | null;
   subTestNo: number;
   isConfirmed: boolean;
 }
 
-// Memoized komponentlar
+interface TextAnswerEditorState {
+  answerKeyId: number;
+  questionId: number;
+  partIndex: number;
+  subTestNo: number;
+  value: string;
+}
+
+interface ModalHeaderRow {
+  type: "header";
+  key: string;
+  subTestNo: string;
+}
+
+interface ModalQuestionRow {
+  type: "question";
+  key: string;
+  subTestNo: number;
+  dbQuestionNumber: number;
+  questionNumber: number;
+  answerType: number;
+  options: string[];
+  parts: { answerKeyId: number; partIndex: number; partLabel: string | null }[];
+}
+
+type ModalListRow = ModalHeaderRow | ModalQuestionRow;
+
 const HeaderTitle = React.memo(
   ({ title, subtitle }: { title: string; subtitle: string }) => (
     <View style={headerTitleStyles.container}>
       <Text style={headerTitleStyles.title}>{title}</Text>
       <Text style={headerTitleStyles.subtitle}>{subtitle}</Text>
-    </View>
-  ),
-);
-
-const HeaderRight = React.memo(
-  ({
-    currentQuestion,
-    totalQuestions,
-  }: {
-    currentQuestion: number;
-    totalQuestions: number;
-  }) => (
-    <View style={headerRightStyles.container}>
-      <Text style={headerRightStyles.text}>
-        {currentQuestion}/{totalQuestions}
-      </Text>
     </View>
   ),
 );
@@ -107,6 +109,61 @@ const ErrorState = React.memo(({ onRetry }: { onRetry: () => void }) => (
   </SafeAreaView>
 ));
 
+const PdfViewer = React.memo(
+  ({ testId, authToken }: { testId: number; authToken: string | null }) => {
+    const { theme } = useTheme();
+    const styles = useMemo(() => createStyles(theme), [theme]);
+
+    const handleLoadComplete = useCallback((numberOfPages: number) => {
+      console.log("PDF loaded with", numberOfPages, "pages");
+    }, []);
+
+    const handleError = useCallback((error: unknown) => {
+      Alert.alert(
+        "Xatolik",
+        "PDF faylni ochishda xatolik yuz berdi. Fayl mavjudligini tekshiring.",
+        [{ text: "OK" }],
+      );
+      console.error("PDF Error:", error);
+    }, []);
+
+    if (!authToken) {
+      return (
+        <View style={styles.errorContainer}>
+          <Ionicons name="document-outline" size={64} color={COLORS.gray} />
+          <Text style={styles.errorTitle}>Autentifikatsiya xatosi</Text>
+        </View>
+      );
+    }
+
+    return (
+      <Pdf
+        source={{
+          uri: `${Constants.expoConfig?.extra?.API_URL}/api/theme-test/${testId}/pdf`,
+          headers: { Authorization: `Bearer ${authToken}` },
+          cache: false,
+          method: "get",
+        }}
+        onLoadComplete={handleLoadComplete}
+        onError={handleError}
+        style={styles.pdf}
+        trustAllCerts={false}
+        enablePaging={false}
+        horizontal={false}
+        spacing={0}
+        password=""
+        scale={1}
+        enableDoubleTapZoom
+        minScale={1}
+        maxScale={5}
+        renderActivityIndicator={() => (
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        )}
+      />
+    );
+  },
+);
+
 const OptionButton = React.memo(
   ({
     option,
@@ -119,7 +176,7 @@ const OptionButton = React.memo(
     isSelected: boolean;
     disabled: boolean;
     onSelect: (option: string) => void;
-    styles: any;
+    styles: ReturnType<typeof createStyles>;
   }) => (
     <TouchableOpacity
       style={[styles.optionButton, isSelected && styles.optionButtonSelected]}
@@ -131,6 +188,7 @@ const OptionButton = React.memo(
           styles.optionButtonText,
           isSelected && styles.optionButtonTextSelected,
         ]}
+        numberOfLines={1}
       >
         {option}
       </Text>
@@ -138,148 +196,6 @@ const OptionButton = React.memo(
   ),
 );
 
-const TestGridItem = React.memo(
-  ({
-    testNumber,
-    orderNumber,
-    isAnswered,
-    isCurrent,
-    onSelect,
-    styles,
-  }: {
-    testNumber: number;
-    orderNumber: number;
-    isAnswered: any;
-    isCurrent: boolean;
-    onSelect: (testNumber: number) => void;
-    styles: any;
-  }) => (
-    <TouchableOpacity
-      style={[
-        styles.testGridItem,
-        isAnswered && styles.testGridItemAnswered,
-        isCurrent && styles.testGridItemCurrent,
-      ]}
-      onPress={() => onSelect(testNumber)}
-    >
-      <Text
-        style={[
-          styles.testGridItemText,
-          (isAnswered || isCurrent) && styles.testGridItemTextActive,
-        ]}
-      >
-        {orderNumber}
-      </Text>
-    </TouchableOpacity>
-  ),
-);
-const ImageViewer = React.memo(
-  ({
-    images,
-    theme,
-  }: {
-    images: ThemeTest["answerKeys"][0]["testPhotos"];
-    theme: Theme;
-  }) => {
-    const [visible, setVisible] = useState(false);
-    const [selectedIndex, setSelectedIndex] = useState(0);
-    const scrollRef = useRef<Animated.ScrollView>(null);
-    const renderImage = useCallback((imageUrl: string) => {
-      return (
-        <Image
-          source={{ uri: Constants.expoConfig?.extra?.API_URL + imageUrl }}
-          style={{ flex: 1, width: "95%" }}
-          resizeMode="contain"
-        />
-      );
-    }, []);
-    const openModal = () => setVisible(true);
-    const onClose = () => setVisible(false);
-    const onScroll = useAnimatedScrollHandler({
-      onScroll: (event) => {
-        const x = event.contentOffset.x;
-        const index = Math.round(x / width);
-        runOnJS(setSelectedIndex)(index); // 🔥 Har bir slaydda index yangilanadi
-      },
-    });
-    useEffect(() => {
-      setSelectedIndex(0);
-      scrollRef.current?.scrollTo({ x: 0, y: 0, animated: false });
-    }, [images]);
-
-    return (
-      <View style={{ flex: 1 }}>
-        <View
-          style={{
-            alignItems: "flex-end",
-            paddingHorizontal: SPACING.lg,
-          }}
-        >
-          <Text
-            style={{
-              color: theme.colors.text,
-            }}
-          >
-            {selectedIndex + 1}/{images.length}
-          </Text>
-        </View>
-        <Animated.ScrollView
-          ref={scrollRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScroll={onScroll}
-          scrollEventThrottle={16}
-        >
-          {images.map((img) => (
-            <Pressable
-              key={img.fileId}
-              style={{
-                flex: 1,
-                alignItems: "center",
-                justifyContent: "center",
-                width: width - 4,
-              }}
-              onPress={openModal}
-            >
-              <Image
-                source={{
-                  uri: Constants.expoConfig?.extra?.API_URL + img.relativePath,
-                }}
-                style={{ width: "95%", height: 300 }}
-                resizeMode="contain"
-              />
-            </Pressable>
-          ))}
-        </Animated.ScrollView>
-        <Modal
-          transparent
-          onRequestClose={onClose}
-          visible={visible}
-          backdropColor={"green"}
-        >
-          <BlurView
-            intensity={10} // 0 dan 100 gacha, qanchalik blur bo‘lishini belgilaydi
-            tint="dark"
-            experimentalBlurMethod="dimezisBlurView"
-            style={{ ...StyleSheet.absoluteFillObject }}
-          />
-          <GestureViewer
-            data={images.map((item) => item.relativePath)}
-            initialIndex={selectedIndex}
-            backdropStyle={{
-              backgroundColor: "transparent",
-            }}
-            renderItem={renderImage}
-            ListComponent={ScrollView}
-            maxZoomScale={3}
-            onDismiss={() => setVisible(false)}
-          />
-        </Modal>
-      </View>
-    );
-  },
-);
 export default function QuizScreenSertificate({
   navigation,
   route,
@@ -290,10 +206,10 @@ export default function QuizScreenSertificate({
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const isFocused = useIsFocused();
-  const { testId, mavzu } = route.params;
+  const { testId, mavzu, testMode } = route.params;
   const numericTestId = Number(testId);
-  const mathKeyboardRef = useRef<MathLiveModalRef>(null);
-  // API hooks
+  const isTimedMode = testMode !== "untimed";
+
   const {
     data: testData,
     isLoading: testLoading,
@@ -303,70 +219,57 @@ export default function QuizScreenSertificate({
   const submitResults = useSubmitTestResults();
   const currentUserId = useCurrentUserId();
 
-  // State management
-  const [currentQuestion, setCurrentQuestion] = useState(1);
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [answers, setAnswers] = useState<LocalQuizAnswer[]>([]);
   const [showTestModal, setShowTestModal] = useState(false);
-  const [textInputValue, setTextInputValue] = useState({
-    textInput1: "",
-    textInput2: "",
-    activeInput: "textInput1",
-  });
   const [authToken, setAuthToken] = useState<string | null>(null);
-  const [isFinishing, setIsFinishing] = useState(false);
+  const [remainingSecondsDisplay, setRemainingSecondsDisplay] = useState(
+    TIMED_TEST_DURATION_SECONDS,
+  );
+  const remainingSecondsRef = useRef(TIMED_TEST_DURATION_SECONDS);
+  const hasTimedOutRef = useRef(false);
+  const hasSubmittedRef = useRef(false);
+  const mathKeyboardRef = useRef<MathLiveModalRef>(null);
+  const [activeTextAnswer, setActiveTextAnswer] =
+    useState<TextAnswerEditorState | null>(null);
+  const testModalScrollYRef = useRef(0);
+  const handleTestModalScrollYChange = useCallback((value: number) => {
+    testModalScrollYRef.current = value;
+  }, []);
+  const openTestModal = useCallback(() => {
+    setShowTestModal(true);
+  }, []);
+  const closeTestModal = useCallback(() => {
+    setShowTestModal(false);
+  }, []);
 
-  // Memoized values
   const totalQuestions = useMemo(
     () => testData?.questionCount || 0,
     [testData],
   );
 
-  const currentAnswerKey = useMemo(
-    () =>
-      testData?.answerKeys?.find(
-        (ak) => ak.dbQuestionNumber === currentQuestion,
-      ),
-    [testData, currentQuestion],
-  );
-  const currentQuestionPhotos = useMemo(
-    () =>
-      testData?.answerKeys?.find(
-        (ak) => ak.dbQuestionNumber === currentQuestion,
-      )?.testPhotos,
-    [testData, currentQuestion],
-  );
-  const isMultipleChoice = useMemo(
-    () => currentAnswerKey?.answerType === 1,
-    [currentAnswerKey],
-  );
-  const isDualText = useMemo(
-    () => currentAnswerKey?.partIndex === 1,
-    [currentAnswerKey],
-  );
-  const questionOptions = useMemo(
-    () =>
-      currentAnswerKey?.options ? JSON.parse(currentAnswerKey.options) : [],
-    [currentAnswerKey],
-  );
+  const formattedRemainingTime = useMemo(() => {
+    const hours = Math.floor(remainingSecondsDisplay / 3600);
+    const minutes = Math.floor((remainingSecondsDisplay % 3600) / 60);
+    const seconds = remainingSecondsDisplay % 60;
+    return `${hours.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  }, [remainingSecondsDisplay]);
 
-  const currentAnswer = useMemo(
-    () => answers.find((a) => a.questionId === currentQuestion),
-    [answers, currentQuestion],
-  );
+  const groupedTestData = useMemo(() => {
+    if (!testData?.answerKeys) return [] as [string, any[]][];
 
-  const isAnswerSelected = useMemo(
-    () =>
-      isMultipleChoice
-        ? selectedOption !== null
-        : isDualText
-          ? textInputValue.textInput1.trim() !== "" &&
-            textInputValue.textInput2.trim() !== ""
-          : textInputValue.textInput1.trim() !== "",
-    [isMultipleChoice, selectedOption, textInputValue],
-  );
+    return Object.entries(
+      testData.answerKeys.reduce((acc: Record<string, any[]>, key: any) => {
+        if (!acc[key.subTestNo]) {
+          acc[key.subTestNo] = [];
+        }
+        acc[key.subTestNo].push(key);
+        return acc;
+      }, {}),
+    );
+  }, [testData]);
 
-  // Auth token loading
   useEffect(() => {
     const loadAuthToken = async () => {
       try {
@@ -383,32 +286,6 @@ export default function QuizScreenSertificate({
     loadAuthToken();
   }, []);
 
-  // Load saved answer when question changes
-  useEffect(() => {
-    const savedAnswer = answers.filter((a) => a.questionId === currentQuestion);
-    if (savedAnswer.length > 0) {
-      setSelectedOption(savedAnswer[0].selectedOption);
-
-      setTextInputValue(
-        isMultipleChoice
-          ? { textInput1: "", textInput2: "", activeInput: "textInput1" }
-          : {
-              textInput1: savedAnswer[0].selectedOption || "",
-              textInput2: savedAnswer[1]?.selectedOption || "",
-              activeInput: "textInput1",
-            },
-      );
-    } else {
-      setSelectedOption(null);
-      setTextInputValue({
-        textInput1: "",
-        textInput2: "",
-        activeInput: "textInput1",
-      });
-    }
-  }, [currentQuestion, answers, isMultipleChoice]);
-
-  // Event handlers
   const handleGoBack = useCallback(() => {
     Alert.alert(
       "Testni tark etish",
@@ -419,236 +296,214 @@ export default function QuizScreenSertificate({
       ],
     );
     return true;
-  }, []);
+  }, [navigation]);
 
-  const handleOptionSelect = useCallback(
-    (option: string) => {
-      setSelectedOption(option);
-      setTextInputValue({
-        textInput1: "",
-        textInput2: "",
-        activeInput: "textInput1",
-      });
-      if (currentAnswer?.isConfirmed) {
-        handleEditAnswer();
-      }
-    },
-    [currentAnswer],
-  );
-  const handleConfirm = useCallback(() => {
-    const answerValue = isMultipleChoice
-      ? selectedOption
-      : textInputValue.textInput1.trim();
-    if (!answerValue) return;
-
-    const newAnswer: LocalQuizAnswer = {
-      questionId: currentQuestion,
-      selectedOption: answerValue,
-      subTestNo: currentAnswerKey?.subTestNo ?? 1,
-      isConfirmed: true,
-    };
-    const secondPartAnswer: LocalQuizAnswer = {
-      questionId: currentQuestion,
-      selectedOption: textInputValue.textInput2.trim(),
-      subTestNo: currentAnswerKey?.subTestNo ?? 1,
-      isConfirmed: true,
-    };
-
-    setAnswers((prev) => {
-      const filtered = prev.filter((a) => a.questionId !== currentQuestion);
-      return [
-        ...filtered,
-        newAnswer,
-        isDualText ? secondPartAnswer : null,
-      ].filter(Boolean) as LocalQuizAnswer[];
-    });
-
-    if (currentQuestion < totalQuestions) {
-      handleNext();
-    }
-  }, [
-    isMultipleChoice,
-    selectedOption,
-    textInputValue,
-    currentQuestion,
-    currentAnswerKey,
-    totalQuestions,
-  ]);
-
-  const handleEditAnswer = useCallback(() => {
-    setAnswers((prev) => prev.filter((a) => a.questionId !== currentQuestion));
-  }, [currentQuestion]);
-
-  const handleNext = useCallback(() => {
-    setShowTestModal(false);
-    setCurrentQuestion((prev) => prev + 1);
-  }, [currentQuestion, totalQuestions]);
-
-  const handlePrevious = useCallback(() => {
-    if (currentQuestion > 1) {
-      setShowTestModal(false);
-      setCurrentQuestion((prev) => prev - 1);
-    }
-  }, [currentQuestion]);
-
-  const handleFinishTest = useCallback(async () => {
-    if (!currentUserId || !testId) {
-      Alert.alert("Xatolik", "Foydalanuvchi ma'lumotlari topilmadi");
-      return;
-    }
-
-    const answeredQuestions = answers.filter((a) => a.isConfirmed).length;
-    const unansweredCount = totalQuestions - answeredQuestions;
-
-    Alert.alert(
-      "Testni yakunlash",
-      `Siz ${totalQuestions} ta savoldan ${answeredQuestions} tasiga javob berdingiz.${
-        unansweredCount > 0
-          ? `\n${unansweredCount} ta savol javobsiz qoldi.`
-          : ""
-      }\n\nTestni yakunlamoqchimisiz?`,
-      [
-        { text: "Bekor qilish", style: "cancel" },
-        {
-          text: "Ha, yakunlash",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const confirmedAnswers = answers.filter((a) => a.isConfirmed);
-
-              // 1️⃣ answerKeys ni questionNumber bo‘yicha guruhlaymiz
-              const groupedAnswerKeys =
-                testData?.answerKeys?.reduce(
-                  (acc, key) => {
-                    if (!acc[key.dbQuestionNumber]) {
-                      acc[key.dbQuestionNumber] = [];
-                    }
-                    acc[key.dbQuestionNumber].push(key);
-                    return acc;
-                  },
-                  {} as Record<number, typeof testData.answerKeys>,
-                ) || {};
-
-              // 2️⃣ Har bir question uchun counter
-              const questionCounter: Record<number, number> = {};
-
-              const submissionAnswers: QuizAnswer[] = confirmedAnswers.map(
-                (answer) => {
-                  const questionId = answer.questionId;
-                  const relatedKeys = groupedAnswerKeys[questionId] || [];
-
-                  // Agar faqat 1 ta bo‘lsa → partIndex = 0
-                  if (relatedKeys.length <= 1) {
-                    return {
-                      questionNumber: questionId,
-                      subTestNo: answer.subTestNo,
-                      partIndex: 0,
-                      answer: answer.selectedOption || "",
-                    };
-                  }
-
-                  // Agar bir nechta bo‘lsa → 1,2,3...
-                  if (!questionCounter[questionId]) {
-                    questionCounter[questionId] = 0;
-                  }
-
-                  questionCounter[questionId] += 1;
-
-                  return {
-                    questionNumber: questionId,
-                    subTestNo: answer.subTestNo,
-                    partIndex: questionCounter[questionId],
-                    answer: answer.selectedOption || "",
-                  };
-                },
-              );
-
-              await submitResults.mutateAsync({
-                testId: numericTestId,
-                userId: currentUserId,
-                answers: submissionAnswers,
-              });
-              navigation.navigate("QuizResultsSertificate", {
-                testId: numericTestId,
-                userId: currentUserId,
-                themeId: testData?.themeId,
-                mavzu: mavzu || "1-mavzu",
-              });
-              // navigation.navigate({
-              //   pathname: "/lesson/lessondetail/quiz/result",
-              //   params: {
-              //     testId: numericTestId,
-              //     userId: currentUserId,
-              //     themeId: testData?.themeId,
-              //     mavzu: mavzu || "1-mavzu",
-              //   },
-              // });
-            } catch (error) {
-              console.error("Error submitting quiz:", error);
-              Alert.alert(
-                "Xatolik",
-                "Test natijalarini yuborishda xatolik yuz berdi. Qaytadan urinib ko'ring.",
-                [
-                  { text: "Bekor qilish", style: "cancel" },
-                  { text: "Qayta urinish", onPress: () => handleFinishTest() },
-                ],
-              );
-            }
+  const handleOptionSelectForQuestion = useCallback(
+    (
+      answerKeyId: number,
+      questionId: number,
+      partIndex: number,
+      option: string,
+      subTestNo: number,
+    ) => {
+      setAnswers((prev) => {
+        const filtered = prev.filter((a) => a.answerKeyId !== answerKeyId);
+        return [
+          ...filtered,
+          {
+            answerKeyId,
+            questionId,
+            partIndex,
+            selectedOption: option,
+            subTestNo,
+            isConfirmed: true,
           },
-        },
-      ],
-    );
-  }, [
-    currentUserId,
-    testId,
-    answers,
-    totalQuestions,
-    testData,
-    numericTestId,
-    mavzu,
-    submitResults,
-  ]);
+        ];
+      });
+    },
+    [],
+  );
+
+  const handleOpenMathInput = useCallback(
+    (
+      answerKeyId: number,
+      questionId: number,
+      partIndex: number,
+      subTestNo: number,
+      value: string,
+    ) => {
+      const initialValue = value || "";
+      setActiveTextAnswer({
+        answerKeyId,
+        questionId,
+        partIndex,
+        subTestNo,
+        value: initialValue,
+      });
+
+      setTimeout(() => {
+        mathKeyboardRef.current?.show();
+        mathKeyboardRef.current?.updateValue(initialValue);
+      }, 60);
+    },
+    [],
+  );
+
+  const handleMathKeyboardChange = useCallback(
+    (newValue: string) => {
+      setActiveTextAnswer((prev) => {
+        if (!prev) return prev;
+        handleOptionSelectForQuestion(
+          prev.answerKeyId,
+          prev.questionId,
+          prev.partIndex,
+          newValue,
+          prev.subTestNo,
+        );
+        return { ...prev, value: newValue };
+      });
+    },
+    [handleOptionSelectForQuestion],
+  );
+
+  const handleFinishTest = useCallback(
+    async (options?: { autoSubmit?: boolean }) => {
+      const isAutoSubmit = options?.autoSubmit === true;
+
+      if (submitResults.isPending || hasSubmittedRef.current) {
+        return;
+      }
+
+      if (!currentUserId || !numericTestId) {
+        Alert.alert("Xatolik", "Foydalanuvchi ma'lumotlari topilmadi");
+        return;
+      }
+
+      const confirmedAnswers = answers.filter((a) => a.isConfirmed);
+      const answeredQuestions = new Set(
+        confirmedAnswers.map((a) => a.questionId),
+      ).size;
+      const unansweredCount = Math.max(totalQuestions - answeredQuestions, 0);
+
+      const groupedAnswerKeys =
+        testData?.answerKeys?.reduce(
+          (acc, key) => {
+            if (!acc[key.dbQuestionNumber]) {
+              acc[key.dbQuestionNumber] = [];
+            }
+            acc[key.dbQuestionNumber].push(key);
+            return acc;
+          },
+          {} as Record<number, typeof testData.answerKeys>,
+        ) || {};
+
+      const submissionAnswers: QuizAnswer[] = confirmedAnswers.map((answer) => {
+        const questionId = answer.questionId;
+        const relatedKeys = groupedAnswerKeys[questionId] || [];
+
+        if (relatedKeys.length <= 1) {
+          return {
+            questionNumber: questionId,
+            subTestNo: answer.subTestNo,
+            partIndex: 0,
+            answer: answer.selectedOption || "",
+          };
+        }
+
+        return {
+          questionNumber: questionId,
+          subTestNo: answer.subTestNo,
+          partIndex: answer.partIndex || 1,
+          answer: answer.selectedOption || "",
+        };
+      });
+
+      const submitAndNavigate = async () => {
+        try {
+          hasSubmittedRef.current = true;
+          await submitResults.mutateAsync({
+            testId: numericTestId,
+            userId: currentUserId,
+            answers: submissionAnswers,
+          });
+
+          navigation.navigate("QuizResultsSertificate", {
+            testId: numericTestId,
+            userId: currentUserId,
+            themeId: testData?.themeId,
+            mavzu: mavzu || "1-mavzu",
+          });
+        } catch (error) {
+          hasSubmittedRef.current = false;
+          console.error("Error submitting quiz:", error);
+          Alert.alert(
+            "Xatolik",
+            "Test natijalarini yuborishda xatolik yuz berdi. Qaytadan urinib ko'ring.",
+            [
+              { text: "Bekor qilish", style: "cancel" },
+              { text: "Qayta urinish", onPress: () => handleFinishTest() },
+            ],
+          );
+        }
+      };
+
+      if (isAutoSubmit) {
+        await submitAndNavigate();
+        return;
+      }
+
+      Alert.alert(
+        "Testni yakunlash",
+        `Siz ${totalQuestions} ta savoldan ${answeredQuestions} tasiga javob berdingiz.${
+          unansweredCount > 0
+            ? `\n${unansweredCount} ta savol javobsiz qoldi.`
+            : ""
+        }\n\nTestni yakunlamoqchimisiz?`,
+        [
+          { text: "Bekor qilish", style: "cancel" },
+          {
+            text: "Ha, yakunlash",
+            style: "destructive",
+            onPress: submitAndNavigate,
+          },
+        ],
+      );
+    },
+    [
+      answers,
+      currentUserId,
+      numericTestId,
+      totalQuestions,
+      testData,
+      submitResults,
+      navigation,
+      mavzu,
+    ],
+  );
+
   useEffect(() => {
-    if (currentQuestion === totalQuestions && currentAnswer?.isConfirmed) {
-      setIsFinishing(true);
-      const timer = setTimeout(() => {
-        handleFinishTest();
-        setIsFinishing(false);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [answers, currentQuestion, handleNext]);
+    if (!isTimedMode || submitResults.isPending) return;
 
-  const handleQuestionNumberPress = useCallback(() => {
-    setShowTestModal(true);
-  }, []);
+    const timer = setInterval(() => {
+      const nextValue =
+        remainingSecondsRef.current > 0 ? remainingSecondsRef.current - 1 : 0;
+      remainingSecondsRef.current = nextValue;
 
-  const handleTestSelect = useCallback((testNumber: number) => {
-    setCurrentQuestion(testNumber);
-    setShowTestModal(false);
-  }, []);
+      const shouldUpdateDisplay =
+        !showTestModal || nextValue === 0 || nextValue % 5 === 0;
+      if (shouldUpdateDisplay) {
+        setRemainingSecondsDisplay(nextValue);
+      }
 
-  // Grouped test data for modal
-  const groupedTestData = useMemo(() => {
-    if (!testData?.answerKeys) return [];
+      if (nextValue === 0 && !hasTimedOutRef.current) {
+        hasTimedOutRef.current = true;
+        handleFinishTest({ autoSubmit: true });
+      }
+    }, 1000);
 
-    return Object.entries(
-      testData.answerKeys
-        .filter(
-          (item: any, index: any, self: any) =>
-            index ===
-            self.findIndex(
-              (q: any) => q.questionNumber === item.questionNumber,
-            ),
-        )
-        .reduce((acc: any, key: any) => {
-          const group = acc[key.subTestNo] || [];
-          group.push(key);
-          acc[key.subTestNo] = group;
-          return acc;
-        }, {}),
-    );
-  }, [testData]);
+    return () => clearInterval(timer);
+  }, [isTimedMode, submitResults.isPending, showTestModal, handleFinishTest]);
+
   usePreventRemove(isFocused, ({ data }) => {
     Alert.alert(
       "Testni tark etish",
@@ -662,23 +517,25 @@ export default function QuizScreenSertificate({
       ],
     );
   });
-  useFocusEffect(() => {
-    navigation.setOptions({
-      title: mavzu.toString(),
-      headerTitle: ({ children }: { children: any }) => (
-        <HeaderTitle title={children || "1-mavzu"} subtitle="Mashqlar" />
-      ),
-      headerBackTitle: "Orqaga",
-      freezeOnBlur: true,
-      // headerRight: () => (
-      //   <HeaderRight
-      //     currentQuestion={currentQuestion}
-      //     totalQuestions={totalQuestions}
-      //   />
-      // ),
-    });
-  });
-  // Loading and error states
+
+  useFocusEffect(
+    useCallback(() => {
+      navigation.setOptions({
+        title: mavzu,
+        headerTitle: () => (
+          <HeaderTitle
+            title={mavzu}
+            subtitle={
+              isTimedMode ? `Qolgan vaqt: ${formattedRemainingTime}` : ""
+            }
+          />
+        ),
+        headerBackTitle: "Orqaga",
+        freezeOnBlur: true,
+      });
+    }, [navigation, isTimedMode, formattedRemainingTime]),
+  );
+
   if (testLoading) {
     return <LoadingState />;
   }
@@ -687,264 +544,36 @@ export default function QuizScreenSertificate({
     return <ErrorState onRetry={handleGoBack} />;
   }
 
+  if (!isTimedMode) {
+    return (
+      <SafeAreaView style={styles.container} edges={["bottom"]}>
+        <View style={styles.pdfContainer}>
+          <PdfViewer testId={numericTestId} authToken={authToken} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
-      <View style={styles.solutionViewImageContainer}>
-        {(currentQuestionPhotos?.length ?? 0 > 0) ? (
-          <ImageViewer images={currentQuestionPhotos ?? []} theme={theme} />
-        ) : (
-          <View
-            style={{
-              flex: 1,
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 16,
-                color: theme.colors.text,
-              }}
-            >
-              Rasm yuklanmagan
-            </Text>
-          </View>
-        )}
+      <View style={styles.pdfContainer}>
+        <PdfViewer testId={numericTestId} authToken={authToken} />
       </View>
 
-      {/* Quiz Controls */}
       <View style={styles.quizControls}>
-        {/* Navigation and Answer Options Row */}
-        <View style={styles.topControlsRow}>
-          <View
-            style={{
-              flexDirection: "row",
-              position: "relative",
-              alignItems: "center",
-            }}
-          >
-            <View
-              style={{
-                position: "absolute",
-                top: -12,
-                width: "100%",
-                alignItems: "center",
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: theme.colors.textSecondary,
-                }}
-              >
-                {currentAnswerKey?.subTestNo}-test
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={[
-                styles.navButton,
-                currentQuestion === 1 && styles.navButtonDisabled,
-              ]}
-              onPress={handlePrevious}
-              disabled={currentQuestion === 1 || isFinishing}
-            >
-              <Ionicons
-                name="chevron-back"
-                size={20}
-                color={
-                  currentQuestion === 1 ? COLORS.textMuted : COLORS.primary
-                }
-              />
-              {questionOptions.length !== 6 && (
-                <Text style={styles.navButtonText}>Back</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={{ position: "relative" }}
-              onPress={handleQuestionNumberPress}
-            >
-              <Text style={styles.dbQuestionNumber}>
-                {currentAnswerKey?.questionNumber}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.navButton,
-                currentQuestion === totalQuestions && styles.navButtonDisabled,
-              ]}
-              onPress={handleNext}
-              disabled={currentQuestion === totalQuestions || isFinishing}
-            >
-              {questionOptions.length !== 6 && (
-                <Text style={styles.navButtonText}>Next</Text>
-              )}
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color={
-                  currentQuestion === totalQuestions
-                    ? COLORS.textMuted
-                    : COLORS.primary
-                }
-              />
-            </TouchableOpacity>
-          </View>
-          {/* Answer Options */}
-          {isMultipleChoice &&
-            questionOptions.map((option: string) => (
-              <OptionButton
-                key={option}
-                option={option}
-                disabled={isFinishing}
-                isSelected={selectedOption === option}
-                onSelect={handleOptionSelect}
-                styles={styles}
-              />
-            ))}
-        </View>
-
-        {/* Text Input for Non-Multiple Choice Questions */}
-        {!isMultipleChoice && (
-          <View style={styles.textInputContainer}>
-            <Text style={styles.textInputLabel}>Javobingizni kiriting:</Text>
-            {/* Custom Input Field */}
-            <TouchableOpacity
-              style={styles.customInput}
-              onPress={() => {
-                mathKeyboardRef.current?.show();
-                setTextInputValue((prev) => ({
-                  ...prev,
-                  activeInput: "textInput1",
-                }));
-              }}
-            >
-              {textInputValue.textInput1 ? (
-                <Text style={styles.customInputText}>
-                  <MathView
-                    math={textInputValue.textInput1}
-                    style={{
-                      fontSize: moderateScale(14),
-                      width: "100%",
-                      color: theme.colors.text,
-                      justifyContent: "start",
-                      alignItems: "start",
-                      height: moderateScale(20),
-                    }}
-                  />
-                </Text>
-              ) : (
-                <Text style={styles.customInputPlaceholder}>
-                  {isDualText ? "Savol 1 matematik" : "Matematik "} ifodani
-                  kiriting...
-                </Text>
-              )}
-            </TouchableOpacity>
-            {isDualText && (
-              <TouchableOpacity
-                style={[styles.customInput, { marginTop: 5 }]}
-                onPress={() => {
-                  mathKeyboardRef.current?.show();
-                  setTextInputValue((prev) => ({
-                    ...prev,
-                    activeInput: "textInput2",
-                  }));
-                }}
-              >
-                {textInputValue.textInput2 ? (
-                  <Text style={styles.customInputText}>
-                    <MathView
-                      math={textInputValue.textInput2}
-                      style={{
-                        fontSize: moderateScale(14),
-                        width: "100%",
-                        color: theme.colors.text,
-                        justifyContent: "start",
-                        alignItems: "start",
-                        height: moderateScale(20),
-                      }}
-                    />
-                  </Text>
-                ) : (
-                  <Text style={styles.customInputPlaceholder}>
-                    {isDualText && "Savol 2 "} matematik ifodani kiriting...
-                  </Text>
-                )}
-              </TouchableOpacity>
-            )}
-            {/* MathLive Modal Keyboard */}
-            <MathLiveModalKeyboard
-              ref={mathKeyboardRef}
-              value={
-                textInputValue[
-                  textInputValue.activeInput as keyof typeof textInputValue
-                ]
-              }
-              onChange={(newValue) => {
-                setTextInputValue((prev) => ({
-                  ...prev,
-                  [textInputValue.activeInput]: newValue,
-                }));
-                setSelectedOption(null);
-              }}
-              onClose={() => {}}
-            />
-          </View>
-        )}
-
-        {/* Action Buttons */}
         <View style={styles.actionContainer}>
           <TouchableOpacity
-            style={[styles.actionButton, styles.choiceButton]}
-            onPress={() => {
-              setSelectedOption(null);
-              setTextInputValue({
-                textInput1: "",
-                textInput2: "",
-                activeInput: "textInput1",
-              });
-            }}
+            style={[styles.actionButton, styles.confirmButton]}
+            onPress={openTestModal}
+            disabled={submitResults.isPending}
           >
-            <Text style={styles.choiceButtonText}>Yechim</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              styles.confirmButton,
-              !isAnswerSelected && styles.confirmButtonDisabled,
-            ]}
-            onPress={handleConfirm}
-            disabled={!isAnswerSelected || isFinishing}
-          >
-            {isFinishing ? (
-              <ActivityIndicator color="white" size="small" />
-            ) : (
-              <>
-                <Text
-                  style={[
-                    styles.confirmButtonText,
-                    !isAnswerSelected && styles.confirmButtonTextDisabled,
-                  ]}
-                >
-                  Tasdiqlash
-                </Text>
-                <Ionicons
-                  name="hand-right"
-                  size={20}
-                  color={!isAnswerSelected ? COLORS.gray : "white"}
-                  style={styles.handIcon}
-                />
-              </>
-            )}
+            <Text style={styles.confirmButtonText}>Belgilash</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Finish Test Button */}
         <TouchableOpacity
           style={styles.finishButton}
-          onPress={handleFinishTest}
+          onPress={() => handleFinishTest()}
           disabled={submitResults.isPending}
         >
           {submitResults.isPending ? (
@@ -962,17 +591,26 @@ export default function QuizScreenSertificate({
           )}
         </TouchableOpacity>
       </View>
-      {/* Test Navigation Popover */}
+
       {showTestModal && (
         <TestModal
           groupedTestData={groupedTestData}
           answers={answers}
-          currentQuestion={currentQuestion}
-          onTestSelect={handleTestSelect}
-          onClose={() => setShowTestModal(false)}
+          onSelectOption={handleOptionSelectForQuestion}
+          onOpenMathInput={handleOpenMathInput}
+          initialScrollY={testModalScrollYRef.current}
+          onScrollYChange={handleTestModalScrollYChange}
+          onClose={closeTestModal}
           styles={styles}
         />
       )}
+
+      <MathLiveModalKeyboard
+        ref={mathKeyboardRef}
+        value={activeTextAnswer?.value ?? ""}
+        onChange={handleMathKeyboardChange}
+        onClose={() => setActiveTextAnswer(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -981,19 +619,209 @@ const TestModal = React.memo(
   ({
     groupedTestData,
     answers,
-    currentQuestion,
-    onTestSelect,
+    onSelectOption,
+    onOpenMathInput,
+    initialScrollY,
+    onScrollYChange,
     onClose,
     styles,
   }: {
-    groupedTestData: [string, any][];
+    groupedTestData: [string, any[]][];
     answers: LocalQuizAnswer[];
-    currentQuestion: number;
-    onTestSelect: (testNumber: number) => void;
+    onSelectOption: (
+      answerKeyId: number,
+      questionId: number,
+      partIndex: number,
+      option: string,
+      subTestNo: number,
+    ) => void;
+    onOpenMathInput: (
+      answerKeyId: number,
+      questionId: number,
+      partIndex: number,
+      subTestNo: number,
+      value: string,
+    ) => void;
+    initialScrollY: number;
+    onScrollYChange: (value: number) => void;
     onClose: () => void;
-    styles: any;
+    styles: ReturnType<typeof createStyles>;
   }) => {
-    const subtestCounters: Record<number, number> = {};
+    const listRef = useRef<FlatList<ModalListRow>>(null);
+    const flatRows = useMemo<ModalListRow[]>(() => {
+      const rows: ModalListRow[] = [];
+
+      groupedTestData.forEach(([subTest, items]) => {
+        rows.push({
+          type: "header",
+          key: `header-${subTest}`,
+          subTestNo: String(subTest),
+        });
+
+        const groupedByQuestion = (items as any[]).reduce(
+          (acc: Record<number, any[]>, key: any) => {
+            if (!acc[key.dbQuestionNumber]) {
+              acc[key.dbQuestionNumber] = [];
+            }
+            acc[key.dbQuestionNumber].push(key);
+            return acc;
+          },
+          {},
+        );
+
+        Object.values(groupedByQuestion).forEach((sameQuestionItems) => {
+          const sortedParts = [...sameQuestionItems].sort(
+            (a: any, b: any) => (a.partIndex ?? 0) - (b.partIndex ?? 0),
+          );
+          const base = sortedParts[0];
+
+          let parsedOptions: string[] = [];
+          if (base.options) {
+            try {
+              parsedOptions = JSON.parse(base.options);
+            } catch {
+              parsedOptions = [];
+            }
+          }
+
+          rows.push({
+            type: "question",
+            key: `q-${base.dbQuestionNumber}-${subTest}`,
+            subTestNo: (base.subTestNo ?? Number(subTest)) || 1,
+            dbQuestionNumber: base.dbQuestionNumber,
+            questionNumber: base.questionNumber,
+            answerType: base.answerType,
+            options: parsedOptions,
+            parts: sortedParts.map((p: any) => ({
+              answerKeyId: p.id,
+              partIndex: p.partIndex ?? 0,
+              partLabel: p.partLabel ?? null,
+            })),
+          });
+        });
+      });
+
+      return rows;
+    }, [groupedTestData]);
+
+    const answerMap = useMemo(() => {
+      const map: Record<number, string | null> = {};
+      answers.forEach((a) => {
+        map[a.answerKeyId] = a.selectedOption;
+      });
+      return map;
+    }, [answers]);
+
+    useEffect(() => {
+      const id = setTimeout(() => {
+        listRef.current?.scrollToOffset({
+          offset: initialScrollY,
+          animated: false,
+        });
+      }, 0);
+
+      return () => clearTimeout(id);
+    }, []);
+
+    const renderRow = useCallback(
+      ({ item }: ListRenderItemInfo<ModalListRow>) => {
+        if (item.type === "header") {
+          return <Text style={styles.subTestTitle}>Test {item.subTestNo}</Text>;
+        }
+
+        const primaryPart = item.parts[0];
+        const selected = primaryPart
+          ? (answerMap[primaryPart.answerKeyId] ?? null)
+          : null;
+
+        return (
+          <View
+            style={[
+              styles.modalQuestionCard,
+              item.answerType === 1 && {
+                flexDirection: "row",
+                gap: 4,
+                alignItems: "center",
+              },
+            ]}
+          >
+            <Text style={styles.modalQuestionTitle}>{item.questionNumber}</Text>
+
+            {item.answerType === 1 && item.options.length > 0 ? (
+              <View style={styles.modalOptionsRow}>
+                {item.options.map((option) => (
+                  <OptionButton
+                    key={`${item.dbQuestionNumber}-${option}`}
+                    option={option}
+                    disabled={false}
+                    isSelected={selected === option}
+                    onSelect={(value) =>
+                      onSelectOption(
+                        primaryPart?.answerKeyId ?? item.dbQuestionNumber,
+                        item.dbQuestionNumber,
+                        primaryPart?.partIndex ?? 0,
+                        value,
+                        item.subTestNo,
+                      )
+                    }
+                    styles={styles}
+                  />
+                ))}
+              </View>
+            ) : (
+              <View style={[styles.modalTextPartsContainer]}>
+                {item.parts.map((part, idx) => {
+                  const partValue = answerMap[part.answerKeyId] ?? "";
+                  return (
+                    <View
+                      key={`${item.key}-part-${part.answerKeyId}`}
+                      style={[
+                        {
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 5,
+                        },
+                      ]}
+                    >
+                      {item.parts.length > 1 && (
+                        <Text style={styles.modalPartLabel}>
+                          {part.partLabel || `${idx + 1}-qism`}
+                        </Text>
+                      )}
+                      <TouchableOpacity
+                        style={styles.modalMathInput}
+                        onPress={() =>
+                          onOpenMathInput(
+                            part.answerKeyId,
+                            item.dbQuestionNumber,
+                            part.partIndex,
+                            item.subTestNo,
+                            partValue,
+                          )
+                        }
+                        activeOpacity={0.85}
+                      >
+                        {partValue ? (
+                          <MathView
+                            math={partValue}
+                            style={styles.modalMathPreview}
+                          />
+                        ) : (
+                          <Text style={styles.modalMathPlaceholder}>
+                            Javobni kiriting
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        );
+      },
+      [answerMap, onOpenMathInput, onSelectOption, styles],
+    );
 
     return (
       <View style={styles.popoverOverlay} pointerEvents="box-none">
@@ -1005,69 +833,35 @@ const TestModal = React.memo(
 
         <View style={styles.popoverContainer}>
           <View style={styles.popoverHeader}>
-            <Text style={styles.popoverTitle}>Testni tanlang</Text>
+            <Text style={styles.popoverTitle}>Barcha savollar</Text>
           </View>
-          <SectionList
-            sections={
-              groupedTestData.map((chapter) => ({
-                title: `Test ${chapter[0]}`,
-                data: chapter[1],
-              })) ?? []
+
+          <FlatList
+            ref={listRef}
+            style={styles.modalQuestionList}
+            contentContainerStyle={styles.modalQuestionListContent}
+            data={flatRows}
+            keyExtractor={(item) => item.key}
+            renderItem={renderRow}
+            showsVerticalScrollIndicator={false}
+            onScroll={(event) =>
+              onScrollYChange(event.nativeEvent.contentOffset.y)
             }
-            keyExtractor={(item, index) => item.id.toString() + index}
-            renderSectionHeader={({ section: { title } }) => (
-              <Text style={styles.subTestTitle}>{title}</Text>
-            )}
-            style={{
-              padding: 4,
-            }}
-            renderItem={({ section, index }) => {
-              const itemsPerRow = 8; // har qatorda 3 ta chiqadi
-              const startIndex = index * itemsPerRow;
-              const rowItems = section.data.slice(
-                startIndex,
-                startIndex + itemsPerRow,
-              );
-
-              return (
-                <View style={styles.testGrid}>
-                  {rowItems.map((item: any, i: any) => {
-                    const { subTestNo: currentSubTestNo, dbQuestionNumber } =
-                      item;
-
-                    if (!subtestCounters[currentSubTestNo]) {
-                      subtestCounters[currentSubTestNo] = 1;
-                    } else {
-                      subtestCounters[currentSubTestNo]++;
-                    }
-
-                    // const orderNumber = subtestCounters[currentSubTestNo];
-                    const isAnswered = answers.find(
-                      (a) => a.questionId === dbQuestionNumber,
-                    )?.isConfirmed;
-                    const isCurrent = dbQuestionNumber === currentQuestion;
-
-                    return (
-                      <TestGridItem
-                        key={i}
-                        testNumber={dbQuestionNumber}
-                        orderNumber={item.questionNumber}
-                        isAnswered={isAnswered}
-                        isCurrent={isCurrent}
-                        onSelect={onTestSelect}
-                        styles={styles}
-                      />
-                    );
-                  })}
-                </View>
-              );
-            }}
-            initialNumToRender={10}
-            maxToRenderPerBatch={20}
-            windowSize={2}
-            scrollEnabled
-            contentContainerStyle={styles.content}
+            scrollEventThrottle={16}
+            initialNumToRender={12}
+            maxToRenderPerBatch={16}
+            windowSize={10}
+            updateCellsBatchingPeriod={40}
+            removeClippedSubviews
+            keyboardShouldPersistTaps="handled"
           />
+
+          <View style={styles.popoverFooter}>
+            <TouchableOpacity style={styles.modalCloseButton} onPress={onClose}>
+              <Text style={styles.modalCloseText}>Yopish</Text>
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.popoverArrow} />
         </View>
       </View>
@@ -1075,7 +869,6 @@ const TestModal = React.memo(
   },
 );
 
-// Alohida style sheet'lar
 const headerTitleStyles = StyleSheet.create({
   container: {
     alignItems: "center",
@@ -1090,22 +883,6 @@ const headerTitleStyles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     color: COLORS.white,
     opacity: 0.8,
-  },
-});
-
-const headerRightStyles = StyleSheet.create({
-  container: {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    borderRadius: BORDER_RADIUS.sm,
-    minWidth: 50,
-    alignItems: "center",
-  },
-  text: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.white,
-    fontWeight: "500",
   },
 });
 
@@ -1165,9 +942,6 @@ const createStyles = (theme: Theme) =>
       flex: 1,
       backgroundColor: theme.colors.background,
     },
-    solutionViewImageContainer: {
-      flex: 1,
-    },
     pdfContainer: {
       flex: 1,
       backgroundColor: theme.colors.background,
@@ -1189,18 +963,6 @@ const createStyles = (theme: Theme) =>
       marginTop: SPACING.base,
       textAlign: "center",
     },
-    retryButton: {
-      backgroundColor: COLORS.primary,
-      paddingHorizontal: SPACING.xl,
-      paddingVertical: SPACING.base,
-      borderRadius: BORDER_RADIUS.base,
-      marginTop: SPACING.xl,
-    },
-    retryButtonText: {
-      fontSize: FONT_SIZES.base,
-      color: COLORS.white,
-      fontWeight: "500",
-    },
     quizControls: {
       position: "relative",
       backgroundColor: theme.colors.background,
@@ -1210,81 +972,6 @@ const createStyles = (theme: Theme) =>
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,
     },
-    topControlsRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      backgroundColor: theme.colors.background,
-      paddingVertical: SPACING.sm,
-      paddingHorizontal: SPACING.sm,
-      marginHorizontal: -SPACING.lg,
-      marginTop: -SPACING.base,
-      marginBottom: SPACING.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
-    },
-    navButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingVertical: SPACING.xs,
-      paddingHorizontal: SPACING.sm,
-    },
-    navButtonDisabled: {
-      opacity: 0.5,
-    },
-    navButtonText: {
-      fontSize: FONT_SIZES.base,
-      color: COLORS.primary,
-    },
-    dbQuestionNumber: {
-      fontSize: FONT_SIZES.base,
-      fontWeight: "bold",
-      color: theme.colors.text,
-      marginHorizontal: SPACING.sm,
-    },
-    optionButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: theme.colors.border,
-      borderWidth: 2,
-      borderColor: theme.colors.border,
-      justifyContent: "center",
-      alignItems: "center",
-      marginHorizontal: SPACING.xs,
-    },
-    optionButtonSelected: {
-      backgroundColor: COLORS.primary,
-      borderColor: COLORS.primary,
-    },
-    optionButtonText: {
-      fontSize: FONT_SIZES.base,
-      fontWeight: "bold",
-      color: theme.colors.text,
-    },
-    optionButtonTextSelected: {
-      color: COLORS.white,
-    },
-    customInput: {
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      borderRadius: BORDER_RADIUS.sm,
-      padding: SPACING.xs,
-      paddingHorizontal: SPACING.sm,
-      minHeight: 50,
-      backgroundColor: theme.colors.card,
-      justifyContent: "center",
-    },
-    customInputText: {
-      fontSize: FONT_SIZES.base,
-      color: theme.colors.text,
-      fontFamily: "monospace",
-    },
-    customInputPlaceholder: {
-      fontSize: FONT_SIZES.base,
-      color: theme.colors.textSecondary,
-      fontStyle: "italic",
-    },
     actionContainer: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -1293,41 +980,19 @@ const createStyles = (theme: Theme) =>
     actionButton: {
       flex: 1,
       paddingVertical: SPACING.sm,
-      backgroundColor: theme.colors.background,
       borderRadius: BORDER_RADIUS.sm,
       alignItems: "center",
       justifyContent: "center",
-    },
-    choiceButton: {
-      backgroundColor: theme.colors.background,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    choiceButtonText: {
-      fontSize: FONT_SIZES.base,
-      color: theme.colors.text,
-      fontWeight: "500",
     },
     confirmButton: {
       backgroundColor: COLORS.primary,
       flexDirection: "row",
       alignItems: "center",
     },
-    confirmButtonDisabled: {
-      backgroundColor: COLORS.gray,
-      opacity: 0.6,
-    },
     confirmButtonText: {
       fontSize: FONT_SIZES.base,
       color: COLORS.white,
-      fontWeight: "500",
-      marginRight: SPACING.xs,
-    },
-    confirmButtonTextDisabled: {
-      color: "gray",
-    },
-    handIcon: {
-      marginLeft: SPACING.xs,
+      fontWeight: "600",
     },
     finishButton: {
       backgroundColor: "#e74c3c",
@@ -1358,22 +1023,22 @@ const createStyles = (theme: Theme) =>
     },
     popoverBackground: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: "transparent",
+      backgroundColor: "rgba(0, 0, 0, 0.15)",
     },
     popoverContainer: {
       position: "absolute",
-      bottom: moderateScale(200),
+      bottom: moderateScale(120),
       left: SPACING.lg,
       right: SPACING.lg,
       backgroundColor: theme.colors.background,
-      paddingBottom: 10,
       borderRadius: BORDER_RADIUS.lg,
-      maxHeight: 300,
+      maxHeight: "75%",
       shadowColor: theme.colors.shadow,
       shadowOffset: { width: 0, height: -2 },
       shadowOpacity: 0.25,
       shadowRadius: 8,
       elevation: 8,
+      overflow: "hidden",
     },
     popoverHeader: {
       paddingHorizontal: SPACING.lg,
@@ -1387,10 +1052,120 @@ const createStyles = (theme: Theme) =>
       fontWeight: "bold",
       color: theme.colors.text,
     },
-    popoverContent: {
-      paddingHorizontal: SPACING.lg,
+    modalQuestionList: {
+      maxHeight: "100%",
+    },
+    modalQuestionListContent: {
+      paddingHorizontal: SPACING.base,
+      paddingTop: SPACING.xs,
+      paddingBottom: SPACING.xs,
+      gap: 2,
+    },
+    modalSection: {
+      paddingVertical: SPACING.xs,
+    },
+    subTestTitle: {
+      fontSize: FONT_SIZES.base,
+      fontWeight: "700",
+      color: theme.colors.text,
+      marginBottom: SPACING.xs,
+    },
+    modalQuestionCard: {
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.card,
+      borderRadius: BORDER_RADIUS.sm,
       paddingVertical: SPACING.sm,
-      maxHeight: 220,
+      paddingHorizontal: SPACING.sm,
+      marginBottom: SPACING.xs,
+    },
+    modalQuestionTitle: {
+      fontSize: FONT_SIZES.base,
+      fontWeight: "600",
+      color: theme.colors.text,
+      marginBottom: SPACING.xs,
+    },
+    modalOptionsRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "flex-start",
+      flexWrap: "nowrap",
+      gap: SPACING.xs,
+    },
+    optionButton: {
+      minWidth: 44,
+      height: 36,
+      borderRadius: 18,
+      paddingHorizontal: SPACING.sm,
+      backgroundColor: theme.colors.border,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    optionButtonSelected: {
+      backgroundColor: COLORS.primary,
+      borderColor: COLORS.primary,
+    },
+    optionButtonText: {
+      fontSize: FONT_SIZES.sm,
+      fontWeight: "700",
+      color: theme.colors.text,
+    },
+    optionButtonTextSelected: {
+      color: COLORS.white,
+    },
+    modalMathInput: {
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: BORDER_RADIUS.sm,
+      backgroundColor: theme.colors.background,
+      paddingHorizontal: SPACING.sm,
+      paddingVertical: SPACING.xs,
+      minHeight: 44,
+      flexGrow: 1,
+      marginBottom: SPACING.xs,
+      justifyContent: "center",
+    },
+    modalMathPreview: {
+      fontSize: moderateScale(12),
+      color: theme.colors.text,
+ 
+    },
+    modalMathPlaceholder: {
+      color: theme.colors.textSecondary,
+      fontSize: FONT_SIZES.sm,
+    },
+    modalTextPartsContainer: {
+      gap: SPACING.xs,
+    },
+    modalPartLabel: {
+      color: theme.colors.textSecondary,
+      fontSize: FONT_SIZES.xs,
+      marginBottom: moderateScale(4),
+      fontWeight: "600",
+    },
+    modalTextQuestionHint: {
+      color: theme.colors.textSecondary,
+      fontSize: FONT_SIZES.sm,
+    },
+    popoverFooter: {
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.border,
+      padding: SPACING.sm,
+      backgroundColor: theme.colors.background,
+    },
+    modalCloseButton: {
+      alignSelf: "center",
+      paddingHorizontal: SPACING.base,
+      paddingVertical: SPACING.xs,
+      borderRadius: BORDER_RADIUS.sm,
+      backgroundColor: theme.colors.border,
+    },
+    modalCloseText: {
+      color: theme.colors.text,
+      fontWeight: "600",
+      fontSize: FONT_SIZES.sm,
     },
     popoverArrow: {
       position: "absolute",
@@ -1404,64 +1179,6 @@ const createStyles = (theme: Theme) =>
       borderTopWidth: 8,
       borderLeftColor: "transparent",
       borderRightColor: "transparent",
-      borderTopColor: COLORS.white,
-    },
-    subTestTitle: {
-      fontSize: 16,
-      fontWeight: "600",
-      color: theme.colors.text,
-      marginBottom: 4,
-    },
-    testGrid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: SPACING.sm,
-    },
-    testGridItem: {
-      width: 36,
-      height: 36,
-      borderRadius: 120,
-      backgroundColor: theme.colors.border,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      justifyContent: "center",
-      alignItems: "center",
-      marginBottom: SPACING.sm,
-    },
-    testGridItemAnswered: {
-      backgroundColor: COLORS.primary,
-      borderColor: COLORS.primary,
-    },
-    testGridItemCurrent: {
-      backgroundColor: "#ffd700",
-      borderColor: "#ffd700",
-    },
-    testGridItemText: {
-      fontSize: FONT_SIZES.sm,
-      fontWeight: "bold",
-      color: theme.colors.text,
-    },
-    testGridItemTextActive: {
-      color: COLORS.white,
-    },
-    textInputContainer: {
-      marginBottom: SPACING.base,
-    },
-    textInputLabel: {
-      fontSize: FONT_SIZES.base,
-      fontWeight: "500",
-      color: COLORS.textMuted,
-      marginBottom: SPACING.xs,
-    },
-    textInput: {
-      borderWidth: 1,
-      borderColor: COLORS.gray,
-      borderRadius: BORDER_RADIUS.sm,
-      padding: SPACING.sm,
-      fontSize: FONT_SIZES.base,
-      color: COLORS.text,
-      backgroundColor: COLORS.white,
-      minHeight: 80,
-      textAlignVertical: "top",
+      borderTopColor: theme.colors.background,
     },
   });

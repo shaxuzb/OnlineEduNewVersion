@@ -29,6 +29,7 @@ export default function QuizResultsScreenSertificate({
   const styles = createStyles(theme);
   const { plan } = useAuth();
   const { testId, userId, themeId, mavzu } = route.params;
+
   const {
     data: quizResults,
     isLoading: resultsLoading,
@@ -50,6 +51,13 @@ export default function QuizResultsScreenSertificate({
     );
   }, [quizResults]);
 
+  const handleOpenHistory = () => {
+    navigation.navigate("QuizResultsHistorySertificate", {
+      userId,
+      themeId,
+    });
+  };
+
   const handleFinish = () => {
     navigation.reset({
       index: 0,
@@ -70,6 +78,7 @@ export default function QuizResultsScreenSertificate({
       ],
     });
   };
+
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
       "hardwareBackPress",
@@ -80,10 +89,11 @@ export default function QuizResultsScreenSertificate({
     );
     return () => backHandler.remove();
   }, []);
+
   useEffect(() => {
     navigation.setOptions({
       headerShown: true,
-      title: "IDS mavzulashtirilgan testlar to'plami",
+      title: mavzu,
       headerTitle: () => (
         <View style={headerRightStyles.container}>
           <Text
@@ -91,7 +101,7 @@ export default function QuizResultsScreenSertificate({
             numberOfLines={2}
             adjustsFontSizeToFit
           >
-            IDS mavzulashtirilgan testlar to'plami
+            {mavzu || "IDS mavzulashtirilgan testlar to'plami"}
           </Text>
         </View>
       ),
@@ -100,7 +110,7 @@ export default function QuizResultsScreenSertificate({
       headerLeft: () => <Text></Text>,
     });
   }, [navigation]);
-  
+
   if (resultsLoading)
     return (
       <SafeAreaView style={styles.centerContainer}>
@@ -128,49 +138,62 @@ export default function QuizResultsScreenSertificate({
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
-          {/* Circle */}
           <View style={styles.percentageCircle}>
             <Text
               style={styles.percentageText}
               numberOfLines={1}
               adjustsFontSizeToFit
             >
-              {quizResults[0].percent.toFixed(0)}%
+              {quizResults[0].degree}
             </Text>
           </View>
 
-          {/* Stats */}
+          <View style={styles.resultMessageBox}>
+            <Text
+              style={styles.resultMessage}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {quizResults[0].resultMessage}
+            </Text>
+          </View>
+
           <View style={styles.statsBox}>
             <View style={styles.statsRow}>
-              <Text style={styles.statsLabel}>To'g'ri:</Text>
+              <Text style={styles.statsLabel}>Umumiy to'plagan bali:</Text>
               <Text style={styles.statsValue}>{quizResults[0].score} ta</Text>
             </View>
             <View style={styles.statsRow}>
-              <Text style={styles.statsLabel}>Noto'g'ri:</Text>
-              <Text style={styles.statsValue}>
-                {quizResults[0].maxScore - quizResults[0].score} ta
+              <Text style={styles.statsLabel}>
+                Umumiy ballga nisbatan foiz ko'rsatkichi:
               </Text>
+              <Text style={styles.statsValue}>{quizResults[0].percent}%</Text>
+            </View>
+            <View style={styles.statsRow}>
+              <Text style={styles.statsLabel}>Sertifikat darajasi:</Text>
+              <Text style={styles.statsValue}>{quizResults[0].degree}</Text>
             </View>
           </View>
 
-          {/* Wrong list */}
           <View style={styles.wrongBox}>
             <Text style={styles.wrongTitle}>
-              Xato yoki ishlanmagan misollar:
+              Xato ishlangan yoki ishlanmagan misol nomerlari:
             </Text>
             <View style={styles.wrongNumbers}>
               {groupedTestData.map(([subTestNo, questions]) => {
                 return (
                   <View key={subTestNo}>
-                    <Text
-                      style={{
-                        fontSize: moderateScale(16),
-                        marginBottom: moderateScale(8),
-                        color: theme.colors.text,
-                      }}
-                    >
-                      Test {subTestNo}
-                    </Text>
+                    {groupedTestData.length > 1 && (
+                      <Text
+                        style={{
+                          fontSize: moderateScale(16),
+                          marginBottom: moderateScale(8),
+                          color: theme.colors.text,
+                        }}
+                      >
+                        Test {subTestNo}
+                      </Text>
+                    )}
                     <View
                       style={{ flexDirection: "row", gap: 5, flexWrap: "wrap" }}
                     >
@@ -193,10 +216,16 @@ export default function QuizResultsScreenSertificate({
               Ushbu misollarni qayta yechishni tavsiya qilamiz!
             </Text>
           </View>
-
-          {/* Buttons */}
         </View>
       </ScrollView>
+
+      <TouchableOpacity
+        style={styles.historyButton}
+        onPress={handleOpenHistory}
+      >
+        <Text style={styles.historyButtonText}>Tarixni ko'rish</Text>
+      </TouchableOpacity>
+
       <View style={styles.actions}>
         <TouchableOpacity
           style={[styles.button, styles.outlineButton]}
@@ -216,15 +245,6 @@ export default function QuizResultsScreenSertificate({
             } else {
               modalService.open();
             }
-            // router.navigate({
-            //   pathname: "/(root)/lesson/lessondetail/quiz/solution",
-            //   params: {
-            //     userId,
-            //     testId,
-            //     themeId,
-            //     mavzu,
-            //   },
-            // });
           }}
         >
           {!(
@@ -252,7 +272,7 @@ export default function QuizResultsScreenSertificate({
             size={moderateScale(20)}
             color={theme.colors.primary}
           />
-          <Text style={styles.outlineText}>Natijani ko‘rish</Text>
+          <Text style={styles.outlineText}>Natijani ko'rish</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -270,6 +290,7 @@ export default function QuizResultsScreenSertificate({
     </SafeAreaView>
   );
 }
+
 const headerRightStyles = StyleSheet.create({
   container: {
     borderRadius: moderateScale(BORDER_RADIUS.sm),
@@ -282,6 +303,7 @@ const headerRightStyles = StyleSheet.create({
     fontWeight: "500",
   },
 });
+
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
@@ -337,15 +359,39 @@ const createStyles = (theme: Theme) =>
       flexDirection: "row",
       justifyContent: "space-between",
       paddingVertical: moderateScale(SPACING.xs),
+      gap: moderateScale(8),
     },
     statsLabel: {
-      fontSize: moderateScale(FONT_SIZES.base),
+      flex: 1,
+      fontSize: moderateScale(FONT_SIZES.sm),
       color: theme.colors.text,
     },
     statsValue: {
-      fontSize: moderateScale(FONT_SIZES.base),
+      fontSize: moderateScale(FONT_SIZES.sm),
       fontWeight: "bold",
       color: theme.colors.text,
+    },
+    resultMessageBox: {
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: moderateScale(SPACING.xl),
+    },
+    resultMessage: {
+      fontSize: moderateScale(FONT_SIZES.lg),
+      fontWeight: "600",
+      color: theme.colors.text,
+    },
+    historyButton: {
+      justifyContent: "center",
+      alignItems: "center",
+      marginVertical: moderateScale(SPACING.sm),
+    },
+    historyButtonText: {
+      color: theme.colors.primary,
+      fontSize: moderateScale(FONT_SIZES.base),
+      borderBottomColor: theme.colors.primary,
+      borderBottomWidth: 1,
+      fontWeight: "600",
     },
     wrongBox: {
       backgroundColor: theme.colors.card,
@@ -358,7 +404,7 @@ const createStyles = (theme: Theme) =>
       fontSize: moderateScale(FONT_SIZES.base),
       fontWeight: "600",
       color: theme.colors.text,
-      marginBottom: moderateScale(SPACING.xs),
+      marginBottom: moderateScale(SPACING.lg),
     },
     wrongNumbers: {
       flexDirection: "column",
@@ -378,10 +424,10 @@ const createStyles = (theme: Theme) =>
       fontWeight: "600",
     },
     encouragement: {
-      fontSize: moderateScale(FONT_SIZES.base),
+      fontSize: moderateScale(FONT_SIZES.sm),
       textAlign: "center",
       color: theme.colors.text,
-      marginTop: moderateScale(SPACING.sm),
+      marginTop: moderateScale(SPACING.base),
       fontStyle: "italic",
     },
     actions: {

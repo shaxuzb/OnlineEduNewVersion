@@ -75,7 +75,7 @@ function ProfileScreen() {
   const { isSuperAdmin } = useSession();
   const { countryCode } = useGeo();
   const contactBottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => [moderateScale(230)], []);
+  const snapPoints = useMemo(() => [moderateScale(300)], []);
 
   const openContactBottomSheet = useCallback(() => {
     contactBottomSheetRef.current?.snapToIndex(0);
@@ -301,6 +301,7 @@ function ProfileScreen() {
         snapPoints={snapPoints}
         backdropComponent={renderBackdrop}
         enablePanDownToClose
+        enableDynamicSizing={false}
         backgroundStyle={styles.contactSheetBackground}
         handleIndicatorStyle={styles.contactHandleIndicator}
       >

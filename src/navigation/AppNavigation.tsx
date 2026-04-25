@@ -38,6 +38,7 @@ import { PurchaseProvider } from "../context/PurchaseContext";
 import MainTabNavigator from "./maintab";
 import QuizScreenSertificate from "../screens/courses/sertificatetests/QuizScreenSertificate";
 import QuizResultsScreenSertificate from "../screens/courses/sertificatetests/QuizResultsScreenSertificate";
+import QuizResultsHistoryScreenSertificate from "../screens/courses/sertificatetests/QuizResultsHistoryScreenSertificate";
 import SolutionScreenSertificate from "../screens/courses/sertificatetests/SolutionScreenSertificate";
 
 const Stack = createNativeStackNavigator();
@@ -308,6 +309,15 @@ const MainStackNavigator = () => (
         headerTitleStyle: {
           fontSize: +moderateScale(18).toFixed(0),
         },
+      }}
+    />
+    <Stack.Screen
+      name="QuizResultsHistorySertificate"
+      component={QuizResultsHistoryScreenSertificate}
+      options={{
+        presentation: "transparentModal",
+        animation: "slide_from_bottom",
+        headerShown: false,
       }}
     />
     <Stack.Screen

@@ -244,7 +244,7 @@ export default function QuizScreen({
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const { testId, mavzu, percent } = route.params;
+  const { testId, mavzu } = route.params;
   const numericTestId = Number(testId);
   const isFocused = useIsFocused();
   // API hooks
@@ -844,7 +844,7 @@ const createStyles = (theme: Theme) =>
       justifyContent: "center",
       alignItems: "center",
       paddingHorizontal: SPACING.xl,
-    },
+    },  
     errorTitle: {
       fontSize: FONT_SIZES.xl,
       fontWeight: "bold",

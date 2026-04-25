@@ -56,6 +56,7 @@ const AlertHost = () => {
   const preset = ALERT_PRESETS[type];
   const title = config.title ?? preset.defaultTitle;
   const showCancel = config.showCancel ?? true;
+  const hasSecondaryAction = Boolean(config.secondaryText && config.onSecondary);
 
   return (
     <Modal
@@ -79,6 +80,20 @@ const AlertHost = () => {
           <Text style={styles.title}>{title}</Text>
 
           {config.description && <Text style={styles.desc}>{config.description}</Text>}
+
+          {hasSecondaryAction && (
+            <TouchableOpacity
+              style={[styles.secondaryAction, { borderColor: preset.okBg }]}
+              onPress={() => {
+                config.onSecondary?.();
+                alertService.close();
+              }}
+            >
+              <Text style={[styles.secondaryText, { color: preset.okBg }]}>
+                {config.secondaryText}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           <View style={styles.actions}>
             {showCancel && (
@@ -155,9 +170,21 @@ const styles = StyleSheet.create({
     color: "#555",
     textAlign: "center",
   },
+  secondaryAction: {
+    marginTop: 14,
+    borderWidth: 1,
+    borderRadius: 10,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  secondaryText: {
+    fontWeight: "700",
+  },
   actions: {
     flexDirection: "row",
-    marginTop: 22,
+    marginTop: 12,
   },
   cancel: {
     flex: 1,

@@ -139,7 +139,7 @@ export const PurchaseModal = (/* { isDark }: PurchaseModalProps */) => {
         style={{
           flex: 1,
           paddingTop: insets.top,
-          paddingBottom: insets.bottom,
+          paddingBottom: 10,
           backgroundColor: "transparent",
         }}
       >
@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   gradient: {
-    marginBottom: scale(14),
+    marginBottom: scale(0),
     borderRadius: 18,
   },
   buyText: {

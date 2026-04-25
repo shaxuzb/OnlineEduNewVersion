@@ -1,8 +1,13 @@
 import { modalService } from "@/src/components/modals/modalService";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
+import { useQuizResults } from "@/src/hooks/useQuiz";
 import { useThemeTestStatistics } from "@/src/hooks/useStatistics";
-import { Theme, ThemeTestStatisticWrongAnswers } from "@/src/types";
+import {
+  QuizResultsResponse,
+  Theme,
+  ThemeTestStatisticWrongAnswers,
+} from "@/src/types";
 import { BORDER_RADIUS, FONT_SIZES, SPACING } from "@/src/utils";
 import { FontAwesome6, Ionicons } from "@expo/vector-icons";
 import React, { memo, useCallback, useEffect, useMemo } from "react";
@@ -29,37 +34,83 @@ function StatistikaTestScreen({
   const styles = createStyles(theme);
 
   const { plan } = useAuth();
-  // Get route params
-  const { testId, userId, subjectId, themeName, themeId, subjectCode } =
+  const { testId, userId, subjectId, themeName, themeId, subjectCode, mavzu } =
     route.params;
 
-  // API hooks
-  const { data, isLoading, error, refetch } = useThemeTestStatistics(
-    Number(userId),
-    Number(subjectId),
-    Number(testId),
-  );
-  const groupedTestData = useMemo(() => {
-    if (!data) return [];
+  const isNationalSubject = subjectCode === "NATIONAL";
+
+  const {
+    data: themeTestStatistics,
+    isLoading: themeTestLoading,
+    error: themeTestError,
+    refetch,
+  } = useThemeTestStatistics(Number(userId), Number(subjectId), Number(testId));
+
+  const {
+    data: nationalQuizResults,
+    isLoading: nationalResultsLoading,
+    error: nationalResultsError,
+  } = useQuizResults(Number(userId), isNationalSubject ? Number(themeId) : 0);
+
+  const groupedThemeTestData = useMemo(() => {
+    if (!themeTestStatistics) return [];
 
     return Object.entries(
-      data.wrongOrUnsolvedNumbers.reduce((acc: any, key: any) => {
-        const group = acc[key.subTestNo] || [];
-        group.push(key);
-        acc[key.subTestNo] = group;
-        return acc;
-      }, {}),
+      themeTestStatistics.wrongOrUnsolvedNumbers.reduce(
+        (acc: any, key: any) => {
+          const group = acc[key.subTestNo] || [];
+          group.push(key);
+          acc[key.subTestNo] = group;
+          return acc;
+        },
+        {},
+      ),
     );
-  }, [data]);
+  }, [themeTestStatistics]);
+
+  const groupedNationalWrongData = useMemo(() => {
+    if (!nationalQuizResults?.[0]) return [];
+
+    return Object.entries(
+      nationalQuizResults[0].answers
+        .filter((item) => !item.isCorrect)
+        .reduce((acc: any, key: any) => {
+          const group = acc[key.subTestNo] || [];
+          group.push(key);
+          acc[key.subTestNo] = group;
+          return acc;
+        }, {}),
+    );
+  }, [nationalQuizResults]);
+
+  const isLoading = isNationalSubject
+    ? nationalResultsLoading
+    : themeTestLoading;
+  const hasError = isNationalSubject
+    ? nationalResultsError ||
+      (!nationalResultsLoading && !nationalQuizResults?.[0])
+    : !!themeTestError;
+
   useEffect(() => {
+    if (isNationalSubject) return;
+
     const task = InteractionManager.runAfterInteractions(() => {
       refetch();
     });
     return () => task.cancel();
-  }, []);
+  }, [isNationalSubject, refetch]);
+
+  const handleOpenHistory = useCallback(() => {
+    navigation.navigate("QuizResultsHistorySertificate", {
+      userId,
+      themeId,
+    });
+  }, [navigation, userId, themeId]);
+
   const handleGoBack = useCallback(() => {
     navigation.goBack();
-  }, []);
+  }, [navigation]);
+
   useEffect(() => {
     navigation.setOptions({
       title: themeName.toString(),
@@ -71,14 +122,14 @@ function StatistikaTestScreen({
           }}
         >
           <Text style={styles.headerTitle}>{children}</Text>
-          {/* <Text style={styles.headerSubtitle}>Natija</Text> */}
         </View>
       ),
       headerBackButtonDisplayMode: "minimal",
       headerRight: () => <Text style={{ width: 55 }}></Text>,
       headerTintColor: "white",
     });
-  }, [navigation]);
+  }, [navigation, themeName, styles.headerTitle]);
+
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       {isLoading ? (
@@ -86,7 +137,7 @@ function StatistikaTestScreen({
           <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={styles.loadingText}>Natijalar yuklanmoqda...</Text>
         </View>
-      ) : error ? (
+      ) : hasError ? (
         <View style={styles.errorContainer}>
           <Ionicons
             name="alert-circle-outline"
@@ -103,83 +154,165 @@ function StatistikaTestScreen({
         </View>
       ) : (
         <View style={{ flex: 1 }}>
-          {/* Percentage Circle */}
           <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-            <View style={styles.content}>
-              <View style={styles.percentageContainer}>
-                <View style={styles.percentageCircle}>
+            {isNationalSubject ? (
+              <View style={styles.content}>
+                <View style={styles.percentageContainer}>
+                  <View style={styles.percentageCircle}>
+                    <Text
+                      style={styles.percentageText}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                    >
+                      {nationalQuizResults?.[0]?.degree}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.resultMessageBox}>
                   <Text
-                    style={styles.percentageText}
+                    style={styles.resultMessage}
                     numberOfLines={1}
                     adjustsFontSizeToFit
                   >
-                    {data?.percent}%
+                    {nationalQuizResults?.[0]?.resultMessage}
                   </Text>
                 </View>
-              </View>
 
-              {/* Statistics */}
-              <View style={styles.statsContainer}>
-                <View style={styles.statsRow}>
-                  <Text style={styles.statsLabel}>To'g'ri:</Text>
-                  <Text style={styles.statsValue}>{data?.correct} ta</Text>
+                <View style={styles.statsContainer}>
+                  <View style={styles.statsRow}>
+                    <Text style={styles.statsLabel}>
+                      Umumiy to'plagan bali:
+                    </Text>
+                    <Text style={styles.statsValue}>
+                      {nationalQuizResults?.[0]?.score} ta
+                    </Text>
+                  </View>
+                  <View style={styles.statsRow}>
+                    <Text style={styles.statsLabel}>
+                      Umumiy ballga nisbatan foiz ko'rsatkichi:
+                    </Text>
+                    <Text style={styles.statsValue}>
+                      {nationalQuizResults?.[0]?.percent}%
+                    </Text>
+                  </View>
+                  <View style={styles.statsRow}>
+                    <Text style={styles.statsLabel}>Sertifikat darajasi:</Text>
+                    <Text style={styles.statsValue}>
+                      {nationalQuizResults?.[0]?.degree}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.statsRow}>
-                  <Text style={styles.statsLabel}>Noto'g'ri:</Text>
-                  <Text style={styles.statsValue}>{data?.wrong} ta</Text>
+
+                <View style={styles.wrongAnswersSection}>
+                  <Text style={styles.wrongAnswersTitle}>
+                    Xato ishlangan yoki ishlanmagan misol nomerlari:
+                  </Text>
+
+                  <View style={styles.wrongNumbersContainer}>
+                    {groupedNationalWrongData.map(([subTestNo, questions]) => {
+                      return (
+                        <View key={subTestNo}>
+                          {groupedNationalWrongData.length > 1 && (
+                            <Text style={styles.subTestTitle}>
+                              Test {subTestNo}
+                            </Text>
+                          )}
+                          <View style={styles.badgesRow}>
+                            {(
+                              questions as QuizResultsResponse[0]["answers"]
+                            ).map((num, index) => (
+                              <View key={index} style={styles.wrongNumberBadge}>
+                                <Text style={styles.wrongNumberText}>
+                                  {num?.partLabel}
+                                  {num.questionNumber}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+
+                  <Text style={styles.encouragementText}>
+                    Ushbu misollarni qayta yechishni tavsiya qilamiz!
+                  </Text>
                 </View>
+
+                <TouchableOpacity
+                  style={styles.historyButton}
+                  onPress={handleOpenHistory}
+                >
+                  <Text style={styles.historyButtonText}>Tarixni ko'rish</Text>
+                </TouchableOpacity>
               </View>
+            ) : (
+              <View style={styles.content}>
+                <View style={styles.percentageContainer}>
+                  <View style={styles.percentageCircle}>
+                    <Text
+                      style={styles.percentageText}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                    >
+                      {themeTestStatistics?.percent}%
+                    </Text>
+                  </View>
+                </View>
 
-              {/* Wrong Answers Section */}
-              <View style={styles.wrongAnswersSection}>
-                <Text style={styles.wrongAnswersTitle}>
-                  Xato ishlangan yoki ishlanmagan misol nomerlari:
-                </Text>
+                <View style={styles.statsContainer}>
+                  <View style={styles.statsRow}>
+                    <Text style={styles.statsLabel}>To'g'ri:</Text>
+                    <Text style={styles.statsValue}>
+                      {themeTestStatistics?.correct} ta
+                    </Text>
+                  </View>
+                  <View style={styles.statsRow}>
+                    <Text style={styles.statsLabel}>Noto'g'ri:</Text>
+                    <Text style={styles.statsValue}>
+                      {themeTestStatistics?.wrong} ta
+                    </Text>
+                  </View>
+                </View>
 
-                <View style={styles.wrongNumbersContainer}>
-                  {groupedTestData.map(([subTestNo, questions]) => {
-                    return (
-                      <View key={subTestNo}>
-                        <Text
-                          style={{
-                            fontSize: moderateScale(16),
-                            marginBottom: 8,
-                            color: theme.colors.text,
-                          }}
-                        >
-                          Test {subTestNo}
-                        </Text>
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            gap: 5,
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          {(questions as ThemeTestStatisticWrongAnswers[]).map(
-                            (num, index) => (
+                <View style={styles.wrongAnswersSection}>
+                  <Text style={styles.wrongAnswersTitle}>
+                    Xato ishlangan yoki ishlanmagan misol nomerlari:
+                  </Text>
+
+                  <View style={styles.wrongNumbersContainer}>
+                    {groupedThemeTestData.map(([subTestNo, questions]) => {
+                      return (
+                        <View key={subTestNo}>
+                          <Text style={styles.subTestTitle}>
+                            Test {subTestNo}
+                          </Text>
+                          <View style={styles.badgesRow}>
+                            {(
+                              questions as ThemeTestStatisticWrongAnswers[]
+                            ).map((num, index) => (
                               <View key={index} style={styles.wrongNumberBadge}>
                                 <Text style={styles.wrongNumberText}>
                                   {num.partLabel}
                                   {num.questionNumber}
                                 </Text>
                               </View>
-                            ),
-                          )}
+                            ))}
+                          </View>
                         </View>
-                      </View>
-                    );
-                  })}
-                </View>
+                      );
+                    })}
+                  </View>
 
-                <Text style={styles.encouragementText}>
-                  Ushbu misollari qayta hal qilishni tavsiya qilamiz!
-                </Text>
+                  <Text style={styles.encouragementText}>
+                    Ushbu misollari qayta hal qilishni tavsiya qilamiz!
+                  </Text>
+                </View>
               </View>
-            </View>
+            )}
           </ScrollView>
 
-          {/* Action Buttons */}
           <View style={styles.actionButtons}>
             <TouchableOpacity
               style={[styles.button, styles.outlineButton]}
@@ -194,15 +327,18 @@ function StatistikaTestScreen({
                     return navigation.navigate("QuizSolutionSertificate", {
                       userId,
                       testId,
-                      themeId: themeId,
-                      percent: data?.percent,
+                      themeId,
+                      mavzu,
+                      percent: isNationalSubject
+                        ? nationalQuizResults?.[0]?.percent
+                        : themeTestStatistics?.percent,
                     });
                   } else {
                     navigation.navigate("QuizSolution", {
                       userId,
                       testId,
-                      themeId: themeId,
-                      percent: data?.percent,
+                      themeId,
+                      percent: themeTestStatistics?.percent,
                     });
                   }
                 } else {
@@ -235,7 +371,7 @@ function StatistikaTestScreen({
                 size={moderateScale(18)}
                 color={theme.colors.primary}
               />
-              <Text style={styles.outlineText}>Natijani ko‘rish</Text>
+              <Text style={styles.outlineText}>Natijani ko'rish</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionButton, styles.finishButton]}
@@ -249,7 +385,9 @@ function StatistikaTestScreen({
     </SafeAreaView>
   );
 }
+
 export default memo(StatistikaTestScreen);
+
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
@@ -261,11 +399,6 @@ const createStyles = (theme: Theme) =>
       fontWeight: "bold",
       textAlign: "center",
       color: "white",
-    },
-    headerSubtitle: {
-      fontSize: moderateScale(FONT_SIZES.xs),
-      color: "white",
-      opacity: 0.8,
     },
     content: {
       flex: 1,
@@ -297,6 +430,29 @@ const createStyles = (theme: Theme) =>
       fontWeight: "bold",
       color: theme.colors.primary,
     },
+    resultMessageBox: {
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: moderateScale(SPACING.xl),
+    },
+    resultMessage: {
+      fontSize: moderateScale(FONT_SIZES.lg),
+      fontWeight: "600",
+      color: theme.colors.text,
+    },
+    historyButton: {
+      justifyContent: "center",
+      alignItems: "center",
+      marginTop: moderateScale(SPACING.sm),
+      marginBottom: moderateScale(SPACING.sm),
+    },
+    historyButtonText: {
+      color: theme.colors.primary,
+      fontSize: moderateScale(FONT_SIZES.base),
+      borderBottomColor: theme.colors.primary,
+      borderBottomWidth: 1,
+      fontWeight: "600",
+    },
     statsContainer: {
       backgroundColor: theme.colors.card,
       borderRadius: moderateScale(BORDER_RADIUS.sm),
@@ -314,14 +470,16 @@ const createStyles = (theme: Theme) =>
       justifyContent: "space-between",
       alignItems: "center",
       paddingVertical: SPACING.sm,
+      gap: moderateScale(8),
     },
     statsLabel: {
-      fontSize: moderateScale(FONT_SIZES.base),
+      flex: 1,
+      fontSize: moderateScale(FONT_SIZES.sm),
       color: theme.colors.text,
       fontWeight: "500",
     },
     statsValue: {
-      fontSize: moderateScale(FONT_SIZES.base),
+      fontSize: moderateScale(FONT_SIZES.sm),
       color: theme.colors.text,
       fontWeight: "bold",
     },
@@ -349,6 +507,16 @@ const createStyles = (theme: Theme) =>
       gap: SPACING.xs,
       marginBottom: SPACING.base,
     },
+    subTestTitle: {
+      fontSize: moderateScale(16),
+      marginBottom: moderateScale(8),
+      color: theme.colors.text,
+    },
+    badgesRow: {
+      flexDirection: "row",
+      gap: 5,
+      flexWrap: "wrap",
+    },
     wrongNumberBadge: {
       backgroundColor: theme.colors.error + "20",
       borderColor: theme.colors.error,
@@ -364,7 +532,7 @@ const createStyles = (theme: Theme) =>
       fontWeight: "600",
     },
     encouragementText: {
-      fontSize: moderateScale(FONT_SIZES.base),
+      fontSize: moderateScale(FONT_SIZES.sm),
       color: theme.colors.text,
       fontWeight: "500",
       textAlign: "center",
@@ -425,7 +593,6 @@ const createStyles = (theme: Theme) =>
       color: "white",
       fontWeight: "600",
     },
-    // Loading and error states
     loadingContainer: {
       flex: 1,
       justifyContent: "center",

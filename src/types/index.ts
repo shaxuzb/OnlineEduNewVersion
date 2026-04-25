@@ -354,9 +354,35 @@ export interface QuizResultData {
   maxScore: number;
   answers: QuizResultAnswer[];
   score: number;
+  totalQuestionsCount: number;
+  correctQuestionsCount: number;
+  wrongQuestionsCount: number;
+  degree: string;
+  resultMessage: string;
+  isNationalSubject: boolean;
+  isSolved: boolean;
 }
 
 export interface QuizResultsResponse extends Array<QuizResultData> {}
+
+export interface QuizResultHistoryItem {
+  id: number;
+  testId: number;
+  testName: string;
+  userId: number;
+  createdAt: string;
+  score: number;
+  maxScore: number;
+  percent: number;
+  totalQuestionsCount: number;
+  correctQuestionsCount: number;
+  wrongQuestionsCount: number;
+  degree: string;
+  resultMessage: string;
+  isNationalSubject: boolean;
+}
+
+export interface QuizResultHistoryResponse extends Array<QuizResultHistoryItem> {}
 // News types
 export interface NewsItem {
   id: number;
@@ -424,6 +450,7 @@ export interface ThemeTestStatistic {
   name: string;
   score: number;
   percent: number;
+  ordinalNumber: number;
   correct: number;
   wrong: number;
   total: number;

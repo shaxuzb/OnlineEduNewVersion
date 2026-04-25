@@ -27,6 +27,7 @@ import SeekRipple from "./components/SeekRipple";
 import VideoControls from "./components/VideoControls";
 import { SettingsDropdown } from "./components/SettingsDropdown";
 import { useFocusEffect } from "@react-navigation/native";
+import ScreenGuardModule from "react-native-screenguard";
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -58,6 +59,8 @@ const VideoPlayerScreen = ({
   const videoRef = useRef<any>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const seekTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isScreenGuardEnabledRef = useRef(false);
+  const guardRequestIdRef = useRef(0);
 
   const leftRipple = useSharedValue(0);
   const rightRipple = useSharedValue(0);
@@ -143,12 +146,56 @@ const VideoPlayerScreen = ({
     setPlaybackRate(rate);
   }, []);
 
-  const handleBack = useCallback(async () => {
-    await ScreenOrientation.lockAsync(
+  const setScreenGuardEnabled = useCallback((enabled: boolean) => {
+    if (isScreenGuardEnabledRef.current === enabled) {
+      return;
+    }
+
+    isScreenGuardEnabledRef.current = enabled;
+    const requestId = ++guardRequestIdRef.current;
+
+    (async () => {
+      try {
+        if (enabled) {
+          try {
+            await ScreenGuardModule.unregister();
+          } catch {
+            // ignore
+          }
+
+          await ScreenGuardModule.initSettings({
+            displayScreenGuardOverlay: false,
+            timeAfterResume: 500,
+            getScreenshotPath: false,
+          });
+
+          if (
+            guardRequestIdRef.current !== requestId ||
+            !isScreenGuardEnabledRef.current
+          ) {
+            return;
+          }
+
+          await ScreenGuardModule.registerWithBlurView({
+            radius: 20,
+          });
+          return;
+        }
+
+        await ScreenGuardModule.unregister();
+      } catch (error) {
+        console.warn("ScreenGuard iOS error:", error);
+      }
+    })();
+  }, []);
+
+  const handleBack = useCallback(() => {
+    setScreenGuardEnabled(false);
+    ScreenOrientation.lockAsync(
       ScreenOrientation.OrientationLock.PORTRAIT_UP,
-    );
+    ).catch(console.warn);
     navigation.goBack();
-  }, [navigation]);
+  }, [navigation, setScreenGuardEnabled]);
 
   useEffect(() => {
     let mounted = true;
@@ -266,14 +313,17 @@ const VideoPlayerScreen = ({
   );
   useFocusEffect(
     React.useCallback(() => {
+      setScreenGuardEnabled(true);
+
       return () => {
-        // Screen UNMOUNT bo‘layotganda ishlaydi
+        setScreenGuardEnabled(false);
         ScreenOrientation.lockAsync(
           ScreenOrientation.OrientationLock.PORTRAIT_UP,
-        );
+        ).catch(console.warn);
       };
-    }, []),
+    }, [setScreenGuardEnabled]),
   );
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#000" }}>
       <GestureHandlerRootView style={styles.container}>
@@ -369,3 +419,4 @@ const styles = StyleSheet.create({
 });
 
 export default VideoPlayerScreen;
+

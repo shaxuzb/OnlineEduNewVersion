@@ -1,7 +1,7 @@
 import { useTheme } from "@/src/context/ThemeContext";
-import { useChat, useSendMessage } from "@/src/hooks/useChat";
+import { useChat, useReadMessage, useSendMessage } from "@/src/hooks/useChat";
 import { useCurrentUserId } from "@/src/hooks/useQuiz";
-import { ChatMessage, MessageGroup, Theme } from "@/src/types";
+import { ChatMessage, Theme } from "@/src/types";
 import { Ionicons } from "@expo/vector-icons";
 import React, {
   useCallback,
@@ -13,16 +13,17 @@ import React, {
 import {
   ActivityIndicator,
   Animated,
-  FlatList,
+  InteractionManager,
   Platform,
   Pressable,
+  SectionList,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import MessageHeaderItem from "./components/MessageHeaderItem";
 import MessageInput from "./components/MessageInput";
+import MessageItem from "./components/MessageItem";
 import { COLORS } from "@/src/utils";
 import { lightColors } from "@/src/constants/theme";
 import {
@@ -31,6 +32,11 @@ import {
 } from "react-native-keyboard-controller";
 import { moderateScale } from "react-native-size-matters";
 
+interface ChatSection {
+  date: string;
+  data: ChatMessage[];
+}
+
 export default function ChatScreen({ navigation }: { navigation: any }) {
   const { theme } = useTheme();
   const userId = useCurrentUserId();
@@ -38,37 +44,24 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
   const [message, setMessage] = useState("");
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
-  const flatListRef = useRef<FlatList>(null);
+  const sectionListRef = useRef<SectionList<ChatMessage, ChatSection>>(null);
+  const isAtBottomRef = useRef(true);
+  const markedUpToIdRef = useRef(0);
+  const pendingReadUpToIdRef = useRef<number | null>(null);
+  const isReadFlushInProgressRef = useRef(false);
+  const previousMessageCountRef = useRef(0);
+  const canTrackReadRef = useRef(false);
+  const initialPositionHandledRef = useRef(false);
+
   const handleChangeInput = useCallback((e: any) => {
     setMessage(e);
   }, []);
+
   const mutation = useSendMessage();
+  const readMutation = useReadMessage(Number(userId), 0);
   const { data = [], isLoading, isFetching, refetch } = useChat(Number(userId));
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
 
-  // ✅ isRead so‘rov yuborish
-  // const markAsRead = useCallback((id: number) => {
-  //   // bu yerda API chaqirasiz
-  //   console.log("Marked as read:", id);
-  //   // misol: api.markAsRead(id)
-  // }, []);
-
-  // // ✅ viewability config
-  // const viewabilityConfig = { itemVisiblePercentThreshold: 50 };
-
-  // // ✅ message ko‘ringanda ishlaydi
-  // const onViewableItemsChanged = useRef(
-  //   ({ viewableItems }: { viewableItems: any }) => {
-  //     viewableItems.forEach(({ item }: { item: MessageGroup }) => {
-  //       item.messages.forEach((msg: ChatMessage) => {
-  //         if (!msg.isRead && msg.senderType !== 0) {
-  //           markAsRead(msg.id);
-  //         }
-  //       });
-  //     });
-  //   }
-  // ).current;
-
-  // Date helpers
   const formatDate = (date: Date) => {
     const today = new Date();
     const yesterday = new Date(today);
@@ -79,42 +72,198 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
     return date.toLocaleDateString("uz-UZ", { day: "numeric", month: "long" });
   };
 
-  // Group messages by date
-  const messageGroups: MessageGroup[] = useMemo(() => {
-    const groups: Record<string, ChatMessage[]> = {};
-    data?.forEach((item) => {
-      const createdAt = new Date(item.createdAt);
-      const dateKey = formatDate(createdAt);
-      if (!groups[dateKey]) groups[dateKey] = [];
-      groups[dateKey].push({ ...item, createdAt });
+  const messageSections: ChatSection[] = useMemo(() => {
+    const normalizedMessages = (data || [])
+      .map((item) => ({
+        ...item,
+        createdAt:
+          item.createdAt instanceof Date
+            ? item.createdAt
+            : new Date(item.createdAt as unknown as string),
+      }))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    const sections: ChatSection[] = [];
+    normalizedMessages.forEach((msg) => {
+      const dateKey = formatDate(msg.createdAt);
+      const lastSection = sections[sections.length - 1];
+      if (!lastSection || lastSection.date !== dateKey) {
+        sections.push({ date: dateKey, data: [msg] });
+        return;
+      }
+      lastSection.data.push(msg);
     });
 
-    return Object.keys(groups).map((date) => ({
-      date,
-      messages: groups[date]
-        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
-        .reverse(),
-    }));
+    return sections;
   }, [data]);
 
-  const sendMessage = () => {
+  const unreadMarker = useMemo(() => {
+    for (let sectionIndex = 0; sectionIndex < messageSections.length; sectionIndex += 1) {
+      const section = messageSections[sectionIndex];
+      for (let itemIndex = section.data.length - 1; itemIndex >= 0; itemIndex -= 1) {
+        const item = section.data[itemIndex];
+        if (item.senderType === 1 && !item.isRead) {
+          return { messageId: item.id, sectionIndex, itemIndex };
+        }
+      }
+    }
+    return null;
+  }, [messageSections]);
+
+  const totalMessages = useMemo(
+    () =>
+      messageSections.reduce((sum, section) => sum + section.data.length, 0),
+    [messageSections],
+  );
+
+  const scrollToLatest = useCallback(
+    (animated = true) => {
+      if (!messageSections.length || !messageSections[0]?.data.length) return;
+      sectionListRef.current?.scrollToLocation({
+        sectionIndex: 0,
+        itemIndex: 0,
+        animated,
+        viewOffset: 0,
+      });
+    },
+    [messageSections],
+  );
+
+  const flushPendingRead = useCallback(() => {
+    if (!userId || isReadFlushInProgressRef.current) return;
+
+    const pendingUpToId = pendingReadUpToIdRef.current;
+    if (pendingUpToId == null || pendingUpToId <= markedUpToIdRef.current) {
+      return;
+    }
+
+    pendingReadUpToIdRef.current = null;
+    isReadFlushInProgressRef.current = true;
+
+    readMutation.mutate(
+      { upToMessageId: pendingUpToId },
+      {
+        onSuccess: () => {
+          markedUpToIdRef.current = Math.max(
+            markedUpToIdRef.current,
+            pendingUpToId,
+          );
+        },
+        onSettled: () => {
+          isReadFlushInProgressRef.current = false;
+          if (
+            pendingReadUpToIdRef.current != null &&
+            pendingReadUpToIdRef.current > markedUpToIdRef.current
+          ) {
+            flushPendingRead();
+          }
+        },
+      },
+    );
+  }, [readMutation, userId]);
+
+  const scheduleMarkAsRead = useCallback(
+    (messageId: number) => {
+      if (messageId <= markedUpToIdRef.current) return;
+      pendingReadUpToIdRef.current = Math.max(
+        pendingReadUpToIdRef.current ?? 0,
+        messageId,
+      );
+      flushPendingRead();
+    },
+    [flushPendingRead],
+  );
+
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: Array<{ item?: ChatMessage }> }) => {
+      if (!canTrackReadRef.current) return;
+      viewableItems.forEach(({ item }) => {
+        if (!item) return;
+        if (!item.isRead && item.senderType === 1) {
+          scheduleMarkAsRead(item.id);
+        }
+      });
+    },
+    [scheduleMarkAsRead],
+  );
+
+  const sendMessage = useCallback(() => {
     if (!message.trim()) return;
+
     mutation.mutate(
       { userId: Number(userId), text: message.trim(), attachmentUrl: "" },
-      { onSuccess: () => setMessage("") }
+      {
+        onSuccess: () => {
+          setMessage("");
+          if (isAtBottomRef.current) {
+            requestAnimationFrame(() => scrollToLatest(false));
+          }
+        },
+      },
     );
-  };
+  }, [message, mutation, scrollToLatest, userId]);
 
-  const scrollToBottom = () => {
-    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+  const scrollToBottom = useCallback(() => {
+    scrollToLatest(true);
     setShowScrollToBottom(false);
-  };
+  }, [scrollToLatest]);
 
   const handleScroll = useCallback((event: any) => {
     const { contentOffset } = event.nativeEvent;
     const isScrolledUp = contentOffset.y > 50;
+    isAtBottomRef.current = !isScrolledUp;
     setShowScrollToBottom(isScrolledUp);
   }, []);
+
+  useEffect(() => {
+    canTrackReadRef.current = false;
+    const task = InteractionManager.runAfterInteractions(() => {
+      canTrackReadRef.current = true;
+    });
+
+    return () => {
+      canTrackReadRef.current = false;
+      task.cancel();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!totalMessages) {
+      previousMessageCountRef.current = 0;
+      initialPositionHandledRef.current = false;
+      return;
+    }
+
+    if (!initialPositionHandledRef.current) {
+      initialPositionHandledRef.current = true;
+
+      if (unreadMarker) {
+        isAtBottomRef.current = false;
+        setShowScrollToBottom(true);
+        requestAnimationFrame(() => {
+          sectionListRef.current?.scrollToLocation({
+            sectionIndex: unreadMarker.sectionIndex,
+            itemIndex: unreadMarker.itemIndex,
+            animated: false,
+            viewPosition: 0.2,
+          });
+        });
+      } else {
+        isAtBottomRef.current = true;
+        requestAnimationFrame(() => scrollToLatest(false));
+      }
+
+      previousMessageCountRef.current = totalMessages;
+      return;
+    }
+
+    const prevCount = previousMessageCountRef.current;
+    if (totalMessages > prevCount && isAtBottomRef.current) {
+      requestAnimationFrame(() => scrollToLatest(false));
+    }
+    previousMessageCountRef.current = totalMessages;
+  }, [totalMessages, unreadMarker, scrollToLatest]);
+
   useEffect(() => {
     navigation.setOptions({
       title: "Habarlar",
@@ -142,7 +291,8 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
         </Pressable>
       ),
     });
-  }, [navigation]);
+  }, [navigation, refetch]);
+
   return (
     <KeyboardProvider>
       <KeyboardAvoidingView
@@ -151,40 +301,71 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
         keyboardVerticalOffset={Platform.OS === "ios" ? 70 : 50}
       >
         <SafeAreaView style={styles.container} edges={["bottom"]}>
-          {/* Loading */}
           {(isLoading || isFetching) && (
             <View style={styles.loadingOverlay}>
               <ActivityIndicator size="large" color={COLORS.primary} />
             </View>
           )}
 
-          {/* Messages */}
-          <FlatList
-            ref={flatListRef}
-            data={messageGroups}
-            keyExtractor={(_, i) => `group-${i}`}
+          <SectionList
+            ref={sectionListRef}
+            sections={messageSections}
+            keyExtractor={(item) => item.id?.toString()}
             renderItem={({ item }) => (
-              <MessageHeaderItem
-                item={item}
-                styles={styles}
-                theme={theme}
-                userId={userId}
-              />
+              <>
+                {unreadMarker?.messageId === item.id && (
+                  <View style={styles.unreadMarkerContainer}>
+                    <View style={styles.unreadMarkerLine} />
+                    <View style={styles.unreadMarkerChip}>
+                      <Animated.Text style={styles.unreadMarkerText}>
+                        {"O'qilmagan xabarlar"}
+                      </Animated.Text>
+                    </View>
+                    <View style={styles.unreadMarkerLine} />
+                  </View>
+                )}
+                <MessageItem msg={item} styles={styles} theme={theme} />
+              </>
+            )}
+            renderSectionFooter={({ section }) => (
+              <View style={styles.dateHeader}>
+                <View style={styles.dateHeaderChip}>
+                  <Animated.Text style={styles.dateText}>
+                    {section.date}
+                  </Animated.Text>
+                </View>
+              </View>
             )}
             style={styles.messagesList}
             onScroll={handleScroll}
-            onContentSizeChange={() => {
-              flatListRef.current?.scrollToOffset({
-                offset: 0,
-                animated: false,
-              });
-            }}
             scrollEventThrottle={16}
             showsVerticalScrollIndicator={false}
             inverted
+            stickySectionHeadersEnabled={false}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
+            keyboardShouldPersistTaps="handled"
+            initialNumToRender={8}
+            maxToRenderPerBatch={8}
+            windowSize={5}
+            updateCellsBatchingPeriod={60}
+            removeClippedSubviews
+            onScrollToIndexFailed={() => {
+              requestAnimationFrame(() => {
+                if (unreadMarker && !isAtBottomRef.current) {
+                  sectionListRef.current?.scrollToLocation({
+                    sectionIndex: unreadMarker.sectionIndex,
+                    itemIndex: unreadMarker.itemIndex,
+                    animated: false,
+                    viewPosition: 0.2,
+                  });
+                  return;
+                }
+                scrollToLatest(false);
+              });
+            }}
           />
 
-          {/* Scroll to Bottom */}
           {showScrollToBottom && (
             <Animated.View style={styles.scrollToBottomContainer}>
               <TouchableOpacity
@@ -200,7 +381,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
               </TouchableOpacity>
             </Animated.View>
           )}
-          {/* Input */}
+
           <MessageInput
             handleChangeInput={handleChangeInput}
             message={message}
@@ -233,23 +414,50 @@ const createStyles = (theme: Theme) =>
     },
     messagesList: { flex: 1, paddingHorizontal: moderateScale(8) },
     dateHeader: { alignItems: "center", marginVertical: 12 },
-    dateText: {
+    dateHeaderChip: {
       backgroundColor: theme.colors.divider,
       paddingHorizontal: 12,
       paddingVertical: 4,
       borderRadius: 12,
+    },
+    dateText: {
       fontSize: moderateScale(10),
       color: theme.colors.textSecondary,
       fontWeight: "500",
+    },
+    unreadMarkerContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginVertical: moderateScale(10),
+      paddingHorizontal: moderateScale(6),
+    },
+    unreadMarkerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: theme.colors.divider,
+      opacity: 0.65,
+    },
+    unreadMarkerChip: {
+      backgroundColor: theme.colors.card,
+      borderWidth: 1,
+      borderColor: theme.colors.divider,
+      borderRadius: moderateScale(14),
+      paddingHorizontal: moderateScale(10),
+      paddingVertical: moderateScale(4),
+      marginHorizontal: moderateScale(8),
+    },
+    unreadMarkerText: {
+      fontSize: moderateScale(10),
+      fontWeight: "600",
+      color: theme.colors.warning,
     },
     messageContainer: {
       marginVertical: 4,
       maxWidth: "80%",
       borderRadius: moderateScale(14),
     },
-    messageContent:{
+    messageContent: {
       padding: moderateScale(10),
-      
     },
     sentMessage: {
       alignSelf: "flex-end",
@@ -272,8 +480,8 @@ const createStyles = (theme: Theme) =>
       marginTop: 4,
     },
     timeText: { fontSize: moderateScale(9), marginRight: 4 },
-    sentTimeText: { color: "rgba(255,255,255,0.7)" },
-    receivedTimeText: { color: "rgba(255,255,255,0.7)" },
+    sentTimeText: { color: theme.colors.textSecondary },
+    receivedTimeText: { color: theme.colors.textMuted },
     scrollToBottomContainer: {
       position: "absolute",
       bottom: 120,
@@ -297,7 +505,7 @@ const createStyles = (theme: Theme) =>
       borderRadius: moderateScale(12),
       marginHorizontal: moderateScale(16),
       marginTop: moderateScale(8),
-      marginBottom: Platform.OS === "ios" ? 0 : 8, // iOSda SafeArea ishlaydi
+      marginBottom: Platform.OS === "ios" ? 0 : 8,
     },
     textInputFull: {
       flex: 1,

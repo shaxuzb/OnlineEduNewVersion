@@ -116,6 +116,14 @@ const HomeScreen: React.FC = () => {
               source={require("@/src/assets/icons/subjects/bolalar.png")}
             />
           );
+        case "SAT":
+          return (
+            <Image
+              resizeMode="contain"
+              style={{ flex: 1, resizeMode: "contain" }}
+              source={require("@/src/assets/icons/subjects/bolalar.png")}
+            />
+          );
         default:
           return (
             <Image
@@ -208,7 +216,9 @@ const HomeScreen: React.FC = () => {
             {isError ? null : (
               <View
                 style={{
-                  padding: 20,
+                  paddingHorizontal: 20,
+                  paddingVertical: 5,
+                  paddingBottom: 15,
                   flexDirection: "row",
                   alignItems: "center",
                 }}

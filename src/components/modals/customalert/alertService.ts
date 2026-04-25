@@ -6,9 +6,11 @@ export interface AlertConfig {
   description?: string;
   cancelText?: string;
   okText?: string;
+  secondaryText?: string;
   showCancel?: boolean;
   onOk?: () => void;
   onCancel?: () => void;
+  onSecondary?: () => void;
   iconName?: string;
 }
 

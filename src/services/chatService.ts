@@ -4,7 +4,12 @@ import { $axiosPrivate } from "./AxiosService";
 export const chatService = {
   getChatMessages: async (userId: number): Promise<ChatMessage[] | null> => {
     const { data } = await $axiosPrivate.get<ChatMessage[]>(
-      `/chat/${userId}/messages`
+      `/chat/${userId}/messages`,
+      {
+        params: {
+          take: 500,
+        },
+      },
     );
     return data.reverse();
   },
@@ -19,9 +24,12 @@ export const chatService = {
   readMessage: async (
     userId: number,
     reader: number,
-    values: { upToMessageId: number }
+    values: { upToMessageId: number },
   ) => {
-    const { data } = await $axiosPrivate.post(`/chat/${userId}/read?reader=${reader}`, values);
+    const { data } = await $axiosPrivate.post(
+      `/chat/${userId}/read?reader=${reader}`,
+      values,
+    );
     return data;
   },
 };
