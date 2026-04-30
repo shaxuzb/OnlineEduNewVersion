@@ -17,6 +17,10 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import AlertHost from "./src/components/modals/customalert/AlertHost";
 import { moderateScale } from "react-native-size-matters";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { enableScreens } from "react-native-screens";
+import { KeyboardProvider } from "react-native-keyboard-controller";
+
+enableScreens(true);
 SplashScreen.preventAutoHideAsync();
 
 const toastConfig: ToastConfig = {
@@ -71,18 +75,6 @@ const toastConfig: ToastConfig = {
 export default function App() {
   const { versionInfo, showUpdateSheet, setShowUpdateSheet, dismissUpdate } =
     useVersionCheck();
-
-  useEffect(() => {
-    const prepare = async () => {
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      } catch (e) {
-        console.warn(e);
-      }
-    };
-
-    prepare();
-  }, []);
   const handleUpdateLater = () => {
     dismissUpdate();
   };
@@ -91,28 +83,30 @@ export default function App() {
   }, []);
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryProvider>
-        <ThemeProvider>
-          <AuthProvider>
-            <BookmarkProvider>
-              <SafeAreaProvider>
-                <AppNavigation />
-                <AlertHost />
-                <Toast config={toastConfig} topOffset={50} />
-                {/* Update Notification Bottom Sheet */}
-                {versionInfo && (
-                  <UpdateNotificationSheet
-                    visible={showUpdateSheet}
-                    versionInfo={versionInfo}
-                    onClose={() => setShowUpdateSheet(false)}
-                    onUpdateLater={handleUpdateLater}
-                  />
-                )}
-              </SafeAreaProvider>
-            </BookmarkProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </QueryProvider>
+      <KeyboardProvider>
+        <QueryProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <BookmarkProvider>
+                <SafeAreaProvider>
+                  <AppNavigation />
+                  <AlertHost />
+                  <Toast config={toastConfig} topOffset={50} />
+                  {/* Update Notification Bottom Sheet */}
+                  {versionInfo && (
+                    <UpdateNotificationSheet
+                      visible={showUpdateSheet}
+                      versionInfo={versionInfo}
+                      onClose={() => setShowUpdateSheet(false)}
+                      onUpdateLater={handleUpdateLater}
+                    />
+                  )}
+                </SafeAreaProvider>
+              </BookmarkProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </QueryProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }

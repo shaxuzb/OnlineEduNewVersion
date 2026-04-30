@@ -5,8 +5,9 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { useThemes } from "@/src/hooks/useThemes";
 import { ChapterTheme, Theme } from "@/src/types";
 import { FontAwesome6, Ionicons } from "@expo/vector-icons";
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import {
+  Platform,
   SectionList,
   StyleSheet,
   Text,
@@ -27,12 +28,21 @@ export default function SubjectScreen({
   route: any;
 }) {
   const { theme } = useTheme();
-  const styles = createStyles(theme);
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { subjectId, subjectName, percent, subjectCode } = route.params;
 
   const { data, isLoading, isError, refetch } = useThemes(Number(subjectId));
 
-  const handleThemePress = (chapterTheme: ChapterTheme) => {
+  const sections = useMemo(
+    () =>
+      data?.results?.map((chapter) => ({
+        title: chapter.name,
+        data: chapter.themes,
+      })) ?? [],
+    [data?.results],
+  );
+
+  const handleThemePress = useCallback((chapterTheme: ChapterTheme) => {
     if (chapterTheme.hasAccess) {
       if (subjectCode === "NATIONAL") {
         if (chapterTheme?.testId) {
@@ -89,7 +99,79 @@ export default function SubjectScreen({
     } else {
       modalService.open();
     }
-  };
+  }, [navigation, subjectCode]);
+
+  const keyExtractor = useCallback((item: ChapterTheme) => String(item.id), []);
+
+  const renderSectionHeader = useCallback(
+    ({ section: { title } }: { section: { title: string } }) => (
+      <Text style={styles.chapterSectionTitle}>{title}</Text>
+    ),
+    [styles.chapterSectionTitle],
+  );
+
+  const renderItem = useCallback(
+    ({ item: chapterTheme }: { item: ChapterTheme }) => (
+      <TouchableOpacity
+        style={[
+          styles.themeCard,
+          !chapterTheme.hasAccess && styles.lockedThemeCard,
+        ]}
+        activeOpacity={0.8}
+        onPress={() => handleThemePress(chapterTheme)}
+      >
+        {!chapterTheme.hasAccess && (
+          <View style={styles.crownIcon}>
+            <FontAwesome6 name="crown" size={16} color="#FFD700" />
+          </View>
+        )}
+        <View style={styles.themeLeft}>
+          <View style={styles.lockIconContainer}>
+            <Ionicons
+              name={chapterTheme.hasAccess ? "lock-closed" : "lock-open"}
+              size={moderateScale(16)}
+              color={
+                !chapterTheme.hasAccess
+                  ? theme.colors.textMuted
+                  : theme.colors.success
+              }
+            />
+          </View>
+          <View style={styles.themeInfo}>
+            <Text style={styles.themeNumber}>
+              {subjectCode === "NATIONAL"
+                ? chapterTheme.content
+                : `${chapterTheme.ordinalNumber}-mavzu`}
+            </Text>
+            <Text
+              style={[
+                styles.themeName,
+                !chapterTheme.hasAccess && styles.lockedThemeName,
+              ]}
+              numberOfLines={2}
+            >
+              {chapterTheme.name}
+            </Text>
+          </View>
+          {subjectCode !== "NATIONAL" && (
+            <View>
+              <Text style={styles.loadingText}>{chapterTheme.percent}%</Text>
+            </View>
+          )}
+        </View>
+        {subjectCode === "NATIONAL" && (
+          <>
+            <Text style={styles.themeCountloadingText}>
+              {chapterTheme.percent}%
+            </Text>
+            <Text style={styles.themeCount}>{chapterTheme.description}</Text>
+          </>
+        )}
+      </TouchableOpacity>
+    ),
+    [handleThemePress, styles, subjectCode, theme.colors.success, theme.colors.textMuted],
+  );
+
   useEffect(() => {
     navigation.setOptions({
       headerShown: true,
@@ -97,18 +179,10 @@ export default function SubjectScreen({
       freezeOnBlur: true,
 
       headerRight: () => (
-        <Text
-          style={{
-            color: "white",
-            fontSize: moderateScale(16),
-            fontWeight: "500",
-          }}
-        >
-          {percent}%
-        </Text>
+        <Text style={styles.headerPercent}>{percent}%</Text>
       ),
     });
-  }, [navigation]);
+  }, [navigation, percent, styles.headerPercent, subjectName]);
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
@@ -119,86 +193,16 @@ export default function SubjectScreen({
           <ErrorData refetch={refetch} />
         ) : data && data.results.length > 0 ? (
           <SectionList
-            sections={
-              data?.results?.map((chapter) => ({
-                title: `${chapter.name}`,
-                data: chapter.themes,
-              })) ?? []
-            }
+            sections={sections}
             stickyHeaderHiddenOnScroll={true}
-            keyExtractor={(item, index) => item.id.toString() + index}
-            renderSectionHeader={({ section: { title } }) => (
-              <Text style={styles.chapterSectionTitle}>{title}</Text>
-            )}
-            renderItem={({ item: chapterTheme }) => (
-              <TouchableOpacity
-                key={chapterTheme.id}
-                style={[
-                  styles.themeCard,
-                  !chapterTheme.hasAccess && styles.lockedThemeCard,
-                ]}
-                activeOpacity={0.8}
-                onPress={() => handleThemePress(chapterTheme)}
-              >
-                {!chapterTheme.hasAccess && (
-                  <View style={{ position: "absolute", top: -5, right: -5 }}>
-                    <FontAwesome6 name="crown" size={16} color="#FFD700" />
-                  </View>
-                )}
-                <View style={styles.themeLeft}>
-                  <View style={styles.lockIconContainer}>
-                    <Ionicons
-                      name={
-                        chapterTheme.hasAccess ? "lock-closed" : "lock-open"
-                      }
-                      size={moderateScale(16)}
-                      color={
-                        !chapterTheme.hasAccess
-                          ? theme.colors.textMuted
-                          : theme.colors.success
-                      }
-                    />
-                  </View>
-                  <View style={styles.themeInfo}>
-                    <Text style={styles.themeNumber}>
-                      {subjectCode === "NATIONAL"
-                        ? chapterTheme.content
-                        : `${chapterTheme.ordinalNumber}-mavzu`}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.themeName,
-                        !chapterTheme.hasAccess && styles.lockedThemeName,
-                      ]}
-                      numberOfLines={2}
-                    >
-                      {chapterTheme.name}
-                    </Text>
-                  </View>
-                  {subjectCode !== "NATIONAL" && (
-                    <View>
-                      <Text style={styles.loadingText}>
-                        {chapterTheme.percent}%
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                {subjectCode === "NATIONAL" && (
-                  <>
-                    <Text style={styles.themeCountloadingText}>
-                      {chapterTheme.percent}%
-                    </Text>
-
-                    <Text style={styles.themeCount}>
-                      {chapterTheme.description}
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            )}
+            keyExtractor={keyExtractor}
+            renderSectionHeader={renderSectionHeader}
+            renderItem={renderItem}
             initialNumToRender={10}
-            maxToRenderPerBatch={20}
-            windowSize={2}
+            maxToRenderPerBatch={10}
+            windowSize={4}
+            updateCellsBatchingPeriod={50}
+            removeClippedSubviews={Platform.OS === "android"}
             scrollEnabled
             contentContainerStyle={styles.content}
           />
@@ -238,6 +242,16 @@ const createStyles = (theme: Theme) =>
     content: {
       paddingHorizontal: 16,
       paddingTop: 5,
+    },
+    headerPercent: {
+      color: "white",
+      fontSize: moderateScale(16),
+      fontWeight: "500",
+    },
+    crownIcon: {
+      position: "absolute",
+      top: -5,
+      right: -5,
     },
     loadingContainer: {
       flex: 1,

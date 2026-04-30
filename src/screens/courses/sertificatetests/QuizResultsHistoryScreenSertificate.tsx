@@ -185,10 +185,14 @@ export default function QuizResultsHistoryScreenSertificate({
                     <Text style={styles.metricLabel}>Foiz</Text>
                     <Text style={styles.metricValue}>{item.percent}%</Text>
                   </View>
-                  <View style={styles.metricChip}>
-                    <Text style={styles.metricLabel}>Sertifikat darajasi</Text>
-                    <Text style={styles.metricValue}>{item.degree}</Text>
-                  </View>
+                  {item.degree && (
+                    <View style={styles.metricChip}>
+                      <Text style={styles.metricLabel}>
+                        Sertifikat darajasi
+                      </Text>
+                      <Text style={styles.metricValue}>{item.degree}</Text>
+                    </View>
+                  )}
                 </View>
               </View>
             )}

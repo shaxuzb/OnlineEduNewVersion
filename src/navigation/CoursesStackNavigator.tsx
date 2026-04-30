@@ -1,7 +1,5 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import HomeScreen from "../screens/courses/HomeScreen";
-import SubjectScreen from "../screens/courses/SubjectScreen";
 import { RootStackParamList } from "../types";
 import LinearGradient from "react-native-linear-gradient";
 import { moderateScale } from "react-native-size-matters";
@@ -22,7 +20,7 @@ export function CoursesStackNavigator() {
       <Stack.Screen
         name="CoursesList"
         options={{ headerShown: false, statusBarStyle: "inverted" }}
-        component={HomeScreen}
+        getComponent={() => require("../screens/courses/HomeScreen").default}
       />
       <Stack.Screen
         name="SubjectScreen"
@@ -45,7 +43,7 @@ export function CoursesStackNavigator() {
             fontSize: +moderateScale(18).toFixed(0),
           },
         }}
-        component={SubjectScreen}
+        getComponent={() => require("../screens/courses/SubjectScreen").default}
       />
     </Stack.Navigator>
   );

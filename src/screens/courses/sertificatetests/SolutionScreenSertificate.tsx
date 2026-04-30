@@ -4,10 +4,10 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  FlatList,
   Image,
   LayoutChangeEvent,
   ScrollView,
-  SectionList,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -19,7 +19,7 @@ import Toast from "react-native-toast-message";
 import { BORDER_RADIUS, COLORS, FONT_SIZES, SPACING } from "@/src/utils";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useQuizResults, useThemeTest } from "@/src/hooks/useQuiz";
-import { AnswerKey, Theme } from "@/src/types";
+import { Theme } from "@/src/types";
 import LinearGradient from "react-native-linear-gradient";
 import PageCard from "@/src/components/ui/cards/PageCard";
 import {
@@ -155,16 +155,11 @@ export default function SolutionScreenSertificate({
   // State management
   const [currentQuestion, setCurrentQuestion] =
     useState<LocalQuizAnswer | null>(null);
-  const [selectedOption, setSelectedOption] = useState<LocalQuizAnswer | null>(
-    null,
-  );
   const [answers, setAnswers] = useState<LocalQuizAnswer[]>([]);
   // Memoized values
   const currentAnswerKey = testData?.answerKeys?.find(
     (ak) => ak.dbQuestionNumber === currentQuestion?.questionId,
   );
-
-  const isMultipleChoice = currentAnswerKey?.answerType === 1;
 
   // Load saved answer when question changes
   useEffect(() => {
@@ -197,15 +192,12 @@ export default function SolutionScreenSertificate({
       );
     }
   }, [resultsSuccess]);
-  useEffect(() => {
-    const savedAnswer =
-      answers.find((a) => a.questionId === currentQuestion?.questionId) || null;
-    if (savedAnswer) {
-      setSelectedOption(savedAnswer);
-    } else {
-      setSelectedOption(null);
-    }
-  }, [currentQuestion, answers, isMultipleChoice]);
+  const answersById = useMemo(() => {
+    return answers.reduce<Record<number, LocalQuizAnswer>>((acc, item) => {
+      acc[item.id] = item;
+      return acc;
+    }, {});
+  }, [answers]);
   // Event handlers
   const handleGoBack = useCallback(() => {
     Alert.alert(
@@ -220,12 +212,16 @@ export default function SolutionScreenSertificate({
   const handleTestSelect = useCallback((test: LocalQuizAnswer) => {
     setCurrentQuestion(test);
   }, []);
+  const currentAnswer = useMemo(() => {
+    if (!currentQuestion?.id) return undefined;
+    return answersById[currentQuestion.id];
+  }, [answersById, currentQuestion]);
   const handlePressSolutionVideo = useCallback(() => {
-    if (selectedOption?.videoFileId) {
+    if (currentAnswer?.videoFileId) {
       navigation.navigate("VideoPlayer", {
-        lessonTitle: `${selectedOption?.questionId}-test yechimi`,
-        videoFileId: selectedOption.videoFileId,
-        mavzu: `${selectedOption?.questionId}-test yechimi`,
+        lessonTitle: `${currentAnswer?.questionId}-test yechimi`,
+        videoFileId: currentAnswer.videoFileId,
+        mavzu: `${currentAnswer?.questionId}-test yechimi`,
       });
     } else {
       Toast.show({
@@ -234,7 +230,7 @@ export default function SolutionScreenSertificate({
         visibilityTime: 1500,
       });
     }
-  }, [selectedOption]);
+  }, [currentAnswer, navigation]);
   // Grouped test data for modal
   const groupedTestData = useMemo(() => {
     if (!testData?.answerKeys) return [];
@@ -250,30 +246,6 @@ export default function SolutionScreenSertificate({
         }, {}),
     );
   }, [testData, showTestIndex]);
-
-  const groupedSubTest = useMemo(() => {
-    if (!testData) return [];
-    const groups: { [key: number]: AnswerKey[] } = {};
-
-    // Guruhlash: subTestNo bo‘yicha
-    testData.answerKeys.forEach((item) => {
-      if (!groups[item.subTestNo]) {
-        groups[item.subTestNo] = [];
-      }
-      groups[item.subTestNo].push(item);
-    });
-
-    // Har bir guruhdan faqat birinchi elementni olish
-    const result = Object.values(groups).map(
-      (group) => (group as AnswerKey[])[0].subTestNo,
-    );
-
-    return result;
-  }, [testData]);
-  const currentAnswer = useMemo(() => {
-    return answers.find((item) => item.id === currentQuestion?.id);
-  }, [answers, currentQuestion]);
-
   useEffect(() => {
     navigation.setOptions({
       title: mavzu ?? "IDS mavzulashtirilgan testlar to'plami",
@@ -374,7 +346,7 @@ export default function SolutionScreenSertificate({
           <AnswerView answer={currentAnswer} styles={styles} />
           <TestModal
             groupedTestData={groupedTestData}
-            answers={answers}
+            answersById={answersById}
             currentQuestion={currentQuestion?.questionId ?? 0}
             onTestSelect={handleTestSelect}
             styles={styles}
@@ -454,83 +426,67 @@ export default function SolutionScreenSertificate({
 const TestModal = React.memo(
   ({
     groupedTestData,
-    answers,
+    answersById,
     currentQuestion,
     onTestSelect,
     styles,
   }: {
     groupedTestData: [string, any][];
-    answers: LocalQuizAnswer[];
+    answersById: Record<number, LocalQuizAnswer>;
     currentQuestion: number;
     onTestSelect: (test: LocalQuizAnswer) => void;
     styles: any;
   }) => {
-    const subtestCounters: Record<number, number> = {};
+    const modalItems = useMemo(
+      () => (groupedTestData[0]?.[1] as any[]) ?? [],
+      [groupedTestData],
+    );
+
+    const renderModalItem = useCallback(
+      ({ item }: { item: any }) => {
+        const answer = answersById[item.id];
+        const isCorrect = answer?.isCorrect;
+        const orderNumber = item.questionNumber;
+        const isAnswered = answer?.isConfirmed;
+
+        return (
+          <TestGridItem
+            testNumber={item?.id}
+            orderNumber={(answer?.partLabel ?? "") + orderNumber}
+            isAnswered={isAnswered}
+            isCurrent={item.dbQuestionNumber === currentQuestion}
+            isCorrect={isCorrect}
+            onSelect={() => answer && onTestSelect(answer)}
+            styles={styles}
+          />
+        );
+      },
+      [answersById, currentQuestion, onTestSelect, styles],
+    );
 
     return (
       <View style={styles.popoverContainer}>
         <View style={styles.popoverHeader}>
-          <Text style={styles.popoverTitle}>{groupedTestData[0][0]}-test</Text>
+          <Text style={styles.popoverTitle}>
+            {groupedTestData[0]?.[0] ?? 1}-test
+          </Text>
           <Text style={styles.popoverTitle}>{currentQuestion}/20</Text>
         </View>
-        <SectionList
-          sections={
-            groupedTestData.map((chapter) => ({
-              title: `Test ${chapter[0]}`,
-              data: chapter[1],
-            })) ?? []
-          }
-          keyExtractor={(item, index) => item.id.toString() + index}
+        <FlatList
+          data={modalItems}
+          numColumns={10}
+          keyExtractor={(item) => item.id.toString()}
           style={{
             padding: 2,
           }}
-          renderItem={({ section, index }) => {
-            const itemsPerRow = 100; // har qatorda 3 ta chiqadi
-            const startIndex = index * itemsPerRow;
-            const rowItems = section.data.slice(
-              startIndex,
-              startIndex + itemsPerRow,
-            );
-
-            return (
-              <View style={styles.testGrid}>
-                {rowItems.map((item: any) => {
-                  const { subTestNo: currentSubTestNo, dbQuestionNumber } =
-                    item;
-                  if (!subtestCounters[currentSubTestNo]) {
-                    subtestCounters[currentSubTestNo] = 1;
-                  } else {
-                    subtestCounters[currentSubTestNo]++;
-                  }
-                  const answer = answers.find(
-                    (a) => a?.id === item.id,
-                  ) as LocalQuizAnswer;
-                  const isCorrect = answer?.isCorrect;
-                  const orderNumber = item.questionNumber;
-                  const isAnswered = answer?.isConfirmed;
-                  const isCurrent = dbQuestionNumber === currentQuestion;
-
-                  return (
-                    <TestGridItem
-                      key={item?.id}
-                      testNumber={item?.id}
-                      orderNumber={answer?.partLabel + orderNumber}
-                      isAnswered={isAnswered}
-                      isCurrent={isCurrent}
-                      isCorrect={isCorrect}
-                      onSelect={() => onTestSelect(answer)}
-                      styles={styles}
-                    />
-                  );
-                })}
-              </View>
-            );
-          }}
+          renderItem={renderModalItem}
           initialNumToRender={10}
           maxToRenderPerBatch={20}
-          windowSize={2}
+          windowSize={4}
           scrollEnabled
-          contentContainerStyle={styles.content}
+          removeClippedSubviews
+          columnWrapperStyle={styles.testGridRow}
+          contentContainerStyle={styles.testGridContent}
         />
       </View>
     );
@@ -891,6 +847,14 @@ const createStyles = (theme: Theme) =>
       flexDirection: "row",
       flexWrap: "wrap",
       gap: 6,
+    },
+    testGridRow: {
+      justifyContent: "space-between",
+      marginBottom: moderateScale(6),
+    },
+    testGridContent: {
+      paddingHorizontal: moderateScale(2),
+      paddingBottom: moderateScale(4),
     },
     testGridItem: {
       width: (30 / 400) * width,

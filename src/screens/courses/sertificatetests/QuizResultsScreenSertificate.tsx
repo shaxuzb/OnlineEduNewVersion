@@ -161,7 +161,7 @@ export default function QuizResultsScreenSertificate({
           <View style={styles.statsBox}>
             <View style={styles.statsRow}>
               <Text style={styles.statsLabel}>Umumiy to'plagan bali:</Text>
-              <Text style={styles.statsValue}>{quizResults[0].score} ta</Text>
+              <Text style={styles.statsValue}>{quizResults[0].score}</Text>
             </View>
             <View style={styles.statsRow}>
               <Text style={styles.statsLabel}>

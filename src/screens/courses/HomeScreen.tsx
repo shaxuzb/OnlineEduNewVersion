@@ -14,7 +14,6 @@ import { moderateScale, ScaledSheet } from "react-native-size-matters";
 import {
   Alert,
   Image,
-  InteractionManager,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -41,11 +40,6 @@ const HomeScreen: React.FC = () => {
   // ✅ Fetch user session once
 
   // ✅ Trigger refetch after UI idle
-  useEffect(() => {
-    const task = InteractionManager.runAfterInteractions(() => refetch());
-    return () => task.cancel();
-  }, [refetch]);
-
   // ✅ Show error only once
   useEffect(() => {
     if (isError) {
@@ -81,66 +75,66 @@ const HomeScreen: React.FC = () => {
     [navigation],
   );
 
-  const getSubjectIcon = useCallback(
-    (name: string) => {
-      switch (name) {
-        case "Algebra":
-          return (
-            <Image
-              resizeMode="contain"
-              style={{ flex: 1, resizeMode: "contain" }}
-              source={require("@/src/assets/icons/subjects/algebra.png")}
-            />
-          );
-        case "Geometriya":
-          return (
-            <Image
-              resizeMode="contain"
-              style={{ flex: 1, resizeMode: "contain" }}
-              source={require("@/src/assets/icons/subjects/geometry.png")}
-            />
-          );
-        case "Milliy Sertifikat":
-          return (
-            <Image
-              resizeMode="contain"
-              style={{ flex: 1, resizeMode: "contain" }}
-              source={require("@/src/assets/icons/subjects/milliysertificat.png")}
-            />
-          );
-        case "Maktab Dasturi":
-          return (
-            <Image
-              resizeMode="contain"
-              style={{ flex: 1, resizeMode: "contain" }}
-              source={require("@/src/assets/icons/subjects/bolalar.png")}
-            />
-          );
-        case "SAT":
-          return (
-            <Image
-              resizeMode="contain"
-              style={{ flex: 1, resizeMode: "contain" }}
-              source={require("@/src/assets/icons/subjects/bolalar.png")}
-            />
-          );
-        default:
-          return (
-            <Image
-              resizeMode="contain"
-              style={{ flex: 1, resizeMode: "contain" }}
-              source={require("@/src/assets/icons/subjects/bolalar.png")}
-            />
-          );
-      }
-    },
-    [styles.iconText],
-  );
+  const getSubjectIcon = useCallback((name: string) => {
+    switch (name) {
+      case "Algebra":
+        return (
+          <Image
+            resizeMode="contain"
+            style={{ flex: 1, resizeMode: "contain" }}
+            source={require("@/src/assets/icons/subjects/algebra.png")}
+          />
+        );
+      case "Geometriya":
+        return (
+          <Image
+            resizeMode="contain"
+            style={{ flex: 1, resizeMode: "contain" }}
+            source={require("@/src/assets/icons/subjects/geometry.png")}
+          />
+        );
+      case "Milliy Sertifikat":
+        return (
+          <Image
+            resizeMode="contain"
+            style={{ flex: 1, resizeMode: "contain" }}
+            source={require("@/src/assets/icons/subjects/milliysertificat.png")}
+          />
+        );
+      case "Maktab Dasturi":
+        return (
+          <Image
+            resizeMode="contain"
+            style={{ flex: 1, resizeMode: "contain" }}
+            source={require("@/src/assets/icons/subjects/bolalar.png")}
+          />
+        );
+      case "Digital SAT":
+        return (
+          <Image
+            resizeMode="contain"
+            style={{
+              flex: 1,
+              resizeMode: "contain",
+            }}
+            source={require("@/src/assets/icons/subjects/bolalar.png")}
+          />
+        );
+      default:
+        return (
+          <Image
+            resizeMode="contain"
+            style={{ flex: 1, resizeMode: "contain" }}
+            source={require("@/src/assets/icons/subjects/bolalar.png")}
+          />
+        );
+    }
+  }, []);
   useEffect(() => {
     navigation.setOptions({
       statusBarStyle: !isDark ? "dark" : "light",
     });
-  }, [navigation]);
+  }, [navigation, isDark]);
   return (
     <LinearGradient
       colors={["#3a5dde", theme.colors.background]}
@@ -457,13 +451,13 @@ const HomeScreen: React.FC = () => {
                       padding: 10,
                     }}
                   >
-                    {subjects.map((s, index) => (
+                    {subjects.map((s) => (
                       <View
                         style={{
                           width: "50%",
                           padding: 10,
                         }}
-                        key={index}
+                        key={s.subjectId}
                       >
                         <LinearGradient
                           colors={["#3055ddff", "#5e84e6"]}
@@ -472,7 +466,6 @@ const HomeScreen: React.FC = () => {
                           style={styles.categoryGradientItem}
                         >
                           <TouchableOpacity
-                            key={s.subjectId + index}
                             onPress={() => handleSubjectPress(s)}
                             activeOpacity={0.8}
                             style={styles.categoryItem}

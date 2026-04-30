@@ -7,7 +7,7 @@ import { BookmarkedLesson, Theme } from "@/src/types";
 import { BORDER_RADIUS, FONT_SIZES, SPACING } from "@/src/utils";
 import Test from "@/src/assets/icons/themes/test.svg";
 import Write from "@/src/assets/icons/themes/write.svg";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -23,7 +23,6 @@ import { FontAwesome6, Ionicons } from "@expo/vector-icons";
 import EmptyModal from "@/src/components/exceptions/EmptyModal";
 import Toast from "react-native-toast-message";
 import { moderateScale } from "react-native-size-matters";
-import { useAuth } from "@/src/context/AuthContext";
 import { modalService } from "@/src/components/modals/modalService";
 
 const { width } = Dimensions.get("window");
@@ -36,8 +35,7 @@ export default function LessonDetailScreen({
   route: any;
 }) {
   const { theme } = useTheme();
-  const styles = createStyles(theme);
-  const { plan } = useAuth();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { themeId, themeName, themeOrdinalNumber, percent } = route.params;
   const {
     addBookmark,
@@ -57,10 +55,17 @@ export default function LessonDetailScreen({
   const { data, isLoading, isError, refetch } = useThemeDetails(
     Number(themeId),
   );
+  const featureCodes = useMemo(
+    () => new Set((data?.features ?? []).map((item) => item.code)),
+    [data?.features],
+  );
+  const hasLessonFeature = featureCodes.has("LESSON");
+  const hasAbstractFeature = featureCodes.has("ABSTRACT");
+  const hasTestFeature = featureCodes.has("TEST");
 
   // Check if current lesson is bookmarked
   const isBookmarked = isLessonBookmarked(data?.id ?? 0, "algebra");
-  const handleBookmark = async () => {
+  const handleBookmark = useCallback(async () => {
     try {
       if (isBookmarked) {
         await removeBookmark(data?.id ?? 0, "algebra");
@@ -98,14 +103,10 @@ export default function LessonDetailScreen({
         text1: "Darsni saqlashda xatolik yuz berdi!",
       });
     }
-  };
+  }, [addBookmark, data, isBookmarked, removeBookmark]);
 
-  const handlePlayVideo = () => {
-    // Navigate to video player screen
-    if (
-      data?.features &&
-      data?.features.find((item) => item.code === "LESSON")
-    ) {
+  const handlePlayVideo = useCallback(() => {
+    if (hasLessonFeature) {
       if (!data?.video?.fileId) {
         setEmptyModal({
           open: true,
@@ -122,29 +123,27 @@ export default function LessonDetailScreen({
     } else {
       modalService.open();
     }
-  };
+  }, [
+    data?.name,
+    data?.ordinalNumber,
+    data?.video?.fileId,
+    hasLessonFeature,
+    navigation,
+  ]);
 
-  const handleThemeAbstract = () => {
-    if (
-      data?.features &&
-      data?.features.find((item) => item.code === "ABSTRACT")
-    ) {
-      // if (data?.testId) {
+  const handleThemeAbstract = useCallback(() => {
+    if (hasAbstractFeature) {
       navigation.navigate("ThemeAbstract", {
         themeId: data?.id,
-        // percent: percent,
-        // title: "Mashqlar",
         mavzu: `${data?.ordinalNumber}-mavzu`,
       });
-      // } else {
-      //   Alert.alert("Warning", "Test biriktirilmagan");
-      // }
     } else {
       modalService.open();
     }
-  };
-  const handleMashqlar = () => {
-    if (data?.features && data?.features.find((item) => item.code === "TEST")) {
+  }, [data?.id, data?.ordinalNumber, hasAbstractFeature, navigation]);
+
+  const handleMashqlar = useCallback(() => {
+    if (hasTestFeature) {
       if (data?.testId) {
         navigation.navigate("QuizScreen", {
           testId: data?.testId,
@@ -162,24 +161,22 @@ export default function LessonDetailScreen({
     } else {
       modalService.open();
     }
-  };
+  }, [data?.ordinalNumber, data?.testId, hasTestFeature, navigation, percent]);
+
+  const handleRetry = useCallback(() => {
+    void refetch();
+  }, [refetch]);
+
+  const closeEmptyModal = useCallback(() => {
+    setEmptyModal({ open: false, title: "", description: "" });
+  }, []);
   useEffect(() => {
     navigation.setOptions({
       title: themeOrdinalNumber + "-mavzu",
       freezeOnBlur: true,
-      headerRight: () => (
-        <Text
-          style={{
-            color: "white",
-            fontSize: moderateScale(16),
-            fontWeight: "500",
-          }}
-        >
-          {percent}%
-        </Text>
-      ),
+      headerRight: () => <Text style={styles.headerPercent}>{percent}%</Text>,
     });
-  }, [navigation, isBookmarked]);
+  }, [navigation, percent, styles.headerPercent, themeOrdinalNumber]);
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -198,7 +195,7 @@ export default function LessonDetailScreen({
           <Text style={styles.errorText}>
             Xatolik yuz berdi. Qayta urinib ko'ring.
           </Text>
-          <TouchableOpacity onPress={() => refetch()} style={styles.retryBtn}>
+          <TouchableOpacity onPress={handleRetry} style={styles.retryBtn}>
             <Text style={styles.retryText}>Qayta yuklash</Text>
           </TouchableOpacity>
         </View>
@@ -209,14 +206,7 @@ export default function LessonDetailScreen({
     <SafeAreaView style={styles.container} edges={[]}>
       <PageCard>
         <ScrollView style={styles.content}>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: SPACING.sm,
-            }}
-          >
+          <View style={styles.topRow}>
             <Text style={styles.lessonTitle}>{themeName}</Text>
             <Pressable
               android_ripple={{
@@ -225,12 +215,7 @@ export default function LessonDetailScreen({
                 borderless: true,
                 radius: 22,
               }}
-              style={{
-                width: 40,
-                height: 40,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
+              style={styles.bookmarkButton}
               onPress={handleBookmark}
             >
               <Ionicons
@@ -249,17 +234,8 @@ export default function LessonDetailScreen({
               style={[styles.videoPlayer]}
               onPress={handlePlayVideo}
             >
-              {!(
-                data?.features &&
-                data?.features.find((item) => item.code === "LESSON")
-              ) && (
-                <View
-                  style={{
-                    position: "absolute",
-                    top: moderateScale(8),
-                    right: moderateScale(8),
-                  }}
-                >
+              {!hasLessonFeature && (
+                <View style={styles.lessonCrown}>
                   <FontAwesome6
                     name="crown"
                     size={moderateScale(22)}
@@ -289,17 +265,8 @@ export default function LessonDetailScreen({
               style={styles.actionButton}
               onPress={handleThemeAbstract}
             >
-              {!(
-                data?.features &&
-                data?.features.find((item) => item.code === "ABSTRACT")
-              ) && (
-                <View
-                  style={{
-                    position: "absolute",
-                    top: moderateScale(5),
-                    right: moderateScale(5),
-                  }}
-                >
+              {!hasAbstractFeature && (
+                <View style={styles.actionCrown}>
                   <FontAwesome6
                     name="crown"
                     size={moderateScale(16)}
@@ -322,17 +289,8 @@ export default function LessonDetailScreen({
               style={styles.actionButton}
               onPress={handleMashqlar}
             >
-              {!(
-                data?.features &&
-                data?.features.find((item) => item.code === "TEST")
-              ) && (
-                <View
-                  style={{
-                    position: "absolute",
-                    top: moderateScale(5),
-                    right: moderateScale(5),
-                  }}
-                >
+              {!hasTestFeature && (
+                <View style={styles.actionCrown}>
                   <FontAwesome6
                     name="crown"
                     size={moderateScale(16)}
@@ -344,7 +302,7 @@ export default function LessonDetailScreen({
                 <Test width={60} height={60} />
               </View>
               <Text style={styles.actionButtonText} numberOfLines={2}>
-                IDS mavzulashtirilgan testlar to'plami
+                Mashqlar (IDS kitobidan)
               </Text>
             </Pressable>
           </View>
@@ -352,9 +310,7 @@ export default function LessonDetailScreen({
       </PageCard>
       <EmptyModal
         visible={emptyModal.open}
-        onBack={() =>
-          setEmptyModal({ open: false, title: "", description: "" })
-        }
+        onBack={closeEmptyModal}
         title={emptyModal.title}
         description={emptyModal.description}
       />
@@ -384,10 +340,27 @@ const createStyles = (theme: Theme) =>
       fontWeight: "bold",
       color: "white",
     },
+    headerPercent: {
+      color: "white",
+      fontSize: moderateScale(16),
+      fontWeight: "500",
+    },
     content: {
       flex: 1,
       paddingHorizontal: SPACING.lg,
       paddingTop: SPACING.xl,
+    },
+    topRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: SPACING.sm,
+    },
+    bookmarkButton: {
+      width: 40,
+      height: 40,
+      alignItems: "center",
+      justifyContent: "center",
     },
     lessonTitle: {
       fontSize: moderateScale(FONT_SIZES.xl),
@@ -410,6 +383,11 @@ const createStyles = (theme: Theme) =>
       justifyContent: "center",
       alignItems: "center",
       position: "relative",
+    },
+    lessonCrown: {
+      position: "absolute",
+      top: moderateScale(8),
+      right: moderateScale(8),
     },
     playButtonContainer: {
       position: "relative",
@@ -449,6 +427,11 @@ const createStyles = (theme: Theme) =>
       shadowOpacity: 0.1,
       shadowRadius: 2,
       elevation: 2,
+    },
+    actionCrown: {
+      position: "absolute",
+      top: moderateScale(5),
+      right: moderateScale(5),
     },
     actionIconContainer: {
       marginRight: SPACING.base,

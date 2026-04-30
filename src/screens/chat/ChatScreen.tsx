@@ -26,10 +26,7 @@ import MessageInput from "./components/MessageInput";
 import MessageItem from "./components/MessageItem";
 import { COLORS } from "@/src/utils";
 import { lightColors } from "@/src/constants/theme";
-import {
-  KeyboardAvoidingView,
-  KeyboardProvider,
-} from "react-native-keyboard-controller";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { moderateScale } from "react-native-size-matters";
 
 interface ChatSection {
@@ -52,6 +49,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
   const previousMessageCountRef = useRef(0);
   const canTrackReadRef = useRef(false);
   const initialPositionHandledRef = useRef(false);
+  const showScrollToBottomRef = useRef(false);
 
   const handleChangeInput = useCallback((e: any) => {
     setMessage(e);
@@ -59,7 +57,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
 
   const mutation = useSendMessage();
   const readMutation = useReadMessage(Number(userId), 0);
-  const { data = [], isLoading, isFetching, refetch } = useChat(Number(userId));
+  const { data = [], isLoading, refetch } = useChat(Number(userId));
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
 
   const formatDate = (date: Date) => {
@@ -98,9 +96,17 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
   }, [data]);
 
   const unreadMarker = useMemo(() => {
-    for (let sectionIndex = 0; sectionIndex < messageSections.length; sectionIndex += 1) {
+    for (
+      let sectionIndex = 0;
+      sectionIndex < messageSections.length;
+      sectionIndex += 1
+    ) {
       const section = messageSections[sectionIndex];
-      for (let itemIndex = section.data.length - 1; itemIndex >= 0; itemIndex -= 1) {
+      for (
+        let itemIndex = section.data.length - 1;
+        itemIndex >= 0;
+        itemIndex -= 1
+      ) {
         const item = section.data[itemIndex];
         if (item.senderType === 1 && !item.isRead) {
           return { messageId: item.id, sectionIndex, itemIndex };
@@ -109,6 +115,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
     }
     return null;
   }, [messageSections]);
+  const unreadMarkerMessageId = unreadMarker?.messageId;
 
   const totalMessages = useMemo(
     () =>
@@ -205,6 +212,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
 
   const scrollToBottom = useCallback(() => {
     scrollToLatest(true);
+    showScrollToBottomRef.current = false;
     setShowScrollToBottom(false);
   }, [scrollToLatest]);
 
@@ -212,8 +220,44 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
     const { contentOffset } = event.nativeEvent;
     const isScrolledUp = contentOffset.y > 50;
     isAtBottomRef.current = !isScrolledUp;
-    setShowScrollToBottom(isScrolledUp);
+    if (showScrollToBottomRef.current !== isScrolledUp) {
+      showScrollToBottomRef.current = isScrolledUp;
+      setShowScrollToBottom(isScrolledUp);
+    }
   }, []);
+
+  const keyExtractor = useCallback((item: ChatMessage) => String(item.id), []);
+
+  const renderItem = useCallback(
+    ({ item }: { item: ChatMessage }) => (
+      <>
+        {unreadMarkerMessageId === item.id && (
+          <View style={styles.unreadMarkerContainer}>
+            <View style={styles.unreadMarkerLine} />
+            <View style={styles.unreadMarkerChip}>
+              <Animated.Text style={styles.unreadMarkerText}>
+                {"O'qilmagan xabarlar"}
+              </Animated.Text>
+            </View>
+            <View style={styles.unreadMarkerLine} />
+          </View>
+        )}
+        <MessageItem msg={item} styles={styles} theme={theme} />
+      </>
+    ),
+    [styles, theme, unreadMarkerMessageId],
+  );
+
+  const renderSectionFooter = useCallback(
+    ({ section }: { section: ChatSection }) => (
+      <View style={styles.dateHeader}>
+        <View style={styles.dateHeaderChip}>
+          <Animated.Text style={styles.dateText}>{section.date}</Animated.Text>
+        </View>
+      </View>
+    ),
+    [styles],
+  );
 
   useEffect(() => {
     canTrackReadRef.current = false;
@@ -239,6 +283,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
 
       if (unreadMarker) {
         isAtBottomRef.current = false;
+        showScrollToBottomRef.current = true;
         setShowScrollToBottom(true);
         requestAnimationFrame(() => {
           sectionListRef.current?.scrollToLocation({
@@ -250,6 +295,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
         });
       } else {
         isAtBottomRef.current = true;
+        showScrollToBottomRef.current = false;
         requestAnimationFrame(() => scrollToLatest(false));
       }
 
@@ -294,104 +340,79 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
   }, [navigation, refetch]);
 
   return (
-    <KeyboardProvider>
-      <KeyboardAvoidingView
-        style={styles.chatContainer}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 70 : 50}
-      >
-        <SafeAreaView style={styles.container} edges={["bottom"]}>
-          {(isLoading || isFetching) && (
-            <View style={styles.loadingOverlay}>
-              <ActivityIndicator size="large" color={COLORS.primary} />
-            </View>
-          )}
+    <KeyboardAvoidingView
+      style={styles.chatContainer}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? -20 : -40}
+    >
+      <SafeAreaView style={styles.container} edges={["bottom"]}>
+        {isLoading && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          </View>
+        )}
 
-          <SectionList
-            ref={sectionListRef}
-            sections={messageSections}
-            keyExtractor={(item) => item.id?.toString()}
-            renderItem={({ item }) => (
-              <>
-                {unreadMarker?.messageId === item.id && (
-                  <View style={styles.unreadMarkerContainer}>
-                    <View style={styles.unreadMarkerLine} />
-                    <View style={styles.unreadMarkerChip}>
-                      <Animated.Text style={styles.unreadMarkerText}>
-                        {"O'qilmagan xabarlar"}
-                      </Animated.Text>
-                    </View>
-                    <View style={styles.unreadMarkerLine} />
-                  </View>
-                )}
-                <MessageItem msg={item} styles={styles} theme={theme} />
-              </>
-            )}
-            renderSectionFooter={({ section }) => (
-              <View style={styles.dateHeader}>
-                <View style={styles.dateHeaderChip}>
-                  <Animated.Text style={styles.dateText}>
-                    {section.date}
-                  </Animated.Text>
-                </View>
-              </View>
-            )}
-            style={styles.messagesList}
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
-            showsVerticalScrollIndicator={false}
-            inverted
-            stickySectionHeadersEnabled={false}
-            onViewableItemsChanged={onViewableItemsChanged}
-            viewabilityConfig={viewabilityConfig}
-            keyboardShouldPersistTaps="handled"
-            initialNumToRender={8}
-            maxToRenderPerBatch={8}
-            windowSize={5}
-            updateCellsBatchingPeriod={60}
-            removeClippedSubviews
-            onScrollToIndexFailed={() => {
-              requestAnimationFrame(() => {
-                if (unreadMarker && !isAtBottomRef.current) {
-                  sectionListRef.current?.scrollToLocation({
-                    sectionIndex: unreadMarker.sectionIndex,
-                    itemIndex: unreadMarker.itemIndex,
-                    animated: false,
-                    viewPosition: 0.2,
-                  });
-                  return;
-                }
-                scrollToLatest(false);
-              });
-            }}
-          />
+        <SectionList
+          ref={sectionListRef}
+          sections={messageSections}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          renderSectionFooter={renderSectionFooter}
+          style={styles.messagesList}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          showsVerticalScrollIndicator={false}
+          inverted
+          stickySectionHeadersEnabled={false}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+          keyboardShouldPersistTaps="handled"
+          initialNumToRender={8}
+          maxToRenderPerBatch={6}
+          windowSize={4}
+          updateCellsBatchingPeriod={40}
+          removeClippedSubviews={Platform.OS === "android"}
+          onScrollToIndexFailed={() => {
+            requestAnimationFrame(() => {
+              if (unreadMarker && !isAtBottomRef.current) {
+                sectionListRef.current?.scrollToLocation({
+                  sectionIndex: unreadMarker.sectionIndex,
+                  itemIndex: unreadMarker.itemIndex,
+                  animated: false,
+                  viewPosition: 0.2,
+                });
+                return;
+              }
+              scrollToLatest(false);
+            });
+          }}
+        />
 
-          {showScrollToBottom && (
-            <Animated.View style={styles.scrollToBottomContainer}>
-              <TouchableOpacity
-                activeOpacity={1}
-                style={styles.scrollToBottomButton}
-                onPress={scrollToBottom}
-              >
-                <Ionicons
-                  name="chevron-down"
-                  size={moderateScale(18)}
-                  color="white"
-                />
-              </TouchableOpacity>
-            </Animated.View>
-          )}
+        {showScrollToBottom && (
+          <Animated.View style={styles.scrollToBottomContainer}>
+            <TouchableOpacity
+              activeOpacity={1}
+              style={styles.scrollToBottomButton}
+              onPress={scrollToBottom}
+            >
+              <Ionicons
+                name="chevron-down"
+                size={moderateScale(18)}
+                color="white"
+              />
+            </TouchableOpacity>
+          </Animated.View>
+        )}
 
-          <MessageInput
-            handleChangeInput={handleChangeInput}
-            message={message}
-            sendMessage={sendMessage}
-            styles={styles}
-            theme={theme}
-          />
-        </SafeAreaView>
-      </KeyboardAvoidingView>
-    </KeyboardProvider>
+        <MessageInput
+          handleChangeInput={handleChangeInput}
+          message={message}
+          sendMessage={sendMessage}
+          styles={styles}
+          theme={theme}
+        />
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 

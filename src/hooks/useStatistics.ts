@@ -21,19 +21,17 @@ export const useThemeStatistics = (userId: number, subjectId: number) => {
     queryKey: ["statistics", "subjects", subjectId],
     queryFn: () => statisticsService.getThemeStatistics(userId, subjectId),
     // staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: false,
   });
 };
 export const useThemeTestStatistics = (
   userId: number,
   subjectId: number,
-  testId: number
+  testId: number,
 ) => {
   return useQuery<ThemeTestStatistic, Error>({
     queryKey: ["statistics", "subjects", subjectId, testId],
     queryFn: () =>
       statisticsService.getTestStatistics(userId, subjectId, testId),
     // staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: false,
   });
 };

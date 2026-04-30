@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as ScreenCapture from "expo-screen-capture";
 import React, {
   useCallback,
   useEffect,
@@ -12,6 +13,7 @@ import {
   Dimensions,
   FlatList,
   ListRenderItemInfo,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -39,6 +41,7 @@ import {
   useIsFocused,
   usePreventRemove,
 } from "@react-navigation/native";
+import ScreenGuardModule from "react-native-screenguard";
 
 const { width } = Dimensions.get("window");
 const TIMED_TEST_DURATION_SECONDS = 2.5 * 60 * 60;
@@ -78,6 +81,11 @@ interface ModalQuestionRow {
 }
 
 type ModalListRow = ModalHeaderRow | ModalQuestionRow;
+
+const MODAL_ROW_HEADER_HEIGHT = moderateScale(28);
+const MODAL_ROW_OPTION_HEIGHT = moderateScale(64);
+const MODAL_ROW_TEXT_BASE_HEIGHT = moderateScale(64);
+const MODAL_ROW_TEXT_PART_HEIGHT = moderateScale(52);
 
 const HeaderTitle = React.memo(
   ({ title, subtitle }: { title: string; subtitle: string }) => (
@@ -196,6 +204,152 @@ const OptionButton = React.memo(
   ),
 );
 
+const ModalQuestionRowItem = React.memo(
+  ({
+    item,
+    answersByKey,
+    onSelectOption,
+    onOpenMathInput,
+    styles,
+  }: {
+    item: ModalQuestionRow;
+    answersByKey: Record<number, LocalQuizAnswer>;
+    onSelectOption: (
+      answerKeyId: number,
+      questionId: number,
+      partIndex: number,
+      option: string,
+      subTestNo: number,
+    ) => void;
+    onOpenMathInput: (
+      answerKeyId: number,
+      questionId: number,
+      partIndex: number,
+      subTestNo: number,
+      value: string,
+    ) => void;
+    styles: ReturnType<typeof createStyles>;
+  }) => {
+    const primaryPart = item.parts[0];
+    const selected = primaryPart
+      ? (answersByKey[primaryPart.answerKeyId]?.selectedOption ?? null)
+      : null;
+
+    return (
+      <View
+        style={[
+          styles.modalQuestionCard,
+          item.answerType === 1 && {
+            flexDirection: "row",
+            gap: 4,
+            alignItems: "center",
+          },
+        ]}
+      >
+        <Text style={styles.modalQuestionTitle}>{item.questionNumber}</Text>
+
+        {item.answerType === 1 && item.options.length > 0 ? (
+          <View style={styles.modalOptionsRow}>
+            {item.options.map((option) => (
+              <OptionButton
+                key={`${item.dbQuestionNumber}-${option}`}
+                option={option}
+                disabled={false}
+                isSelected={selected === option}
+                onSelect={(value) =>
+                  onSelectOption(
+                    primaryPart?.answerKeyId ?? item.dbQuestionNumber,
+                    item.dbQuestionNumber,
+                    primaryPart?.partIndex ?? 0,
+                    value,
+                    item.subTestNo,
+                  )
+                }
+                styles={styles}
+              />
+            ))}
+          </View>
+        ) : (
+          <View style={[styles.modalTextPartsContainer]}>
+            {item.parts.map((part, idx) => {
+              const partValue = answersByKey[part.answerKeyId]?.selectedOption ?? "";
+              return (
+                <View
+                  key={`${item.key}-part-${part.answerKeyId}`}
+                  style={[
+                    {
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 5,
+                    },
+                  ]}
+                >
+                  {item.parts.length > 1 && (
+                    <Text style={styles.modalPartLabel}>
+                      {part.partLabel || `${idx + 1}-qism`}
+                    </Text>
+                  )}
+                  <TouchableOpacity
+                    style={styles.modalMathInput}
+                    onPress={() =>
+                      onOpenMathInput(
+                        part.answerKeyId,
+                        item.dbQuestionNumber,
+                        part.partIndex,
+                        item.subTestNo,
+                        partValue,
+                      )
+                    }
+                    activeOpacity={0.85}
+                  >
+                    {partValue ? (
+                      <MathView math={partValue} style={styles.modalMathPreview} />
+                    ) : (
+                      <Text style={styles.modalMathPlaceholder}>
+                        Javobni kiriting
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </View>
+    );
+  },
+  (prev, next) => {
+    if (prev.item !== next.item || prev.styles !== next.styles) {
+      return false;
+    }
+
+    const prevParts = prev.item.parts;
+    const nextParts = next.item.parts;
+    if (prevParts.length !== nextParts.length) {
+      return false;
+    }
+
+    for (let i = 0; i < prevParts.length; i += 1) {
+      const prevPart = prevParts[i];
+      const nextPart = nextParts[i];
+      if (prevPart.answerKeyId !== nextPart.answerKeyId) {
+        return false;
+      }
+
+      const prevSelected =
+        prev.answersByKey[prevPart.answerKeyId]?.selectedOption ?? null;
+      const nextSelected =
+        next.answersByKey[nextPart.answerKeyId]?.selectedOption ?? null;
+
+      if (prevSelected !== nextSelected) {
+        return false;
+      }
+    }
+
+    return true;
+  },
+);
+
 export default function QuizScreenSertificate({
   navigation,
   route,
@@ -219,7 +373,9 @@ export default function QuizScreenSertificate({
   const submitResults = useSubmitTestResults();
   const currentUserId = useCurrentUserId();
 
-  const [answers, setAnswers] = useState<LocalQuizAnswer[]>([]);
+  const [answersByKey, setAnswersByKey] = useState<
+    Record<number, LocalQuizAnswer>
+  >({});
   const [showTestModal, setShowTestModal] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [remainingSecondsDisplay, setRemainingSecondsDisplay] = useState(
@@ -228,6 +384,9 @@ export default function QuizScreenSertificate({
   const remainingSecondsRef = useRef(TIMED_TEST_DURATION_SECONDS);
   const hasTimedOutRef = useRef(false);
   const hasSubmittedRef = useRef(false);
+  const isLeavingRef = useRef(false);
+  const isScreenGuardEnabledRef = useRef(false);
+  const guardRequestIdRef = useRef(0);
   const mathKeyboardRef = useRef<MathLiveModalRef>(null);
   const [activeTextAnswer, setActiveTextAnswer] =
     useState<TextAnswerEditorState | null>(null);
@@ -242,10 +401,61 @@ export default function QuizScreenSertificate({
     setShowTestModal(false);
   }, []);
 
+  const setScreenProtectionEnabled = useCallback((enabled: boolean) => {
+    if (Platform.OS === "ios") {
+      if (isScreenGuardEnabledRef.current === enabled) return;
+      isScreenGuardEnabledRef.current = enabled;
+      const requestId = ++guardRequestIdRef.current;
+
+      (async () => {
+        try {
+          if (enabled) {
+            try {
+              await ScreenGuardModule.unregister();
+            } catch {}
+
+            await ScreenGuardModule.initSettings({
+              displayScreenGuardOverlay: false,
+              timeAfterResume: 500,
+              getScreenshotPath: false,
+            });
+
+            if (
+              guardRequestIdRef.current !== requestId ||
+              !isScreenGuardEnabledRef.current
+            ) {
+              return;
+            }
+
+            await ScreenGuardModule.registerWithBlurView({
+              radius: 20,
+            });
+            return;
+          }
+
+          await ScreenGuardModule.unregister();
+        } catch (error) {
+          console.warn("Quiz iOS ScreenGuard error:", error);
+        }
+      })();
+
+      return;
+    }
+
+    if (Platform.OS === "android") {
+      if (enabled) {
+        ScreenCapture.preventScreenCaptureAsync().catch(console.warn);
+      } else {
+        ScreenCapture.allowScreenCaptureAsync().catch(console.warn);
+      }
+    }
+  }, []);
+
   const totalQuestions = useMemo(
     () => testData?.questionCount || 0,
     [testData],
   );
+  const answers = useMemo(() => Object.values(answersByKey), [answersByKey]);
 
   const formattedRemainingTime = useMemo(() => {
     const hours = Math.floor(remainingSecondsDisplay / 3600);
@@ -291,9 +501,21 @@ export default function QuizScreenSertificate({
       "Testni tark etish",
       "Haqiqatan ham testni tark etmoqchimisiz?",
       [
-        { text: "Bekor qilish", style: "cancel" },
-        { text: "Chiqish", onPress: () => navigation.goBack() },
+        {
+          text: "Bekor qilish",
+          style: "cancel",
+        },
+        {
+          text: "Chiqish",
+          onPress: () => {
+            isLeavingRef.current = true;
+            navigation.goBack();
+          },
+        },
       ],
+      {
+        cancelable: true,
+      },
     );
     return true;
   }, [navigation]);
@@ -306,11 +528,22 @@ export default function QuizScreenSertificate({
       option: string,
       subTestNo: number,
     ) => {
-      setAnswers((prev) => {
-        const filtered = prev.filter((a) => a.answerKeyId !== answerKeyId);
-        return [
-          ...filtered,
-          {
+      setAnswersByKey((prev) => {
+        const existing = prev[answerKeyId];
+        if (
+          existing &&
+          existing.selectedOption === option &&
+          existing.questionId === questionId &&
+          existing.partIndex === partIndex &&
+          existing.subTestNo === subTestNo &&
+          existing.isConfirmed
+        ) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          [answerKeyId]: {
             answerKeyId,
             questionId,
             partIndex,
@@ -318,7 +551,7 @@ export default function QuizScreenSertificate({
             subTestNo,
             isConfirmed: true,
           },
-        ];
+        };
       });
     },
     [],
@@ -509,32 +742,48 @@ export default function QuizScreenSertificate({
       "Testni tark etish",
       "Haqiqatan ham testni tark etmoqchimisiz?",
       [
-        { text: "Bekor qilish", style: "cancel" },
+        {
+          text: "Bekor qilish",
+          style: "cancel",
+        },
         {
           text: "Chiqish",
-          onPress: () => navigation.dispatch(data.action),
+          onPress: () => {
+            isLeavingRef.current = true;
+            navigation.dispatch(data.action);
+          },
         },
       ],
+      {
+        cancelable: true,
+      },
     );
   });
 
   useFocusEffect(
     useCallback(() => {
-      navigation.setOptions({
-        title: mavzu,
-        headerTitle: () => (
-          <HeaderTitle
-            title={mavzu}
-            subtitle={
-              isTimedMode ? `Qolgan vaqt: ${formattedRemainingTime}` : ""
-            }
-          />
-        ),
-        headerBackTitle: "Orqaga",
-        freezeOnBlur: true,
-      });
-    }, [navigation, isTimedMode, formattedRemainingTime]),
+      isLeavingRef.current = false;
+      setScreenProtectionEnabled(true);
+
+      return () => {
+        setScreenProtectionEnabled(false);
+      };
+    }, [setScreenProtectionEnabled]),
   );
+
+  useEffect(() => {
+    navigation.setOptions({
+      title: mavzu,
+      headerTitle: () => (
+        <HeaderTitle
+          title={mavzu}
+          subtitle={isTimedMode ? `Qolgan vaqt: ${formattedRemainingTime}` : ""}
+        />
+      ),
+      headerBackTitle: "Orqaga",
+      freezeOnBlur: true,
+    });
+  }, [navigation, isTimedMode, formattedRemainingTime, mavzu]);
 
   if (testLoading) {
     return <LoadingState />;
@@ -595,7 +844,7 @@ export default function QuizScreenSertificate({
       {showTestModal && (
         <TestModal
           groupedTestData={groupedTestData}
-          answers={answers}
+          answersByKey={answersByKey}
           onSelectOption={handleOptionSelectForQuestion}
           onOpenMathInput={handleOpenMathInput}
           initialScrollY={testModalScrollYRef.current}
@@ -618,7 +867,7 @@ export default function QuizScreenSertificate({
 const TestModal = React.memo(
   ({
     groupedTestData,
-    answers,
+    answersByKey,
     onSelectOption,
     onOpenMathInput,
     initialScrollY,
@@ -627,7 +876,7 @@ const TestModal = React.memo(
     styles,
   }: {
     groupedTestData: [string, any[]][];
-    answers: LocalQuizAnswer[];
+    answersByKey: Record<number, LocalQuizAnswer>;
     onSelectOption: (
       answerKeyId: number,
       questionId: number,
@@ -704,13 +953,49 @@ const TestModal = React.memo(
       return rows;
     }, [groupedTestData]);
 
-    const answerMap = useMemo(() => {
-      const map: Record<number, string | null> = {};
-      answers.forEach((a) => {
-        map[a.answerKeyId] = a.selectedOption;
+    const rowLayouts = useMemo(() => {
+      const layouts: Array<{ length: number; offset: number; index: number }> = [];
+      let offset = 0;
+
+      flatRows.forEach((row, index) => {
+        let length = MODAL_ROW_HEADER_HEIGHT;
+
+        if (row.type === "question") {
+          if (row.answerType === 1) {
+            length = MODAL_ROW_OPTION_HEIGHT;
+          } else {
+            length =
+              MODAL_ROW_TEXT_BASE_HEIGHT +
+              Math.max(0, row.parts.length - 1) * MODAL_ROW_TEXT_PART_HEIGHT;
+          }
+        }
+
+        layouts.push({ length, offset, index });
+        offset += length;
       });
-      return map;
-    }, [answers]);
+
+      return layouts;
+    }, [flatRows]);
+
+    const getItemLayout = useCallback(
+      (_data: ArrayLike<ModalListRow> | null | undefined, index: number) => {
+        const layout = rowLayouts[index];
+        if (layout) return layout;
+        return {
+          length: MODAL_ROW_OPTION_HEIGHT,
+          offset: MODAL_ROW_OPTION_HEIGHT * index,
+          index,
+        };
+      },
+      [rowLayouts],
+    );
+
+    const handleListScroll = useCallback(
+      (event: any) => {
+        onScrollYChange(event.nativeEvent.contentOffset.y);
+      },
+      [onScrollYChange],
+    );
 
     useEffect(() => {
       const id = setTimeout(() => {
@@ -729,98 +1014,17 @@ const TestModal = React.memo(
           return <Text style={styles.subTestTitle}>Test {item.subTestNo}</Text>;
         }
 
-        const primaryPart = item.parts[0];
-        const selected = primaryPart
-          ? (answerMap[primaryPart.answerKeyId] ?? null)
-          : null;
-
         return (
-          <View
-            style={[
-              styles.modalQuestionCard,
-              item.answerType === 1 && {
-                flexDirection: "row",
-                gap: 4,
-                alignItems: "center",
-              },
-            ]}
-          >
-            <Text style={styles.modalQuestionTitle}>{item.questionNumber}</Text>
-
-            {item.answerType === 1 && item.options.length > 0 ? (
-              <View style={styles.modalOptionsRow}>
-                {item.options.map((option) => (
-                  <OptionButton
-                    key={`${item.dbQuestionNumber}-${option}`}
-                    option={option}
-                    disabled={false}
-                    isSelected={selected === option}
-                    onSelect={(value) =>
-                      onSelectOption(
-                        primaryPart?.answerKeyId ?? item.dbQuestionNumber,
-                        item.dbQuestionNumber,
-                        primaryPart?.partIndex ?? 0,
-                        value,
-                        item.subTestNo,
-                      )
-                    }
-                    styles={styles}
-                  />
-                ))}
-              </View>
-            ) : (
-              <View style={[styles.modalTextPartsContainer]}>
-                {item.parts.map((part, idx) => {
-                  const partValue = answerMap[part.answerKeyId] ?? "";
-                  return (
-                    <View
-                      key={`${item.key}-part-${part.answerKeyId}`}
-                      style={[
-                        {
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 5,
-                        },
-                      ]}
-                    >
-                      {item.parts.length > 1 && (
-                        <Text style={styles.modalPartLabel}>
-                          {part.partLabel || `${idx + 1}-qism`}
-                        </Text>
-                      )}
-                      <TouchableOpacity
-                        style={styles.modalMathInput}
-                        onPress={() =>
-                          onOpenMathInput(
-                            part.answerKeyId,
-                            item.dbQuestionNumber,
-                            part.partIndex,
-                            item.subTestNo,
-                            partValue,
-                          )
-                        }
-                        activeOpacity={0.85}
-                      >
-                        {partValue ? (
-                          <MathView
-                            math={partValue}
-                            style={styles.modalMathPreview}
-                          />
-                        ) : (
-                          <Text style={styles.modalMathPlaceholder}>
-                            Javobni kiriting
-                          </Text>
-                        )}
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-          </View>
+          <ModalQuestionRowItem
+            item={item}
+            answersByKey={answersByKey}
+            onSelectOption={onSelectOption}
+            onOpenMathInput={onOpenMathInput}
+            styles={styles}
+          />
         );
       },
-      [answerMap, onOpenMathInput, onSelectOption, styles],
+      [answersByKey, onOpenMathInput, onSelectOption, styles],
     );
 
     return (
@@ -843,15 +1047,14 @@ const TestModal = React.memo(
             data={flatRows}
             keyExtractor={(item) => item.key}
             renderItem={renderRow}
+            getItemLayout={getItemLayout}
             showsVerticalScrollIndicator={false}
-            onScroll={(event) =>
-              onScrollYChange(event.nativeEvent.contentOffset.y)
-            }
+            onScroll={handleListScroll}
             scrollEventThrottle={16}
-            initialNumToRender={12}
-            maxToRenderPerBatch={16}
-            windowSize={10}
-            updateCellsBatchingPeriod={40}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={6}
+            updateCellsBatchingPeriod={30}
             removeClippedSubviews
             keyboardShouldPersistTaps="handled"
           />

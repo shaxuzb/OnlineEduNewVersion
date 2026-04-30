@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   DefaultTheme,
   NavigationContainer,
@@ -12,21 +12,12 @@ import ProfileScreen from "../screens/profile/ProfileScreen";
 import PersonalInfoScreen from "../screens/profile/PersonalInfoScreen";
 import LoginScreen from "../screens/auth/LoginScreen";
 import LoadingScreen from "../components/LoadingScreen";
-import LessonDetailScreen from "../screens/courses/LessonDetailScreen";
-import QuizScreen from "../screens/courses/QuizScreen";
-import QuizResultsScreen from "../screens/courses/QuizResultsScreen";
-import ChatScreen from "../screens/chat/ChatScreen";
 import { useAuth } from "../context/AuthContext";
 
 import SystemNavigationBar from "react-native-system-navigation-bar";
-import StatistikaSubjectScreen from "../screens/statistics/details/StatistikaSubjectScreen";
-import StatistikaTestScreen from "../screens/statistics/details/StatistikaTestScreen";
-import { StatusBar, StyleSheet } from "react-native";
+import { StatusBar } from "react-native";
 import PaymentOrders from "../screens/profile/screen/paymentorders";
-import SolutionScreen from "../screens/courses/SolutionScreen";
-import VideoPlayerScreen from "../screens/courses/videoplayer";
 import LinearGradient from "react-native-linear-gradient";
-import ThemeAbstractScreen from "../screens/courses/ThemeAbstractScreen";
 import { moderateScale } from "react-native-size-matters";
 import DeviceInfo from "react-native-device-info";
 import NoConnection from "../components/NoConnection";
@@ -36,10 +27,6 @@ import { PurchaseStack } from "./PurchaseStack";
 import { PurchaseModal } from "../screens/purchases/components/PurchaseModal";
 import { PurchaseProvider } from "../context/PurchaseContext";
 import MainTabNavigator from "./maintab";
-import QuizScreenSertificate from "../screens/courses/sertificatetests/QuizScreenSertificate";
-import QuizResultsScreenSertificate from "../screens/courses/sertificatetests/QuizResultsScreenSertificate";
-import QuizResultsHistoryScreenSertificate from "../screens/courses/sertificatetests/QuizResultsHistoryScreenSertificate";
-import SolutionScreenSertificate from "../screens/courses/sertificatetests/SolutionScreenSertificate";
 
 const Stack = createNativeStackNavigator();
 const isTablet = DeviceInfo.isTablet();
@@ -65,7 +52,7 @@ const MainStackNavigator = () => (
     />
     <Stack.Screen
       name="Chat"
-      component={ChatScreen}
+      getComponent={() => require("../screens/chat/ChatScreen").default}
       options={{
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
@@ -115,7 +102,10 @@ const MainStackNavigator = () => (
     />
     <Stack.Screen
       name="StatistikaDetail"
-      component={StatistikaSubjectScreen}
+      getComponent={() =>
+        require("../screens/statistics/details/StatistikaSubjectScreen")
+          .default
+      }
       options={{
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
@@ -139,7 +129,9 @@ const MainStackNavigator = () => (
     />
     <Stack.Screen
       name="StatistikaDetailTest"
-      component={StatistikaTestScreen}
+      getComponent={() =>
+        require("../screens/statistics/details/StatistikaTestScreen").default
+      }
       options={{
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
@@ -162,7 +154,7 @@ const MainStackNavigator = () => (
     />
     <Stack.Screen
       name="LessonDetail"
-      component={LessonDetailScreen}
+      getComponent={() => require("../screens/courses/LessonDetailScreen").default}
       options={{
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
@@ -186,12 +178,12 @@ const MainStackNavigator = () => (
     />
     <Stack.Screen
       name="VideoPlayer"
-      component={VideoPlayerScreen}
+      getComponent={() => require("../screens/courses/videoplayer").default}
       options={{ headerShown: false, freezeOnBlur: true }}
     />
     <Stack.Screen
       name="ThemeAbstract"
-      component={ThemeAbstractScreen}
+      getComponent={() => require("../screens/courses/ThemeAbstractScreen").default}
       options={{
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
@@ -215,7 +207,10 @@ const MainStackNavigator = () => (
     />
     <Stack.Screen
       name="QuizScreenSertificate"
-      component={QuizScreenSertificate}
+      getComponent={() =>
+        require("../screens/courses/sertificatetests/QuizScreenSertificate")
+          .default
+      }
       options={{
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
@@ -240,7 +235,7 @@ const MainStackNavigator = () => (
     />
     <Stack.Screen
       name="QuizScreen"
-      component={QuizScreen}
+      getComponent={() => require("../screens/courses/QuizScreen").default}
       options={{
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
@@ -265,7 +260,7 @@ const MainStackNavigator = () => (
     />
     <Stack.Screen
       name="QuizResults"
-      component={QuizResultsScreen}
+      getComponent={() => require("../screens/courses/QuizResultsScreen").default}
       options={{
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
@@ -289,7 +284,10 @@ const MainStackNavigator = () => (
     />
     <Stack.Screen
       name="QuizResultsSertificate"
-      component={QuizResultsScreenSertificate}
+      getComponent={() =>
+        require("../screens/courses/sertificatetests/QuizResultsScreenSertificate")
+          .default
+      }
       options={{
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
@@ -313,7 +311,11 @@ const MainStackNavigator = () => (
     />
     <Stack.Screen
       name="QuizResultsHistorySertificate"
-      component={QuizResultsHistoryScreenSertificate}
+      getComponent={() =>
+        require(
+          "../screens/courses/sertificatetests/QuizResultsHistoryScreenSertificate"
+        ).default
+      }
       options={{
         presentation: "transparentModal",
         animation: "slide_from_bottom",
@@ -322,7 +324,7 @@ const MainStackNavigator = () => (
     />
     <Stack.Screen
       name="QuizSolution"
-      component={SolutionScreen}
+      getComponent={() => require("../screens/courses/SolutionScreen").default}
       options={{
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
@@ -346,7 +348,10 @@ const MainStackNavigator = () => (
     />
     <Stack.Screen
       name="QuizSolutionSertificate"
-      component={SolutionScreenSertificate}
+      getComponent={() =>
+        require("../screens/courses/sertificatetests/SolutionScreenSertificate")
+          .default
+      }
       options={{
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
@@ -464,9 +469,20 @@ export default function AppNavigation() {
   const { isAuthenticated, isLoading } = useAuth();
   const { theme } = useTheme();
   const [isConnected, setIsConnected] = useState(true);
+  const navigationTheme = useMemo(
+    () => ({
+      ...DefaultTheme,
+      colors: {
+        ...DefaultTheme.colors,
+        background: theme.colors.background,
+      },
+    }),
+    [theme.colors.background],
+  );
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
-      setIsConnected(!!state.isConnected);
+      const next = !!state.isConnected;
+      setIsConnected((prev) => (prev === next ? prev : next));
     });
 
     return () => unsubscribe();
@@ -489,15 +505,7 @@ export default function AppNavigation() {
 
   return (
     <NavigationContainer>
-      <ThemeProvider
-        value={{
-          ...DefaultTheme,
-          colors: {
-            ...DefaultTheme.colors,
-            background: theme.colors.background,
-          },
-        }}
-      >
+      <ThemeProvider value={navigationTheme}>
         <StatusBar
           hidden
           translucent

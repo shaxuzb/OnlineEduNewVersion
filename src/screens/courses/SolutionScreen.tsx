@@ -1,18 +1,13 @@
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  FlatList,
   Image,
   LayoutChangeEvent,
   ScrollView,
-  SectionList,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -211,9 +206,6 @@ export default function SolutionScreen({
   const [showSolution, setShowSolution] = useState(false);
   // State management
   const [currentQuestion, setCurrentQuestion] = useState<number>(1);
-  const [selectedOption, setSelectedOption] = useState<LocalQuizAnswer | null>(
-    null,
-  );
   const [answers, setAnswers] = useState<LocalQuizAnswer[]>([]);
   const [authToken, setAuthToken] = useState<string | null>(null);
   // Memoized values
@@ -221,8 +213,6 @@ export default function SolutionScreen({
   const currentAnswerKey = testData?.answerKeys?.find(
     (ak) => ak.dbQuestionNumber === currentQuestion,
   );
-
-  const isMultipleChoice = currentAnswerKey?.answerType === 1;
 
   useEffect(() => {
     const loadAuthToken = async () => {
@@ -257,14 +247,12 @@ export default function SolutionScreen({
       );
     }
   }, [resultsSuccess]);
-  useEffect(() => {
-    const savedAnswer = answers.find((a) => a.questionId === currentQuestion);
-    if (savedAnswer) {
-      setSelectedOption(savedAnswer);
-    } else {
-      setSelectedOption(null);
-    }
-  }, [currentQuestion, answers, isMultipleChoice]);
+  const answersByQuestion = useMemo(() => {
+    return answers.reduce<Record<number, LocalQuizAnswer>>((acc, item) => {
+      acc[item.questionId] = item;
+      return acc;
+    }, {});
+  }, [answers]);
   // Event handlers
   const handleGoBack = useCallback(() => {
     Alert.alert(
@@ -279,12 +267,15 @@ export default function SolutionScreen({
   const handleTestSelect = useCallback((testNumber: number) => {
     setCurrentQuestion(testNumber);
   }, []);
+  const currentAnswer = useMemo(() => {
+    return answersByQuestion[currentQuestion];
+  }, [answersByQuestion, currentQuestion]);
   const handlePressSolutionVideo = useCallback(() => {
-    if (selectedOption?.videoFileId) {
+    if (currentAnswer?.videoFileId) {
       navigation.navigate("VideoPlayer", {
-        lessonTitle: `${selectedOption?.questionId}-test yechimi`,
-        videoFileId: selectedOption.videoFileId,
-        mavzu: `${selectedOption?.questionId}-test yechimi`,
+        lessonTitle: `${currentAnswer?.questionId}-test yechimi`,
+        videoFileId: currentAnswer.videoFileId,
+        mavzu: `${currentAnswer?.questionId}-test yechimi`,
       });
     } else {
       Toast.show({
@@ -293,7 +284,7 @@ export default function SolutionScreen({
         visibilityTime: 1500,
       });
     }
-  }, [selectedOption]);
+  }, [currentAnswer, navigation]);
   // Grouped test data for modal
   const groupedTestData = useMemo(() => {
     if (!testData?.answerKeys) return [];
@@ -328,12 +319,9 @@ export default function SolutionScreen({
 
     return result;
   }, [testData]);
-  const currentAnswer = useMemo(() => {
-    return answers.find((item) => item.questionId === currentQuestion);
-  }, [answers, currentQuestion]);
   useEffect(() => {
     navigation.setOptions({
-      title: "IDS mavzulashtirilgan testlar to'plami",
+      title: "Mashqlar (IDS kitobidan)",
       headerTitle: ({ children }: { children: any }) => (
         <HeaderTitle title={children} />
       ),
@@ -433,7 +421,7 @@ export default function SolutionScreen({
           )}
           <TestModal
             groupedTestData={groupedTestData}
-            answers={answers}
+            answersByQuestion={answersByQuestion}
             currentQuestion={currentQuestion}
             onTestSelect={handleTestSelect}
             styles={styles}
@@ -441,9 +429,6 @@ export default function SolutionScreen({
           <View style={styles.actionContainer}>
             <TouchableOpacity
               style={[styles.actionButton, styles.choiceButton]}
-              onPress={() => {
-                setSelectedOption(null);
-              }}
               activeOpacity={1}
             >
               <Ionicons
@@ -513,85 +498,67 @@ export default function SolutionScreen({
 const TestModal = React.memo(
   ({
     groupedTestData,
-    answers,
+    answersByQuestion,
     currentQuestion,
     onTestSelect,
     styles,
   }: {
     groupedTestData: [string, any][];
-    answers: LocalQuizAnswer[];
+    answersByQuestion: Record<number, LocalQuizAnswer>;
     currentQuestion: number;
     onTestSelect: (testNumber: number) => void;
     styles: any;
   }) => {
-    const subtestCounters: Record<number, number> = {};
+    const modalItems = useMemo(
+      () => (groupedTestData[0]?.[1] as any[]) ?? [],
+      [groupedTestData],
+    );
+
+    const renderModalItem = useCallback(
+      ({ item }: { item: any }) => {
+        const answer = answersByQuestion[item.dbQuestionNumber];
+        const isCorrect = answer?.isCorrect;
+        const orderNumber = item.questionNumber;
+        const isAnswered = answer?.isConfirmed;
+
+        return (
+          <TestGridItem
+            testNumber={item.dbQuestionNumber}
+            orderNumber={orderNumber}
+            isAnswered={isAnswered}
+            isCurrent={item.dbQuestionNumber === currentQuestion}
+            isCorrect={isCorrect}
+            onSelect={onTestSelect}
+            styles={styles}
+          />
+        );
+      },
+      [answersByQuestion, currentQuestion, onTestSelect, styles],
+    );
 
     return (
       <View style={styles.popoverContainer}>
         <View style={styles.popoverHeader}>
-          <Text style={styles.popoverTitle}>{groupedTestData[0][0]}-test</Text>
+          <Text style={styles.popoverTitle}>
+            {groupedTestData[0]?.[0] ?? 1}-test
+          </Text>
           <Text style={styles.popoverTitle}>{currentQuestion}/20</Text>
         </View>
-        <SectionList
-          sections={
-            groupedTestData.map((chapter) => ({
-              title: `Test ${chapter[0]}`,
-              data: chapter[1],
-            })) ?? []
-          }
-          keyExtractor={(item, index) => item.id.toString() + index}
+        <FlatList
+          data={modalItems}
+          numColumns={10}
+          keyExtractor={(item) => item.id.toString()}
           style={{
             padding: 2,
           }}
-          renderItem={({ section, index }) => {
-            const itemsPerRow = 100; // har qatorda 3 ta chiqadi
-            const startIndex = index * itemsPerRow;
-            const rowItems = section.data.slice(
-              startIndex,
-              startIndex + itemsPerRow,
-            );
-
-            return (
-              <View style={styles.testGrid}>
-                {rowItems.map((item: any) => {
-                  const { subTestNo: currentSubTestNo, dbQuestionNumber } =
-                    item;
-
-                  if (!subtestCounters[currentSubTestNo]) {
-                    subtestCounters[currentSubTestNo] = 1;
-                  } else {
-                    subtestCounters[currentSubTestNo]++;
-                  }
-                  const isCorrect = answers.find(
-                    (a) => a.questionId === item.dbQuestionNumber,
-                  )?.isCorrect;
-                  const orderNumber = item.questionNumber;
-                  const isAnswered = answers.find(
-                    (a) => a.questionId === dbQuestionNumber,
-                  )?.isConfirmed;
-                  const isCurrent = dbQuestionNumber === currentQuestion;
-
-                  return (
-                    <TestGridItem
-                      key={dbQuestionNumber}
-                      testNumber={dbQuestionNumber}
-                      orderNumber={orderNumber}
-                      isAnswered={isAnswered}
-                      isCurrent={isCurrent}
-                      isCorrect={isCorrect}
-                      onSelect={onTestSelect}
-                      styles={styles}
-                    />
-                  );
-                })}
-              </View>
-            );
-          }}
+          renderItem={renderModalItem}
           initialNumToRender={10}
           maxToRenderPerBatch={20}
-          windowSize={2}
+          windowSize={4}
           scrollEnabled
-          contentContainerStyle={styles.content}
+          removeClippedSubviews
+          columnWrapperStyle={styles.testGridRow}
+          contentContainerStyle={styles.testGridContent}
         />
       </View>
     );
@@ -626,7 +593,8 @@ const ImageViewer = React.memo(
     });
 
     const handleViewerLayout = useCallback((event: LayoutChangeEvent) => {
-      const { width: layoutWidth, height: layoutHeight } = event.nativeEvent.layout;
+      const { width: layoutWidth, height: layoutHeight } =
+        event.nativeEvent.layout;
       if (layoutWidth <= 0 || layoutHeight <= 0) return;
 
       setViewerSize((prev) => {
@@ -938,6 +906,14 @@ const createStyles = (theme: Theme) =>
       flexDirection: "row",
       flexWrap: "wrap",
       gap: 6,
+    },
+    testGridRow: {
+      justifyContent: "space-between",
+      marginBottom: moderateScale(6),
+    },
+    testGridContent: {
+      paddingHorizontal: moderateScale(2),
+      paddingBottom: moderateScale(4),
     },
     testGridItem: {
       width: (30 / 400) * width,

@@ -22,7 +22,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Logo from "@/src/assets/icons/logo/logobrand.svg";
 import {
   KeyboardAwareScrollView,
-  KeyboardProvider,
 } from "react-native-keyboard-controller";
 import { moderateScale } from "react-native-size-matters";
 const LoginScreen: React.FC = () => {
@@ -41,7 +40,7 @@ const LoginScreen: React.FC = () => {
       Alert.alert("Xatolik", "Iltimos, barcha maydonlarni to'ldiring");
       return;
     }
-    const success = (await login(email, password)) as any;
+    const success = await login(email, password);
 
     if (typeof success === "object") {
       if (success.status === 403) {
@@ -49,13 +48,17 @@ const LoginScreen: React.FC = () => {
       } else {
         Alert.alert("Xatolik", "Login yoki parol noto'g'ri");
       }
+      return;
+    }
+
+    if (!success) {
+      Alert.alert("Xatolik", "Login yoki parol noto'g'ri");
     }
   };
 
   return (
-    <KeyboardProvider>
-      <SafeAreaView style={styles.container} edges={["top"]}>
-        <KeyboardAwareScrollView
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <KeyboardAwareScrollView
           ScrollViewComponent={ScrollView}
           style={{
             flex: 1,
@@ -179,9 +182,8 @@ const LoginScreen: React.FC = () => {
           >
             <RegisterScreen onClose={() => setShowRegister(false)} />
           </Modal>
-        </KeyboardAwareScrollView>
-      </SafeAreaView>
-    </KeyboardProvider>
+      </KeyboardAwareScrollView>
+    </SafeAreaView>
   );
 };
 

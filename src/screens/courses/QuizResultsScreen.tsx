@@ -70,6 +70,12 @@ export default function QuizResultsScreen({
       ],
     });
   };
+  const handleOpenHistory = () => {
+    navigation.navigate("QuizResultsHistorySertificate", {
+      userId,
+      themeId,
+    });
+  };
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
       "hardwareBackPress",
@@ -83,11 +89,15 @@ export default function QuizResultsScreen({
   useEffect(() => {
     navigation.setOptions({
       headerShown: true,
-      title: "IDS mavzulashtirilgan testlar to'plami",
+      title: "Mashqlar (IDS kitobidan)",
       headerTitle: () => (
         <View style={headerRightStyles.container}>
-          <Text style={styles.headerTitle} numberOfLines={2} adjustsFontSizeToFit>
-            IDS mavzulashtirilgan testlar to'plami
+          <Text
+            style={styles.headerTitle}
+            numberOfLines={2}
+            adjustsFontSizeToFit
+          >
+            Mashqlar (IDS kitobidan)
           </Text>
         </View>
       ),
@@ -125,7 +135,11 @@ export default function QuizResultsScreen({
         <View style={styles.content}>
           {/* Circle */}
           <View style={styles.percentageCircle}>
-            <Text style={styles.percentageText} numberOfLines={1} adjustsFontSizeToFit>
+            <Text
+              style={styles.percentageText}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
               {quizResults[0].percent.toFixed(0)}%
             </Text>
           </View>
@@ -187,6 +201,12 @@ export default function QuizResultsScreen({
           {/* Buttons */}
         </View>
       </ScrollView>
+      <TouchableOpacity
+        style={styles.historyButton}
+        onPress={handleOpenHistory}
+      >
+        <Text style={styles.historyButtonText}>Tarixni ko'rish</Text>
+      </TouchableOpacity>
       <View style={styles.actions}>
         <TouchableOpacity
           style={[styles.button, styles.outlineButton]}
@@ -315,6 +335,18 @@ const createStyles = (theme: Theme) =>
       fontSize: moderateScale(42),
       fontWeight: "bold",
       color: theme.colors.primary,
+    },
+    historyButton: {
+      justifyContent: "center",
+      alignItems: "center",
+      marginVertical: moderateScale(SPACING.sm),
+    },
+    historyButtonText: {
+      color: theme.colors.primary,
+      fontSize: moderateScale(FONT_SIZES.base),
+      borderBottomColor: theme.colors.primary,
+      borderBottomWidth: 1,
+      fontWeight: "600",
     },
     statsBox: {
       backgroundColor: theme.colors.card,

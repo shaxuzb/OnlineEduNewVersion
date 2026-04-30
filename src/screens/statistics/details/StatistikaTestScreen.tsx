@@ -13,7 +13,6 @@ import { FontAwesome6, Ionicons } from "@expo/vector-icons";
 import React, { memo, useCallback, useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
-  InteractionManager,
   ScrollView,
   StyleSheet,
   Text,
@@ -31,7 +30,7 @@ function StatistikaTestScreen({
   route: any;
 }) {
   const { theme } = useTheme();
-  const styles = createStyles(theme);
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const { plan } = useAuth();
   const { testId, userId, subjectId, themeName, themeId, subjectCode, mavzu } =
@@ -43,7 +42,6 @@ function StatistikaTestScreen({
     data: themeTestStatistics,
     isLoading: themeTestLoading,
     error: themeTestError,
-    refetch,
   } = useThemeTestStatistics(Number(userId), Number(subjectId), Number(testId));
 
   const {
@@ -91,15 +89,6 @@ function StatistikaTestScreen({
       (!nationalResultsLoading && !nationalQuizResults?.[0])
     : !!themeTestError;
 
-  useEffect(() => {
-    if (isNationalSubject) return;
-
-    const task = InteractionManager.runAfterInteractions(() => {
-      refetch();
-    });
-    return () => task.cancel();
-  }, [isNationalSubject, refetch]);
-
   const handleOpenHistory = useCallback(() => {
     navigation.navigate("QuizResultsHistorySertificate", {
       userId,
@@ -118,10 +107,13 @@ function StatistikaTestScreen({
         <View
           style={{
             alignItems: "center",
+
             paddingBottom: moderateScale(3),
           }}
         >
-          <Text style={styles.headerTitle}>{children}</Text>
+          <Text style={styles.headerTitle} numberOfLines={2}>
+            {children}
+          </Text>
         </View>
       ),
       headerBackButtonDisplayMode: "minimal",
@@ -185,7 +177,7 @@ function StatistikaTestScreen({
                       Umumiy to'plagan bali:
                     </Text>
                     <Text style={styles.statsValue}>
-                      {nationalQuizResults?.[0]?.score} ta
+                      {nationalQuizResults?.[0]?.score}
                     </Text>
                   </View>
                   <View style={styles.statsRow}>
@@ -239,13 +231,6 @@ function StatistikaTestScreen({
                     Ushbu misollarni qayta yechishni tavsiya qilamiz!
                   </Text>
                 </View>
-
-                <TouchableOpacity
-                  style={styles.historyButton}
-                  onPress={handleOpenHistory}
-                >
-                  <Text style={styles.historyButtonText}>Tarixni ko'rish</Text>
-                </TouchableOpacity>
               </View>
             ) : (
               <View style={styles.content}>
@@ -312,7 +297,12 @@ function StatistikaTestScreen({
               </View>
             )}
           </ScrollView>
-
+          <TouchableOpacity
+            style={styles.historyButton}
+            onPress={handleOpenHistory}
+          >
+            <Text style={styles.historyButtonText}>Tarixni ko'rish</Text>
+          </TouchableOpacity>
           <View style={styles.actionButtons}>
             <TouchableOpacity
               style={[styles.button, styles.outlineButton]}

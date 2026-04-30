@@ -69,7 +69,7 @@ const PdfViewer = React.memo(
         )}
       />
     );
-  }
+  },
 );
 
 export default function ThemeAbstractScreen({

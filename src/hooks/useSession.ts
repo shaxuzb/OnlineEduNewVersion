@@ -1,21 +1,9 @@
-import * as SecureStore from "expo-secure-store";
-import { useEffect, useState } from "react";
-import { AuthToken } from "../types";
+import { useMemo } from "react";
+import { useAuth } from "../context/AuthContext";
 
 export const useSession = () => {
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-
-  useEffect(() => {
-    const loadSession = async () => {
-      const session = await SecureStore.getItemAsync("session");
-      if (session) {
-        const userData = JSON.parse(session) as AuthToken;
-        setIsSuperAdmin(userData.user.role === "superadmin");
-      }
-    };
-
-    loadSession();
-  }, []);
+  const { user } = useAuth();
+  const isSuperAdmin = useMemo(() => user?.role === "superadmin", [user?.role]);
 
   return { isSuperAdmin };
 };

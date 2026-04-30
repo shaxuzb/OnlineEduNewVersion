@@ -3,6 +3,8 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useCallback,
+  useMemo,
   ReactNode,
 } from "react";
 import * as SecureStore from "expo-secure-store";
@@ -18,7 +20,10 @@ interface AuthContextType {
   isLoginLoading: boolean;
   refetchPlan: () => void;
   plan: UserSubscription | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (
+    email: string,
+    password: string,
+  ) => Promise<boolean | { status: number }>;
   logout: () => Promise<void>;
 }
 
@@ -34,89 +39,79 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoginLoading, setIsLoginLoading] = useState(false);
   const [user, setUser] = useState<AuthUserData | null>(null);
+  const isAuthenticated = !!user;
+
   const { data: plan, refetch } = useQuery<UserSubscription>({
-    queryKey: ["current-plan"],
+    queryKey: ["current-plan", user?.id],
     queryFn: async () => {
       const response = await $axiosPrivate.get<UserSubscription>(
         "subscription-plan/current-plan",
       );
       return response.data;
     },
-    enabled: !!user,
+    enabled: isAuthenticated,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
-  const isAuthenticated = !!user;
-  useEffect(() => {
-    checkAuthStatus();
-  }, []);
-  useEffect(() => {
-    if (isAuthenticated) {
-      refetch();
-    }
-  }, [isAuthenticated]);
-  // const checkPlan = async () => {
-  //   try {
-  //     const planData = await $axiosPrivate.get(
-  //       "subscription-plan/current-plan",
-  //     );
-  //     setPlan(planData.data);
-  //   } catch (error) {
-  //     console.error("Error fetching subscription plan:", error);
-  //   }
-  // };
-
-  const checkAuthStatus = async () => {
+  const checkAuthStatus = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Add a minimum loading time to show splash screen nicely
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      const data = JSON.parse(
-        String(await SecureStore.getItemAsync("session")),
-      ) as AuthToken | null;
-
-      // Debug: saqlangan session ma'lumotlarini ko'rish (development uchun)
-      // console.log("Stored session data:", data);
-      // console.log("Stored user data:", data?.user);
-
-      await $axiosPrivate.get("subscription-plan/current-plan");
+      const session = await SecureStore.getItemAsync(AUTH_TOKEN_SESSION);
+      if (!session) {
+        setUser(null);
+        return;
+      }
+      const data = JSON.parse(session) as AuthToken | null;
       setUser(data?.user ?? null);
-      setIsLoading(false);
-
-      setIsLoading(false);
     } catch (error) {
-      if ((error as any).status === 401) {
-        logout();
-      }
+      setUser(null);
+    } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const login = async (email: string, password: string): Promise<any> => {
-    setIsLoginLoading(true);
-    try {
-      const { data } = await $axiosBase.post<AuthToken>("/account/login", {
-        userName: email,
-        password,
-        uniqueId: (await DeviceInfo.getUniqueId()).toString(),
-      });
-      if (data) {
+  useEffect(() => {
+    checkAuthStatus();
+  }, [checkAuthStatus]);
+
+  const login = useCallback(
+    async (
+      email: string,
+      password: string,
+    ): Promise<boolean | { status: number }> => {
+      setIsLoginLoading(true);
+      try {
+        const { data } = await $axiosBase.post<AuthToken>("/account/login", {
+          userName: email,
+          password,
+          uniqueId: (await DeviceInfo.getUniqueId()).toString(),
+        });
+        if (data) {
+          await SecureStore.setItemAsync(
+            AUTH_TOKEN_SESSION,
+            JSON.stringify(data),
+          );
+          setUser(data.user);
+          return true;
+        }
+        return false;
+      } catch (error) {
+        const status =
+          (error as any)?.response?.status ?? (error as any)?.status;
+        if (typeof status === "number") {
+          return { status };
+        }
+        return false;
+      } finally {
         setIsLoginLoading(false);
-
-        // Debug: login qilganda qanday ma'lumotlar kelayotganini ko'rish (development uchun)
-        // console.log("Login response data:", data);
-        // console.log("Login user data:", data.user);
-
-        SecureStore.setItem("session", JSON.stringify(data));
-        setUser(data.user); // faqat agar `data.user` mavjud bo'lsa
       }
-      return true;
-    } catch (error) {
-      setIsLoginLoading(false);
-      return error;
-    }
-  };
+    },
+    [],
+  );
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await SecureStore.deleteItemAsync(AUTH_TOKEN_SESSION);
       queryClient.clear();
@@ -124,18 +119,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error("Logout error:", error);
     }
-  };
+  }, []);
 
-  const value: AuthContextType = {
-    user,
-    isAuthenticated,
-    isLoading,
-    plan: plan || null,
-    isLoginLoading,
-    login,
-    logout,
-    refetchPlan: refetch,
-  };
+  const value: AuthContextType = useMemo(
+    () => ({
+      user,
+      isAuthenticated,
+      isLoading,
+      plan: plan || null,
+      isLoginLoading,
+      login,
+      logout,
+      refetchPlan: () => {
+        void refetch();
+      },
+    }),
+    [
+      isAuthenticated,
+      isLoading,
+      isLoginLoading,
+      login,
+      logout,
+      plan,
+      refetch,
+      user,
+    ],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

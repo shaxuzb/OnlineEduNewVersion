@@ -1,10 +1,11 @@
+import React, { useCallback, useMemo } from "react";
 import DeviceInfo from "react-native-device-info";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useTheme } from "../../context/ThemeContext";
 import { useSession } from "../../hooks/useSession";
 import { useAuth } from "../../context/AuthContext";
 import { useGeo } from "../../hooks/useGeo";
-import { useChat } from "../../hooks/useChat";
+import { useUnreadChatCount } from "../../hooks/useChat";
 import { useAppIconBadge } from "../../hooks/useAppIconBadge";
 import { useCurrentUserId } from "../../hooks/useQuiz";
 import { modalService } from "../../components/modals/modalService";
@@ -16,67 +17,105 @@ import LinearGradient from "react-native-linear-gradient";
 import SaveScreen from "../../screens/save/SaveScreen";
 import { CoursesStackNavigator } from "../CoursesStackNavigator";
 import StatistikaScreen from "../../screens/statistics/StatistikaScreen";
+import { useIsFocused, useNavigation } from "@react-navigation/native";
 
 const Tab = createBottomTabNavigator();
 const isTablet = DeviceInfo.isTablet();
 const MainTabNavigator = () => {
+  const navigation = useNavigation<any>();
+  const isTabsFocused = useIsFocused();
   const { theme } = useTheme();
   const { isSuperAdmin } = useSession();
   const { plan } = useAuth();
   const { countryCode } = useGeo();
   const userId = useCurrentUserId();
-  const { data: chatMessages = [] } = useChat(Number(userId), {
-    refetchInterval: 10000,
+  const { data: unreadChatCount = 0 } = useUnreadChatCount(Number(userId), {
+    enabled: isTabsFocused,
+    refetchInterval: isTabsFocused ? 10000 : undefined,
   });
-  const unreadChatCount = (chatMessages ?? []).filter(
-    (msg) => msg.senderType === 1 && !msg.isRead,
-  ).length;
+
   useAppIconBadge(unreadChatCount);
-  const handleShowPremiumModal = () => {
+
+  const hasStatisticsAccess = useMemo(
+    () =>
+      Boolean(
+        plan &&
+        plan.plan.subscriptionFeatures.find(
+          (item) => item.code === "STATISTICS",
+        ),
+      ),
+    [plan],
+  );
+
+  const handleShowPremiumModal = useCallback(() => {
     modalService.open();
-  };
+  }, []);
+
+  const tabBarStyle = useMemo(
+    () => ({
+      backgroundColor: theme.colors.tabBarBackground,
+      borderWidth: moderateScale(2),
+      borderTopWidth: moderateScale(2),
+      borderColor: theme.colors.border,
+      borderTopLeftRadius: moderateScale(20),
+      borderTopEndRadius: moderateScale(20),
+      paddingTop: 0,
+      borderBottomWidth: moderateScale(0),
+    }),
+    [theme.colors.tabBarBackground, theme.colors.border],
+  );
+
+  const tabBarButton = useCallback((props: any) => {
+    const filteredProps = Object.fromEntries(
+      Object.entries(props).filter(([, value]) => value !== null),
+    );
+    return <TouchableOpacity activeOpacity={1} {...filteredProps} />;
+  }, []);
+
+  const handleChatTabPress = useCallback(
+    (e: any) => {
+      e.preventDefault();
+      navigation.navigate("Chat");
+    },
+    [navigation],
+  );
+
+  const screenOptions = useCallback(
+    ({ route }: { route: any }) => ({
+      tabBarIcon: ({ color, size }: { color: string; size: number }) => {
+        let iconName: any;
+
+        if (route.name === "Courses") {
+          iconName = "grid";
+        } else if (route.name === "Statistika") {
+          iconName = "pie-chart";
+        } else if (route.name === "Save") {
+          iconName = "bookmark";
+        } else if (route.name === "ChatTab") {
+          iconName = "chatbubble-ellipses-sharp";
+        }
+
+        return <Ionicons name={iconName} size={size + 5} color={color} />;
+      },
+      tabBarActiveTintColor: theme.colors.tabBarActive,
+      tabBarInactiveTintColor: theme.colors.tabBarInactive,
+      tabBarStyle,
+      tabBarButton,
+      tabBarVariant: "uikit" as const,
+      headerShown: false,
+      lazy: true,
+      freezeOnBlur: true,
+    }),
+    [
+      tabBarButton,
+      tabBarStyle,
+      theme.colors.tabBarActive,
+      theme.colors.tabBarInactive,
+    ],
+  );
 
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ color, size }) => {
-          let iconName: any;
-
-          if (route.name === "Courses") {
-            iconName = "grid";
-          } else if (route.name === "Statistika") {
-            iconName = "pie-chart";
-          } else if (route.name === "Save") {
-            iconName = "bookmark";
-          } else if (route.name === "ChatTab") {
-            iconName = "chatbubble-ellipses-sharp";
-          }
-
-          return <Ionicons name={iconName} size={size + 5} color={color} />;
-        },
-        tabBarActiveTintColor: theme.colors.tabBarActive,
-        tabBarInactiveTintColor: theme.colors.tabBarInactive,
-        tabBarStyle: {
-          backgroundColor: theme.colors.tabBarBackground,
-          borderWidth: moderateScale(2),
-          borderTopWidth: moderateScale(2),
-          borderColor: theme.colors.border,
-          borderTopLeftRadius: moderateScale(20),
-          borderTopEndRadius: moderateScale(20),
-          paddingTop: 0,
-          borderBottomWidth: moderateScale(0),
-        },
-        tabBarButton: (props) => {
-          const filteredProps = Object.fromEntries(
-            Object.entries(props).filter(([, value]) => value !== null),
-          );
-          return <TouchableOpacity activeOpacity={1} {...filteredProps} />;
-        },
-        tabBarVariant: "uikit",
-        headerShown: false,
-        lazy: true,
-      })}
-    >
+    <Tab.Navigator detachInactiveScreens screenOptions={screenOptions}>
       <Tab.Screen
         name="Courses"
         component={CoursesStackNavigator}
@@ -95,15 +134,8 @@ const MainTabNavigator = () => {
         component={StatistikaScreen}
         listeners={{
           tabPress: (e) => {
-            if (
-              !(
-                plan &&
-                plan.plan.subscriptionFeatures.find(
-                  (item) => item.code === "STATISTICS",
-                )
-              )
-            ) {
-              e.preventDefault(); // ❌ screen ochilmasin
+            if (!hasStatisticsAccess) {
+              e.preventDefault();
               handleShowPremiumModal();
             }
           },
@@ -117,12 +149,7 @@ const MainTabNavigator = () => {
             <View style={{ position: "relative" }}>
               <Ionicons name="stats-chart" size={size} color={color} />
 
-              {!(
-                plan &&
-                plan.plan.subscriptionFeatures.find(
-                  (item) => item.code === "STATISTICS",
-                )
-              ) && (
+              {!hasStatisticsAccess && (
                 <View style={{ position: "absolute", top: -6, right: -6 }}>
                   <FontAwesome6 name="crown" size={14} color="gold" />
                 </View>
@@ -213,12 +240,9 @@ const MainTabNavigator = () => {
             fontWeight: "700",
           },
         }}
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            e.preventDefault();
-            navigation.navigate("Chat");
-          },
-        })}
+        listeners={{
+          tabPress: handleChatTabPress,
+        }}
       />
     </Tab.Navigator>
   );

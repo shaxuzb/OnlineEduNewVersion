@@ -1,21 +1,45 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { chatService } from "../services/chatService";
+import { ChatMessage } from "../types";
 
 export const chatKeys = {
   getMessages: "getAllMessages",
 };
 
-export const useChat = (
+export const useChat = <TData = ChatMessage[] | null>(
   userId: number,
-  options?: { refetchInterval?: number },
+  options?: {
+    refetchInterval?: number;
+    enabled?: boolean;
+    select?: (messages: ChatMessage[] | null) => TData;
+  },
 ) => {
-  return useQuery({
+  return useQuery<ChatMessage[] | null, Error, TData>({
     queryKey: [chatKeys.getMessages, userId],
     queryFn: () => chatService.getChatMessages(userId),
-    enabled: !!userId,
+    enabled: options?.enabled ?? !!userId,
     refetchInterval: options?.refetchInterval,
+    refetchIntervalInBackground: false,
+    staleTime: 5000,
+    select: options?.select,
   });
 };
+
+export const useUnreadChatCount = (
+  userId: number,
+  options?: { refetchInterval?: number; enabled?: boolean },
+) =>
+  useChat(userId, {
+    refetchInterval: options?.refetchInterval,
+    enabled: options?.enabled,
+    select: (messages) =>
+      (messages ?? []).reduce((count, msg) => {
+        if (msg.senderType === 1 && !msg.isRead) {
+          return count + 1;
+        }
+        return count;
+      }, 0),
+  });
 
 export const useSendMessage = () => {
   const queryClient = useQueryClient();

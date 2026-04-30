@@ -31,7 +31,7 @@ const THEME_STORAGE_KEY = "@app_theme_mode";
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [themeMode, setThemeModeState] = useState<ThemeMode>("system");
   const [systemColorScheme, setSystemColorScheme] = useState<ColorSchemeName>(
-    Appearance.getColorScheme()
+    Appearance.getColorScheme(),
   );
 
   // Calculate theme based on mode + system
@@ -48,7 +48,9 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       try {
         const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
         if (savedTheme && ["light", "dark", "system"].includes(savedTheme)) {
-          setThemeModeState(savedTheme as ThemeMode);
+          setThemeModeState((prev) =>
+            prev === savedTheme ? prev : (savedTheme as ThemeMode),
+          );
         }
       } catch (error) {
         console.error("Error loading theme preference:", error);
@@ -61,7 +63,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Listen to system theme change
   useEffect(() => {
     const subscription = Appearance.addChangeListener(({ colorScheme }) => {
-      setSystemColorScheme(colorScheme);
+      setSystemColorScheme((prev) => (prev === colorScheme ? prev : colorScheme));
     });
 
     return () => subscription.remove();
@@ -70,7 +72,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Save theme mode to AsyncStorage
   const setThemeMode = useCallback(async (mode: ThemeMode) => {
     try {
-      setThemeModeState(mode);
+      setThemeModeState((prev) => (prev === mode ? prev : mode));
       await AsyncStorage.setItem(THEME_STORAGE_KEY, mode);
     } catch (error) {
       console.error("Error saving theme preference:", error);
@@ -90,7 +92,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       setThemeMode,
       isDark: theme.isDark,
     }),
-    [theme, themeMode, toggleTheme, setThemeMode]
+    [theme, themeMode, toggleTheme, setThemeMode],
   );
 
   return (

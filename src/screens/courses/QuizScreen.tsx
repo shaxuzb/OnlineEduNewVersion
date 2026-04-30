@@ -1,10 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import * as ScreenCapture from "expo-screen-capture";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Dimensions,
   FlatList,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -26,7 +28,12 @@ import { AnswerKey, QuizAnswer, Theme } from "@/src/types";
 import { CustomStyledCard } from "@/src/components/ui/cards/CustomStyledCard";
 import { moderateScale } from "react-native-size-matters";
 import { ScaledSheet } from "react-native-size-matters";
-import { useIsFocused, usePreventRemove } from "@react-navigation/native";
+import {
+  useFocusEffect,
+  useIsFocused,
+  usePreventRemove,
+} from "@react-navigation/native";
+import ScreenGuardModule from "react-native-screenguard";
 
 const { width } = Dimensions.get("window");
 
@@ -109,7 +116,7 @@ const PdfViewer = React.memo(
         source={{
           uri: `${Constants.expoConfig?.extra?.API_URL}/api/theme-test/${testId}/pdf`,
           headers: { Authorization: `Bearer ${authToken}` },
-          cache: true,
+          cache: false,
           method: "get",
         }}
         onLoadComplete={handleLoadComplete}
@@ -172,13 +179,13 @@ const OptionButton = React.memo(
 const TestGridItem = React.memo(
   ({
     item,
-    answers,
+    selectedOption,
     handleConfirm,
     isFinishing,
     styles,
   }: {
     item: AnswerKey;
-    answers: LocalQuizAnswer[];
+    selectedOption: string | null;
     isFinishing: boolean;
     handleConfirm: (
       selectedOption: any,
@@ -191,9 +198,7 @@ const TestGridItem = React.memo(
       () => (item?.options ? JSON.parse(item.options) : []),
       [item],
     );
-    const currentAnswer = answers.find(
-      (a) => a.questionId === item.dbQuestionNumber,
-    );
+
     return (
       <View
         style={{
@@ -221,7 +226,7 @@ const TestGridItem = React.memo(
               key={option}
               option={option}
               disabled={isFinishing}
-              isSelected={currentAnswer?.selectedOption}
+              isSelected={selectedOption}
               onSelect={(selected) =>
                 handleConfirm(selected, item.dbQuestionNumber, item.subTestNo)
               }
@@ -258,12 +263,27 @@ export default function QuizScreen({
   const currentUserId = useCurrentUserId();
 
   // State management
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [answers, setAnswers] = useState<LocalQuizAnswer[]>([]);
+  const [answersByQuestionState, setAnswersByQuestionState] = useState<
+    Record<number, LocalQuizAnswer>
+  >({});
   const [showTestModal, setShowTestModal] = useState(false);
   const [showTestIndex, setShowTestIndex] = useState(1);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [isFinishing, _setIsFinishing] = useState(false);
+  const isScreenGuardEnabledRef = useRef(false);
+  const guardRequestIdRef = useRef(0);
+  const answers = useMemo(
+    () => Object.values(answersByQuestionState),
+    [answersByQuestionState],
+  );
+  const answersByQuestion = useMemo(() => {
+    return Object.entries(answersByQuestionState).reduce<
+      Record<number, string | null>
+    >((acc, [questionId, value]) => {
+      acc[Number(questionId)] = value.selectedOption;
+      return acc;
+    }, {});
+  }, [answersByQuestionState]);
 
   // Memoized values
   const totalQuestions = useMemo(
@@ -354,12 +374,24 @@ export default function QuizScreen({
         isConfirmed: true,
       };
 
-      setAnswers((prev) => {
-        const filtered = prev.filter((a) => a.questionId !== currentQuestion);
-        return [...filtered, newAnswer];
+      setAnswersByQuestionState((prev) => {
+        const existing = prev[currentQuestion];
+        if (
+          existing &&
+          existing.selectedOption === selectedOption &&
+          existing.subTestNo === (currentSubTestNo ?? 1) &&
+          existing.isConfirmed
+        ) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          [currentQuestion]: newAnswer,
+        };
       });
     },
-    [selectedOption, totalQuestions],
+    [],
   );
 
   // const handleEditAnswer = useCallback(() => {
@@ -472,6 +504,56 @@ export default function QuizScreen({
     setShowTestModal(true);
   }, []);
 
+  const setScreenProtectionEnabled = useCallback((enabled: boolean) => {
+    if (Platform.OS === "ios") {
+      if (isScreenGuardEnabledRef.current === enabled) return;
+      isScreenGuardEnabledRef.current = enabled;
+      const requestId = ++guardRequestIdRef.current;
+
+      (async () => {
+        try {
+          if (enabled) {
+            try {
+              await ScreenGuardModule.unregister();
+            } catch {}
+
+            await ScreenGuardModule.initSettings({
+              displayScreenGuardOverlay: false,
+              timeAfterResume: 500,
+              getScreenshotPath: false,
+            });
+
+            if (
+              guardRequestIdRef.current !== requestId ||
+              !isScreenGuardEnabledRef.current
+            ) {
+              return;
+            }
+
+            await ScreenGuardModule.registerWithBlurView({
+              radius: 20,
+            });
+            return;
+          }
+
+          await ScreenGuardModule.unregister();
+        } catch (error) {
+          console.warn("Quiz iOS ScreenGuard error:", error);
+        }
+      })();
+
+      return;
+    }
+
+    if (Platform.OS === "android") {
+      if (enabled) {
+        ScreenCapture.preventScreenCaptureAsync().catch(console.warn);
+      } else {
+        ScreenCapture.allowScreenCaptureAsync().catch(console.warn);
+      }
+    }
+  }, []);
+
   // const handleTestSelect = useCallback((testNumber: number) => {
   //   // setCurrentQuestion(testNumber);
   //   setShowTestModal(false);
@@ -512,7 +594,7 @@ export default function QuizScreen({
   });
   useEffect(() => {
     navigation.setOptions({
-      title: "IDS mavzulashtirilgan testlar  to'plami",
+      title: "Mashqlar (IDS kitobidan)",
       headerTitle: ({ children }: { children: any }) => (
         <HeaderTitle title={children} />
       ),
@@ -521,6 +603,15 @@ export default function QuizScreen({
       // headerRight: () => <HeaderRight percent={percent} />,
     });
   }, [navigation]);
+
+  useFocusEffect(
+    useCallback(() => {
+      setScreenProtectionEnabled(true);
+      return () => {
+        setScreenProtectionEnabled(false);
+      };
+    }, [setScreenProtectionEnabled]),
+  );
   // Loading and error states
   if (testLoading) {
     return <LoadingState />;
@@ -550,9 +641,6 @@ export default function QuizScreen({
         <View style={styles.actionContainer}>
           <TouchableOpacity
             style={[styles.actionButton, styles.choiceButton]}
-            onPress={() => {
-              setSelectedOption(null);
-            }}
             activeOpacity={1}
           >
             <Ionicons
@@ -646,7 +734,7 @@ export default function QuizScreen({
         <TestModal
           groupedTestData={groupedTestData}
           handleConfirm={handleConfirm}
-          answers={answers}
+          answersByQuestion={answersByQuestion}
           isFinishing={isFinishing}
           onClose={() => setShowTestModal(false)}
           styles={styles}
@@ -660,13 +748,13 @@ const TestModal = React.memo(
   ({
     groupedTestData,
     handleConfirm,
-    answers,
+    answersByQuestion,
     isFinishing,
     onClose,
     styles,
   }: {
     groupedTestData: AnswerKey[];
-    answers: LocalQuizAnswer[];
+    answersByQuestion: Record<number, string | null>;
     isFinishing: boolean;
     handleConfirm: (
       selectedOption: any,
@@ -710,7 +798,9 @@ const TestModal = React.memo(
                     item={item}
                     isFinishing={isFinishing}
                     handleConfirm={handleConfirm}
-                    answers={answers}
+                    selectedOption={
+                      answersByQuestion[item.dbQuestionNumber] ?? null
+                    }
                     styles={styles}
                   />
                 )}
@@ -728,7 +818,9 @@ const TestModal = React.memo(
                     item={item}
                     isFinishing={isFinishing}
                     handleConfirm={handleConfirm}
-                    answers={answers}
+                    selectedOption={
+                      answersByQuestion[item.dbQuestionNumber] ?? null
+                    }
                     styles={styles}
                   />
                 )}
@@ -844,7 +936,7 @@ const createStyles = (theme: Theme) =>
       justifyContent: "center",
       alignItems: "center",
       paddingHorizontal: SPACING.xl,
-    },  
+    },
     errorTitle: {
       fontSize: FONT_SIZES.xl,
       fontWeight: "bold",
@@ -971,6 +1063,7 @@ const createStyles = (theme: Theme) =>
     },
     finishButton: {
       paddingVertical: moderateScale(SPACING.sm),
+      paddingHorizontal: moderateScale(SPACING.xs),
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",

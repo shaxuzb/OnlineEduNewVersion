@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  InteractionManager,
   SectionList,
   StyleSheet,
   Text,
@@ -25,13 +24,8 @@ export default function StatistikaSubjectScreen({
   route: any;
 }) {
   const { theme } = useTheme();
-  const styles = createStyles(theme);
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [noTestResult, setNoTestResult] = useState(false);
-  const [chapterThemeData, setChapterThemeData] = useState<{
-    themeId: number;
-    themeOrdinalNumber: number;
-    themeName: string;
-  } | null>(null);
   const { userId, subjectId, subjectName, subjectPercent, subjectCode } =
     route.params;
 
@@ -39,13 +33,6 @@ export default function StatistikaSubjectScreen({
     Number(userId),
     Number(subjectId),
   );
-  useEffect(() => {
-    const task = InteractionManager.runAfterInteractions(() => {
-      refetch();
-    });
-    return () => task.cancel();
-  }, []);
-
   const handleThemePress = useCallback(
     (chapterTheme: ChapterThemeStatistic) => {
       if (chapterTheme.isSolved && chapterTheme.testId) {
@@ -61,14 +48,9 @@ export default function StatistikaSubjectScreen({
         });
       } else {
         setNoTestResult(true);
-        setChapterThemeData({
-          themeId: chapterTheme.id,
-          themeName: chapterTheme.name,
-          themeOrdinalNumber: chapterTheme.ordinalNumber,
-        });
       }
     },
-    [navigation, subjectId, userId, chapterThemeData],
+    [navigation, subjectId, subjectCode, userId],
   );
   useEffect(() => {
     navigation.setOptions({
@@ -81,7 +63,7 @@ export default function StatistikaSubjectScreen({
         </Text>
       ),
     });
-  }, [navigation]);
+  }, [navigation, subjectName, subjectPercent]);
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       {isLoading ? (
@@ -180,7 +162,6 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: moderateScale(12),
       paddingTop: moderateScale(3),
     },
-
     retryBtn: {
       backgroundColor: theme.colors.primary,
       paddingHorizontal: 16,

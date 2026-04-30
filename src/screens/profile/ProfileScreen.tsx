@@ -13,7 +13,6 @@ import BottomSheet, {
 import { useNavigation } from "@react-navigation/native";
 import React, { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import {
-  Alert,
   Linking,
   Pressable,
   ScrollView,
@@ -68,14 +67,19 @@ const SUPPORT_PHONE_NUMBER = "+998934620036";
 const SUPPORT_PHONE_DISPLAY = "+998 93 462 00 36";
 
 function ProfileScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const { theme, themeMode, setThemeMode } = useTheme();
   const { user, logout } = useAuth();
-  const styles = createStyles(theme);
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { isSuperAdmin } = useSession();
   const { countryCode } = useGeo();
   const contactBottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => [moderateScale(300)], []);
+  const filteredMenuItems = useMemo(
+    () =>
+      menuItems.filter((item) => !(item.id === 6 && isSuperAdmin && countryCode === "UZ")),
+    [countryCode, isSuperAdmin],
+  );
 
   const openContactBottomSheet = useCallback(() => {
     contactBottomSheetRef.current?.snapToIndex(0);
@@ -97,7 +101,7 @@ function ProfileScreen() {
     [],
   );
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     alertService.open({
       type: "warning",
       title: "Chiqish",
@@ -105,18 +109,7 @@ function ProfileScreen() {
       okText: "Chiqish",
       onOk: logout,
     });
-    // Alert.alert("Chiqish", "Rostdan ham tizimdan chiqmoqchimisiz?", [
-    //   {
-    //     text: "Bekor qilish",
-    //     style: "cancel",
-    //   },
-    //   {
-    //     text: "Chiqish",
-    //     style: "destructive",
-    //     onPress: logout,
-    //   },
-    // ]);
-  };
+  }, [logout]);
 
   const handleLinkToAdmin = useCallback(async () => {
     await Linking.openURL(TELEGRAM_URL);
@@ -128,22 +121,28 @@ function ProfileScreen() {
     closeContactBottomSheet();
   }, [closeContactBottomSheet]);
 
-  const handleMenuItemPress = (item: (typeof menuItems)[0]) => {
+  const handleMenuItemPress = useCallback((item: (typeof menuItems)[0]) => {
     if (item.id === 1) {
-      // Shaxsiy ma'lumotlar
-      (navigation as any).navigate("PersonalInfo");
+      navigation.navigate("PersonalInfo");
     } else if (item.id === 4) {
-      // A'loqa
       openContactBottomSheet();
-    } else if (item.id === 5) {
-      // Dastur haqida
-      Alert.alert("Ma'lumot", "Dastur haqida bo'limi hali tayyor emas");
     } else if (item.id === 6) {
-      // Kurs to'lovlari
-      (navigation as any).navigate("PaymentOrders");
+      navigation.navigate("PaymentOrders");
     }
-  };
-  const getInitials = (name?: string) => {
+  }, [navigation, openContactBottomSheet]);
+
+  const handleThemeToggle = useCallback(
+    (enabled: boolean) => {
+      setThemeMode(enabled ? "dark" : "light");
+    },
+    [setThemeMode],
+  );
+
+  const handleGoToChat = useCallback(() => {
+    navigation.navigate("Chat");
+  }, [navigation]);
+
+  const getInitials = useCallback((name?: string) => {
     if (!name) return "U";
 
     const parts = name.trim().split(" ");
@@ -153,7 +152,11 @@ function ProfileScreen() {
     }
 
     return parts[0][0]?.toUpperCase() + parts[1][0]?.toUpperCase();
-  };
+  }, []);
+
+  const displayName = user?.fullName || user?.userName || "Foydalanuvchi";
+  const displayInitials = getInitials(displayName);
+
   useEffect(() => {
     navigation.setOptions({
       title: "Profil",
@@ -172,7 +175,7 @@ function ProfileScreen() {
             justifyContent: "center",
             marginRight: moderateScale(10),
           }}
-          onPress={() => (navigation as any).navigate("Chat")}
+          onPress={handleGoToChat}
         >
           <Ionicons
             name="chatbox-ellipses-outline"
@@ -180,9 +183,9 @@ function ProfileScreen() {
             color="white"
           />
         </Pressable>
-      ),
+        ),
     });
-  }, [navigation]);
+  }, [handleGoToChat, navigation, theme.colors.ripple]);
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
@@ -202,25 +205,18 @@ function ProfileScreen() {
             >
               <View style={styles.avatarContainer}>
                 <Text style={styles.avatarText}>
-                  {getInitials(user?.fullName || user?.userName)}
+                  {displayInitials}
                 </Text>
               </View>
             </LinearGradient>
           </View>
-          <Text style={styles.userName}>
-            {user?.fullName || user?.userName || "Foydalanuvchi"}
-          </Text>
+          <Text style={styles.userName}>{displayName}</Text>
           <Text style={styles.userEmail}>{user?.userName}</Text>
         </View>
 
         {/* Menu Items */}
         <View style={styles.menuContainer}>
-          {menuItems
-            .filter(
-              (item) =>
-                !(item.id === 6 && isSuperAdmin && countryCode === "UZ"),
-            )
-            .map((item, index) => {
+          {filteredMenuItems.map((item, index) => {
               return (
                 <Pressable
                   key={item.id}
@@ -230,7 +226,7 @@ function ProfileScreen() {
                   }}
                   style={[
                     styles.menuItem,
-                    index < menuItems.length - 1 && styles.menuItemBorder,
+                    index < filteredMenuItems.length - 1 && styles.menuItemBorder,
                   ]}
                   onPress={() => handleMenuItemPress(item)}
                   disabled={item.hasToggle}
@@ -247,13 +243,7 @@ function ProfileScreen() {
                   {item.hasToggle ? (
                     <Switch
                       value={themeMode === "dark"}
-                      onValueChange={(e) => {
-                        if (e) {
-                          setThemeMode("dark");
-                        } else {
-                          setThemeMode("light");
-                        }
-                      }}
+                      onValueChange={handleThemeToggle}
                       trackColor={{
                         false: theme.colors.border,
                         true: theme.colors.primary,

@@ -6,9 +6,8 @@ import { useStatistics } from "@/src/hooks/useStatistics";
 import { SubjectStatistic, Theme } from "@/src/types";
 import { BORDER_RADIUS, FONT_SIZES, SPACING } from "@/src/utils";
 import { Ionicons } from "@expo/vector-icons";
-import React, { memo, useCallback, useEffect, useMemo } from "react";
+import React, { memo, useCallback, useMemo } from "react";
 import {
-  InteractionManager,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -23,7 +22,7 @@ import { moderateScale } from "react-native-size-matters";
 function StatistikaScreen({ navigation }: { navigation: any }) {
   const userId = useCurrentUserId();
   const { theme } = useTheme();
-  const styles = createStyles(theme);
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const {
     data: statistics,
     isLoading,
@@ -42,28 +41,24 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
     );
     return Math.round(totalPercent / statistics.length);
   }, [statistics]);
-  useEffect(() => {
-    const task = InteractionManager.runAfterInteractions(() => {
-      refetch();
-    });
-    return () => task.cancel();
-  }, []);
-
-  const handleRoutePress = useCallback((item: SubjectStatistic) => {
-    navigation.navigate("StatistikaDetail", {
-      userId: userId,
-      subjectId: item.subjectId,
-      subjectName: item.subjectName,
-      subjectPercent: item.percent,
-      subjectCode: item.subjectCode,
-    });
-  }, []);
+  const handleRoutePress = useCallback(
+    (item: SubjectStatistic) => {
+      navigation.navigate("StatistikaDetail", {
+        userId: userId,
+        subjectId: item.subjectId,
+        subjectName: item.subjectName,
+        subjectPercent: item.percent,
+        subjectCode: item.subjectCode,
+      });
+    },
+    [navigation, userId],
+  );
   const getSubjectColor = useCallback((percentage: number) => {
     if (percentage >= 80) return theme.colors.success;
     if (percentage >= 60) return theme.colors.primary;
     if (percentage >= 40) return theme.colors.warning;
     return theme.colors.error;
-  }, []);
+  }, [theme.colors.error, theme.colors.primary, theme.colors.success, theme.colors.warning]);
   return (
     <SafeAreaView style={styles.container} edges={[]}>
       <StatusBar barStyle={"dark-content"} />
@@ -151,7 +146,7 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
 
           {/* Course Statistics */}
           <View style={styles.courseStatsSection}>
-            <Text style={styles.sectionTitle}>Fanlar bo'yicha natijalar</Text>
+            <Text style={styles.sectionTitle}>Fanlar bo'yicha natijalars</Text>
 
             {statistics &&
             Array.isArray(statistics) &&
