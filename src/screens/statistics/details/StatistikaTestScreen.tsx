@@ -117,7 +117,6 @@ function StatistikaTestScreen({
         </View>
       ),
       headerBackButtonDisplayMode: "minimal",
-      headerRight: () => <Text style={{ width: 55 }}></Text>,
       headerTintColor: "white",
     });
   }, [navigation, themeName, styles.headerTitle]);

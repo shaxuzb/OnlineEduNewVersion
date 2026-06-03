@@ -1,9 +1,9 @@
-import React from "react";
+import React, { useCallback, useMemo } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  SectionList,
   TouchableOpacity,
   ActivityIndicator,
 } from "react-native";
@@ -17,10 +17,65 @@ import { BookmarkedLesson, Theme } from "../../types";
 import PageCard from "@/src/components/ui/cards/PageCard";
 import { moderateScale } from "react-native-size-matters";
 
+type SaveStyles = ReturnType<typeof createStyles>;
+
+interface BookmarkSection {
+  title: string;
+  data: BookmarkedLesson[];
+}
+
+// ── Memoized row — only re-renders when its own props change ───────────────────
+const BookmarkRow = React.memo(function BookmarkRow({
+  lesson,
+  onPress,
+  onRemove,
+  theme,
+  styles,
+}: {
+  lesson: BookmarkedLesson;
+  onPress: (lesson: BookmarkedLesson) => void;
+  onRemove: (lesson: BookmarkedLesson) => void;
+  theme: Theme;
+  styles: SaveStyles;
+}) {
+  return (
+    <TouchableOpacity
+      style={styles.lessonItem}
+      onPress={() => onPress(lesson)}
+      activeOpacity={0.7}
+    >
+      <View style={styles.lessonIcon}>
+        <Ionicons
+          name="lock-closed"
+          size={moderateScale(16)}
+          color={theme.colors.success}
+        />
+      </View>
+
+      <View style={styles.lessonContent}>
+        <Text style={styles.lessonTitle}>{lesson.mavzu}</Text>
+        <Text style={styles.lessonSubtitle}>{lesson.title}</Text>
+      </View>
+
+      <TouchableOpacity
+        style={styles.removeButton}
+        onPress={() => onRemove(lesson)}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Ionicons
+          name="close"
+          size={moderateScale(16)}
+          color={theme.colors.textMuted}
+        />
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
+});
+
 export default function SaveScreen() {
   const navigation = useNavigation();
   const { theme } = useTheme();
-  const styles = createStyles(theme);
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const {
     bookmarkedLessons,
@@ -29,20 +84,59 @@ export default function SaveScreen() {
     removeBookmark,
   } = useBookmark();
 
-  const categorizedBookmarks = getBookmarksByCategory();
-  const categoryKeys = Object.keys(categorizedBookmarks);
+  // Derive sections from the bookmark source of truth.
+  // Copy before sorting so we never mutate the underlying array (was a bug).
+  const sections: BookmarkSection[] = useMemo(() => {
+    const categorized = getBookmarksByCategory();
+    return Object.keys(categorized).map((categoryName) => ({
+      title: categoryName,
+      data: [...categorized[categoryName]].sort((a, b) => a.id - b.id),
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookmarkedLessons]);
 
-  const handleLessonPress = (lesson: BookmarkedLesson) => {
-    (navigation as any).navigate("LessonDetail", {
-      themeId: lesson.id,
-      themeOrdinalNumber: lesson.mavzu.split("-")[0],
-      themeName: lesson.title,
-    });
-  };
+  const handleLessonPress = useCallback(
+    (lesson: BookmarkedLesson) => {
+      (navigation as any).navigate("LessonDetail", {
+        themeId: lesson.id,
+        themeOrdinalNumber: lesson.mavzu.split("-")[0],
+        themeName: lesson.title,
+      });
+    },
+    [navigation],
+  );
 
-  const handleRemoveBookmark = async (lesson: BookmarkedLesson) => {
-    await removeBookmark(lesson.id, lesson.courseType);
-  };
+  const handleRemoveBookmark = useCallback(
+    (lesson: BookmarkedLesson) => {
+      void removeBookmark(lesson.id, lesson.courseType);
+    },
+    [removeBookmark],
+  );
+
+  const keyExtractor = useCallback(
+    (item: BookmarkedLesson) => `${item.id}-${item.courseType}`,
+    [],
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: BookmarkedLesson }) => (
+      <BookmarkRow
+        lesson={item}
+        onPress={handleLessonPress}
+        onRemove={handleRemoveBookmark}
+        theme={theme}
+        styles={styles}
+      />
+    ),
+    [handleLessonPress, handleRemoveBookmark, theme, styles],
+  );
+
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: BookmarkSection }) => (
+      <Text style={styles.categoryTitle}>{section.title}</Text>
+    ),
+    [styles],
+  );
 
   if (isLoading) {
     return (
@@ -75,59 +169,21 @@ export default function SaveScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      {/* Content */}
       <PageCard>
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {categoryKeys.map((categoryName) => {
-            const lessons = categorizedBookmarks[categoryName];
-            return (
-              <View key={categoryName} style={styles.categorySection}>
-                <Text style={styles.categoryTitle}>{categoryName}</Text>
-
-                {lessons
-                  .sort((a, b) => a.id - b.id)
-                  .map((lesson) => (
-                    <TouchableOpacity
-                      key={`${lesson.id}-${lesson.courseType}`}
-                      style={styles.lessonItem}
-                      onPress={() => handleLessonPress(lesson)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.lessonIcon}>
-                        <Ionicons
-                          name="lock-closed"
-                          size={moderateScale(16)}
-                          color={theme.colors.success}
-                        />
-                      </View>
-
-                      <View style={styles.lessonContent}>
-                        <Text style={styles.lessonTitle}>{lesson.mavzu}</Text>
-                        <Text style={styles.lessonSubtitle}>
-                          {lesson.title}
-                        </Text>
-                      </View>
-
-                      <TouchableOpacity
-                        style={styles.removeButton}
-                        onPress={() => handleRemoveBookmark(lesson)}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      >
-                        <Ionicons
-                          name="close"
-                          size={moderateScale(16)}
-                          color={theme.colors.textMuted}
-                        />
-                      </TouchableOpacity>
-                    </TouchableOpacity>
-                  ))}
-              </View>
-            );
-          })}
-
-          {/* Bottom spacing */}
-          <View style={styles.bottomSpacing} />
-        </ScrollView>
+        <SectionList
+          style={styles.content}
+          sections={sections}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          renderSectionHeader={renderSectionHeader}
+          showsVerticalScrollIndicator={false}
+          stickySectionHeadersEnabled={false}
+          initialNumToRender={12}
+          maxToRenderPerBatch={12}
+          windowSize={7}
+          removeClippedSubviews
+          contentContainerStyle={styles.listContent}
+        />
       </PageCard>
     </SafeAreaView>
   );
@@ -174,14 +230,16 @@ const createStyles = (theme: Theme) =>
       flex: 1,
       backgroundColor: theme.colors.card,
     },
-    categorySection: {
-      marginTop: moderateScale(SPACING.xs),
+    listContent: {
+      paddingBottom: SPACING.xl,
     },
     categoryTitle: {
       fontSize: moderateScale(FONT_SIZES.base),
       fontWeight: "bold",
       color: theme.colors.text,
+      backgroundColor: theme.colors.card,
       paddingHorizontal: moderateScale(SPACING.base),
+      paddingTop: moderateScale(SPACING.sm),
       paddingBottom: moderateScale(SPACING.xs),
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
@@ -215,14 +273,11 @@ const createStyles = (theme: Theme) =>
       marginBottom: 2,
     },
     lessonSubtitle: {
-      fontSize: moderateScale(FONT_SIZES.xs-1),
+      fontSize: moderateScale(FONT_SIZES.xs - 1),
       color: theme.colors.textSecondary,
       lineHeight: moderateScale(16),
     },
     removeButton: {
       padding: SPACING.xs,
-    },
-    bottomSpacing: {
-      height: SPACING.xl,
     },
   });

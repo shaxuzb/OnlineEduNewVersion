@@ -174,7 +174,11 @@ export default function LessonDetailScreen({
     navigation.setOptions({
       title: themeOrdinalNumber + "-mavzu",
       freezeOnBlur: true,
-      headerRight: () => <Text style={styles.headerPercent}>{percent}%</Text>,
+      headerRight: (props: any) => (
+        <Text style={[styles.headerPercent, { color: props.tintColor }]}>
+          {percent}%
+        </Text>
+      ),
     });
   }, [navigation, percent, styles.headerPercent, themeOrdinalNumber]);
   if (isLoading) {

@@ -1,229 +1,324 @@
-// VideoControls.tsx
-import React from "react";
-import { 
-  View, 
-  StyleSheet, 
-  Text, 
+/**
+ * VideoControls – YouTube-like controls overlay.
+ *
+ * Layout:
+ * ┌─────────────────────────────────────────────────────┐  ← safe-area top
+ * │  [←]          Lesson title                  [⚙]    │
+ * ├─────────────────────────────────────────────────────┤
+ * │                                                     │
+ * │           [◀10]    [▶/⏸]    [10▶]                 │  center
+ * │                                                     │
+ * ├─────────────────────────────────────────────────────┤
+ * │  0:00  ████████▓▓░░░░░░░────────  5:00    [⛶]     │
+ * └─────────────────────────────────────────────────────┘  ← safe-area bottom
+ *
+ * The top bar, center and bottom bar are absolutely anchored to their edges
+ * (instead of relying on flex space-between) so they can never collapse or be
+ * pushed off-screen. Safe-area insets are applied on ALL four edges so the
+ * header/slider stay clear of the notch in landscape (the cause of the iOS
+ * "header & slider not visible" bug).
+ */
+import React, { memo } from "react";
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
   TouchableOpacity,
-  Platform 
+  View,
 } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Icon from "@expo/vector-icons/MaterialIcons";
-import CustomSlider from "./CustomSlider";
 import { Ionicons } from "@expo/vector-icons";
 import { moderateScale } from "react-native-size-matters";
+import CustomSlider from "./CustomSlider";
 
+// ─── helpers ──────────────────────────────────────────────────────────────────
+function fmt(secs: number): string {
+  if (!isFinite(secs) || isNaN(secs) || secs < 0) return "0:00";
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = Math.floor(secs % 60);
+  const mm = String(m).padStart(2, "0");
+  const ss = String(s).padStart(2, "0");
+  return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
+}
+
+const TOP_GRAD = [
+  "rgba(0,0,0,0.85)",
+  "rgba(0,0,0,0.45)",
+  "transparent",
+] as string[];
+const BOTTOM_GRAD = [
+  "transparent",
+  "rgba(0,0,0,0.45)",
+  "rgba(0,0,0,0.90)",
+] as string[];
+
+// ─── types ────────────────────────────────────────────────────────────────────
 interface VideoControlsProps {
   paused: boolean;
   onPlayPause: () => void;
+  onSeekBackward: () => void;
+  onSeekForward: () => void;
   handleBack: () => void;
   currentTime: number;
   duration: number;
+  buffered: number;
   fullscreen: boolean;
   onFullscreen: () => void;
   toggleSettings: () => void;
   buffering: boolean;
   title: string;
   onSlidingStart: () => void;
-  onSliderValueChange: (value: number) => void;
-  onSlidingComplete: (value: number) => void;
+  onSliderValueChange: (v: number) => void;
+  onSlidingComplete: (v: number) => void;
 }
 
+// ─── component ────────────────────────────────────────────────────────────────
 const VideoControls: React.FC<VideoControlsProps> = ({
   paused,
   onPlayPause,
+  onSeekBackward,
+  onSeekForward,
   handleBack,
   currentTime,
   duration,
+  buffered,
   fullscreen,
   onFullscreen,
-  buffering,
-  onSlidingStart,
   toggleSettings,
+  buffering,
   title,
+  onSlidingStart,
   onSliderValueChange,
   onSlidingComplete,
 }) => {
-  const formatTime = (seconds: number) => {
-    if (isNaN(seconds) || !isFinite(seconds)) return "0:00";
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
-  };
+  const insets = useSafeAreaInsets();
+  // Respect every edge. Left/right matter in landscape (notch / home-indicator),
+  // which is exactly when the video is watched fullscreen.
+  const padTop = Math.max(insets.top, moderateScale(8));
+  const padBottom = Math.max(insets.bottom, moderateScale(8));
+  const padLeft = Math.max(insets.left, moderateScale(12));
+  const padRight = Math.max(insets.right, moderateScale(12));
+  const maxVal = duration > 0 ? duration : 1;
 
   return (
-    <View style={styles.controlsContainer}>
-      {/* Top controls */}
-      <View style={styles.topControls}>
-        <TouchableOpacity 
-          onPress={handleBack} 
-          style={styles.backButton}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Icon 
-            name="arrow-back" 
-            size={moderateScale(24)} 
-            color="#fff" 
-          />
-        </TouchableOpacity>
-        
-        <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
-          {title}
-        </Text>
-        
-        <TouchableOpacity
-          style={styles.settingsButton}
-          onPress={toggleSettings}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons 
-            name="settings-outline" 
-            size={moderateScale(24)} 
-            color="#FFF" 
-          />
-        </TouchableOpacity>
-      </View>
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      {/* ── CENTER (rendered first so the bars stay on top) ──── */}
+      <View style={styles.center} pointerEvents="box-none">
+        {buffering ? (
+          <ActivityIndicator size="large" color="#fff" />
+        ) : (
+          <View style={styles.centerRow}>
+            {/* Skip -10s */}
+            <TouchableOpacity
+              style={styles.skipBtn}
+              onPress={onSeekBackward}
+              activeOpacity={0.7}
+              hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
+            >
+              <Icon name="replay-10" size={moderateScale(42)} color="#fff" />
+            </TouchableOpacity>
 
-      {/* Center controls */}
-      <View style={styles.centerControls}>
-        <TouchableOpacity
-          style={styles.playButton}
-          onPress={onPlayPause}
-          disabled={buffering}
-          activeOpacity={0.7}
-        >
-          <Icon
-            name={paused ? "play-arrow" : "pause"}
-            size={moderateScale(48)}
-            color="#fff"
-          />
-        </TouchableOpacity>
-      </View>
+            {/* Play / Pause */}
+            <TouchableOpacity
+              style={styles.playBtn}
+              onPress={onPlayPause}
+              activeOpacity={0.75}
+            >
+              <Icon
+                name={paused ? "play-arrow" : "pause"}
+                size={moderateScale(46)}
+                color="#fff"
+              />
+            </TouchableOpacity>
 
-      {/* Bottom controls */}
-      <View style={styles.bottomControls}>
-        <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
-
-        <CustomSlider
-          value={currentTime}
-          maximumValue={duration > 0 ? duration : 1}
-          onSlidingStart={onSlidingStart}
-          onValueChange={onSliderValueChange}
-          onSlidingComplete={onSlidingComplete}
-          style={styles.slider}
-        />
-
-        <Text style={styles.timeText}>{formatTime(duration)}</Text>
-
-        <TouchableOpacity
-          style={styles.fullscreenButton}
-          onPress={onFullscreen}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Icon
-            name={fullscreen ? "fullscreen-exit" : "fullscreen"}
-            size={moderateScale(24)}
-            color="#fff"
-          />
-        </TouchableOpacity>
-      </View>
-
-      {/* Buffering indicator */}
-      {buffering && (
-        <View style={styles.bufferingContainer}>
-          <View style={styles.bufferingContent}>
-            <Icon name="download" size={moderateScale(36)} color="#fff" />
-            <Text style={styles.bufferingText}>Yuklanmoqda...</Text>
+            {/* Skip +10s */}
+            <TouchableOpacity
+              style={styles.skipBtn}
+              onPress={onSeekForward}
+              activeOpacity={0.7}
+              hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
+            >
+              <Icon name="forward-10" size={moderateScale(42)} color="#fff" />
+            </TouchableOpacity>
           </View>
+        )}
+      </View>
+
+      {/* ── TOP ─────────────────────────────────────────────── */}
+      <View
+        style={[
+          styles.topGrad,
+          { paddingTop: padTop, paddingLeft: padLeft, paddingRight: padRight },
+        ]}
+        pointerEvents="box-none"
+      >
+        <View style={styles.topRow}>
+          <TouchableOpacity
+            onPress={handleBack}
+            style={styles.iconBtn}
+            hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+            activeOpacity={0.7}
+          >
+            <Icon name="arrow-back-ios" size={moderateScale(22)} color="#fff" />
+          </TouchableOpacity>
+
+          <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">
+            {title}
+          </Text>
+
+          <TouchableOpacity
+            onPress={toggleSettings}
+            style={styles.iconBtn}
+            hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="settings-outline"
+              size={moderateScale(21)}
+              color="#fff"
+            />
+          </TouchableOpacity>
         </View>
-      )}
+      </View>
+
+      {/* ── BOTTOM ──────────────────────────────────────────── */}
+      <View
+        style={[
+          styles.bottomGrad,
+          {
+            paddingBottom: padBottom,
+            paddingLeft: padLeft,
+            paddingRight: padRight,
+          },
+        ]}
+        pointerEvents="box-none"
+      >
+        {/* time + slider + duration + fullscreen */}
+        <View style={styles.bottomRow}>
+          <Text style={styles.time}>{fmt(currentTime)}</Text>
+
+          <CustomSlider
+            value={currentTime}
+            maximumValue={maxVal}
+            buffered={buffered}
+            onSlidingStart={onSlidingStart}
+            onValueChange={onSliderValueChange}
+            onSlidingComplete={onSlidingComplete}
+            style={styles.slider}
+          />
+
+          <Text style={styles.time}>{fmt(duration)}</Text>
+
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={onFullscreen}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            activeOpacity={0.7}
+          >
+            <Icon
+              name={fullscreen ? "fullscreen-exit" : "fullscreen"}
+              size={moderateScale(24)}
+              color="#fff"
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 };
 
+// ─── styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  controlsContainer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "space-between",
-    backgroundColor: Platform.select({
-      ios: "linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.7) 100%)",
-      android: "rgba(0,0,0,0.3)"
-    }) as any,
-    paddingTop: 16,
+  // top — anchored to the top edge
+  topGrad: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingBottom: moderateScale(24),
   },
-  topControls: {
+  topRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: moderateScale(8),
   },
-  backButton: {
-    padding: 4,
-  },
-  settingsButton: {
-    padding: 4,
+  iconBtn: {
+    padding: moderateScale(6),
+    minWidth: moderateScale(36),
+    alignItems: "center",
   },
   title: {
     flex: 1,
     color: "#fff",
-    fontSize: moderateScale(16),
+    fontSize: moderateScale(14),
     fontWeight: "600",
     textAlign: "center",
-    marginHorizontal: 12,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    marginHorizontal: moderateScale(4),
+    textShadowColor: "rgba(0,0,0,0.95)",
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadowRadius: 4,
+    lineHeight: moderateScale(18),
   },
-  centerControls: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  playButton: {
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    borderRadius: moderateScale(50),
-    padding: moderateScale(20),
-    borderWidth: 2,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  bottomControls: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-    paddingTop: 12,
-  },
-  timeText: {
-    color: "#fff",
-    fontSize: moderateScale(12),
-    minWidth: 40,
-    fontWeight: "500",
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  slider: {
-    flex: 1,
-    marginHorizontal: 12,
-  },
-  fullscreenButton: {
-    padding: 4,
-  },
-  bufferingContainer: {
+
+  // center — fills the whole overlay, content centered
+  center: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
   },
-  bufferingContent: {
+  centerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: moderateScale(30),
+  },
+  skipBtn: {
+    padding: moderateScale(8),
+    borderRadius: moderateScale(32),
+    backgroundColor: "rgba(0,0,0,0.25)",
+  },
+  playBtn: {
+    width: moderateScale(72),
+    height: moderateScale(72),
+    borderRadius: moderateScale(36),
+    backgroundColor: "rgba(0,0,0,0.50)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.30)",
+    justifyContent: "center",
     alignItems: "center",
   },
-  bufferingText: {
+
+  // bottom — anchored to the bottom edge
+  bottomGrad: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingTop: moderateScale(24),
+  },
+  bottomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: moderateScale(10),
+    paddingBottom: moderateScale(6),
+  },
+  slider: {
+    flex: 1,
+    marginHorizontal: moderateScale(6),
+  },
+  time: {
     color: "#fff",
-    marginTop: 12,
-    fontSize: moderateScale(14),
-    fontWeight: "500",
+    fontSize: moderateScale(11),
+    fontWeight: "600",
+    minWidth: moderateScale(34),
+    textShadowColor: "rgba(0,0,0,0.95)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+    textAlign: "center",
   },
 });
 
-export default VideoControls;
+export default memo(VideoControls);

@@ -11,9 +11,11 @@ import BottomSheet, {
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { useNavigation } from "@react-navigation/native";
+import { HeaderButton } from "@react-navigation/elements";
 import React, { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -77,7 +79,9 @@ function ProfileScreen() {
   const snapPoints = useMemo(() => [moderateScale(300)], []);
   const filteredMenuItems = useMemo(
     () =>
-      menuItems.filter((item) => !(item.id === 6 && isSuperAdmin && countryCode === "UZ")),
+      menuItems.filter(
+        (item) => !(item.id === 6 && isSuperAdmin && countryCode === "UZ"),
+      ),
     [countryCode, isSuperAdmin],
   );
 
@@ -121,15 +125,18 @@ function ProfileScreen() {
     closeContactBottomSheet();
   }, [closeContactBottomSheet]);
 
-  const handleMenuItemPress = useCallback((item: (typeof menuItems)[0]) => {
-    if (item.id === 1) {
-      navigation.navigate("PersonalInfo");
-    } else if (item.id === 4) {
-      openContactBottomSheet();
-    } else if (item.id === 6) {
-      navigation.navigate("PaymentOrders");
-    }
-  }, [navigation, openContactBottomSheet]);
+  const handleMenuItemPress = useCallback(
+    (item: (typeof menuItems)[0]) => {
+      if (item.id === 1) {
+        navigation.navigate("PersonalInfo");
+      } else if (item.id === 4) {
+        openContactBottomSheet();
+      } else if (item.id === 6) {
+        navigation.navigate("PaymentOrders");
+      }
+    },
+    [navigation, openContactBottomSheet],
+  );
 
   const handleThemeToggle = useCallback(
     (enabled: boolean) => {
@@ -160,30 +167,53 @@ function ProfileScreen() {
   useEffect(() => {
     navigation.setOptions({
       title: "Profil",
-      headerRight: () => (
-        <Pressable
-          android_ripple={{
-            foreground: true,
-            color: theme.colors.ripple,
-            borderless: true,
-            radius: moderateScale(22),
-          }}
-          style={{
-            width: moderateScale(40),
-            height: moderateScale(40),
-            alignItems: "center",
-            justifyContent: "center",
-            marginRight: moderateScale(10),
-          }}
+      headerRight: (props: any) => (
+        // Platform.OS === "ios" ?
+        <HeaderButton
+          {...props}
           onPress={handleGoToChat}
+          accessibilityLabel="Chat"
+          style={
+            Platform.OS === "ios"
+              ? null
+              : {
+                  width: moderateScale(40),
+                  height: moderateScale(40),
+                  justifyContent: "center",
+                  alignItems: "center",
+                }
+          }
         >
           <Ionicons
             name="chatbox-ellipses-outline"
             size={moderateScale(20)}
-            color="white"
+            color={props.tintColor}
           />
-        </Pressable>
-        ),
+        </HeaderButton>
+      ),
+      // : (
+      //   <Pressable
+      //     android_ripple={{
+      //       foreground: true,
+      //       color: theme.colors.ripple,
+      //       borderless: true,
+      //       radius: moderateScale(22),
+      //     }}
+      //     style={{
+      //       width: moderateScale(40),
+      //       height: moderateScale(40),
+      //       alignItems: "center",
+      //       justifyContent: "center",
+      //     }}
+      //     onPress={handleGoToChat}
+      //   >
+      //     <Ionicons
+      //       name="chatbox-ellipses-outline"
+      //       size={moderateScale(20)}
+      //       color="white"
+      //     />
+      //   </Pressable>
+      // ),
     });
   }, [handleGoToChat, navigation, theme.colors.ripple]);
 
@@ -204,9 +234,7 @@ function ProfileScreen() {
               }}
             >
               <View style={styles.avatarContainer}>
-                <Text style={styles.avatarText}>
-                  {displayInitials}
-                </Text>
+                <Text style={styles.avatarText}>{displayInitials}</Text>
               </View>
             </LinearGradient>
           </View>
@@ -217,51 +245,51 @@ function ProfileScreen() {
         {/* Menu Items */}
         <View style={styles.menuContainer}>
           {filteredMenuItems.map((item, index) => {
-              return (
-                <Pressable
-                  key={item.id}
-                  android_ripple={{
-                    foreground: true,
-                    color: theme.colors.ripple,
-                  }}
-                  style={[
-                    styles.menuItem,
-                    index < filteredMenuItems.length - 1 && styles.menuItemBorder,
-                  ]}
-                  onPress={() => handleMenuItemPress(item)}
-                  disabled={item.hasToggle}
-                >
-                  <View style={styles.menuItemLeft}>
+            return (
+              <Pressable
+                key={item.id}
+                android_ripple={{
+                  foreground: true,
+                  color: theme.colors.ripple,
+                }}
+                style={[
+                  styles.menuItem,
+                  index < filteredMenuItems.length - 1 && styles.menuItemBorder,
+                ]}
+                onPress={() => handleMenuItemPress(item)}
+                disabled={item.hasToggle}
+              >
+                <View style={styles.menuItemLeft}>
+                  <Ionicons
+                    name={item.icon as any}
+                    size={moderateScale(20)}
+                    color={theme.colors.primary}
+                    style={styles.menuItemIcon}
+                  />
+                  <Text style={styles.menuItemText}>{item.title}</Text>
+                </View>
+                {item.hasToggle ? (
+                  <Switch
+                    value={themeMode === "dark"}
+                    onValueChange={handleThemeToggle}
+                    trackColor={{
+                      false: theme.colors.border,
+                      true: theme.colors.primary,
+                    }}
+                    thumbColor={themeMode === "dark" ? "#ffffff" : "#f4f3f4"}
+                  />
+                ) : (
+                  item.hasArrow && (
                     <Ionicons
-                      name={item.icon as any}
+                      name="chevron-forward"
                       size={moderateScale(20)}
-                      color={theme.colors.primary}
-                      style={styles.menuItemIcon}
+                      color={theme.colors.textMuted}
                     />
-                    <Text style={styles.menuItemText}>{item.title}</Text>
-                  </View>
-                  {item.hasToggle ? (
-                    <Switch
-                      value={themeMode === "dark"}
-                      onValueChange={handleThemeToggle}
-                      trackColor={{
-                        false: theme.colors.border,
-                        true: theme.colors.primary,
-                      }}
-                      thumbColor={themeMode === "dark" ? "#ffffff" : "#f4f3f4"}
-                    />
-                  ) : (
-                    item.hasArrow && (
-                      <Ionicons
-                        name="chevron-forward"
-                        size={moderateScale(20)}
-                        color={theme.colors.textMuted}
-                      />
-                    )
-                  )}
-                </Pressable>
-              );
-            })}
+                  )
+                )}
+              </Pressable>
+            );
+          })}
         </View>
 
         {/* Logout Button */}

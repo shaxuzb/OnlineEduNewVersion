@@ -106,8 +106,6 @@ export default function QuizResultsScreenSertificate({
         </View>
       ),
       freezeOnBlur: true,
-      headerRight: () => null,
-      headerLeft: () => <Text></Text>,
     });
   }, [navigation]);
 

@@ -603,16 +603,18 @@ const AnswerView = React.memo(
   }) => {
     return (
       <View style={styles.answerViewContainer}>
-        <View>
-          <Text style={styles.answerViewText}>
-            To'g'ri javob:
+        <View style={styles.answerViewTextGroup}>
+          {/* MathView is a View, not text — it must NOT be nested inside <Text>
+              (breaks layout / can crash on Android). Lay it out as a row. */}
+          <View style={styles.answerViewRow}>
+            <Text style={styles.answerViewText}>To'g'ri javob: </Text>
             <MathView
               math={answer?.correctAnswer ?? ""}
               style={styles.mathViewSelectedAnswer}
             />
-          </Text>
-          <Text style={styles.answerViewText}>
-            Belgilangan javob:{" "}
+          </View>
+          <View style={styles.answerViewRow}>
+            <Text style={styles.answerViewText}>Belgilangan javob: </Text>
             <MathView
               math={
                 answer?.selectedOption === ""
@@ -621,7 +623,7 @@ const AnswerView = React.memo(
               }
               style={styles.mathViewSelectedAnswer}
             />
-          </Text>
+          </View>
         </View>
         <View>
           <Image
@@ -890,6 +892,14 @@ const createStyles = (theme: Theme) =>
     answerViewText: {
       fontSize: moderateScale(FONT_SIZES.lg),
       color: theme.colors.text,
+    },
+    answerViewTextGroup: {
+      flex: 1,
+      gap: moderateScale(SPACING.xs),
+    },
+    answerViewRow: {
+      flexDirection: "row",
+      alignItems: "center",
     },
     solutionViewContainer: {
       flex: 1,

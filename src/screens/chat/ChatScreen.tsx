@@ -18,6 +18,7 @@ import {
   Pressable,
   SectionList,
   StyleSheet,
+  Text,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -32,6 +33,19 @@ import { moderateScale } from "react-native-size-matters";
 interface ChatSection {
   date: string;
   data: ChatMessage[];
+}
+
+const today = new Date();
+const yesterday = new Date(today);
+yesterday.setDate(yesterday.getDate() - 1);
+const todayStr = today.toDateString();
+const yesterdayStr = yesterday.toDateString();
+
+function formatDate(date: Date): string {
+  const ds = date.toDateString();
+  if (ds === todayStr) return "Bugun";
+  if (ds === yesterdayStr) return "Kecha";
+  return date.toLocaleDateString("uz-UZ", { day: "numeric", month: "long" });
 }
 
 export default function ChatScreen({ navigation }: { navigation: any }) {
@@ -51,7 +65,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
   const initialPositionHandledRef = useRef(false);
   const showScrollToBottomRef = useRef(false);
 
-  const handleChangeInput = useCallback((e: any) => {
+  const handleChangeInput = useCallback((e: string) => {
     setMessage(e);
   }, []);
 
@@ -59,16 +73,6 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
   const readMutation = useReadMessage(Number(userId), 0);
   const { data = [], isLoading, refetch } = useChat(Number(userId));
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
-
-  const formatDate = (date: Date) => {
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    if (date.toDateString() === today.toDateString()) return "Bugun";
-    if (date.toDateString() === yesterday.toDateString()) return "Kecha";
-    return date.toLocaleDateString("uz-UZ", { day: "numeric", month: "long" });
-  };
 
   const messageSections: ChatSection[] = useMemo(() => {
     const normalizedMessages = (data || [])
@@ -96,30 +100,22 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
   }, [data]);
 
   const unreadMarker = useMemo(() => {
-    for (
-      let sectionIndex = 0;
-      sectionIndex < messageSections.length;
-      sectionIndex += 1
-    ) {
-      const section = messageSections[sectionIndex];
-      for (
-        let itemIndex = section.data.length - 1;
-        itemIndex >= 0;
-        itemIndex -= 1
-      ) {
-        const item = section.data[itemIndex];
+    for (let si = 0; si < messageSections.length; si++) {
+      const section = messageSections[si];
+      for (let ii = section.data.length - 1; ii >= 0; ii--) {
+        const item = section.data[ii];
         if (item.senderType === 1 && !item.isRead) {
-          return { messageId: item.id, sectionIndex, itemIndex };
+          return { messageId: item.id, sectionIndex: si, itemIndex: ii };
         }
       }
     }
     return null;
   }, [messageSections]);
+
   const unreadMarkerMessageId = unreadMarker?.messageId;
 
   const totalMessages = useMemo(
-    () =>
-      messageSections.reduce((sum, section) => sum + section.data.length, 0),
+    () => messageSections.reduce((sum, s) => sum + s.data.length, 0),
     [messageSections],
   );
 
@@ -138,11 +134,8 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
 
   const flushPendingRead = useCallback(() => {
     if (!userId || isReadFlushInProgressRef.current) return;
-
     const pendingUpToId = pendingReadUpToIdRef.current;
-    if (pendingUpToId == null || pendingUpToId <= markedUpToIdRef.current) {
-      return;
-    }
+    if (pendingUpToId == null || pendingUpToId <= markedUpToIdRef.current) return;
 
     pendingReadUpToIdRef.current = null;
     isReadFlushInProgressRef.current = true;
@@ -196,7 +189,6 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
 
   const sendMessage = useCallback(() => {
     if (!message.trim()) return;
-
     mutation.mutate(
       { userId: Number(userId), text: message.trim(), attachmentUrl: "" },
       {
@@ -235,9 +227,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
           <View style={styles.unreadMarkerContainer}>
             <View style={styles.unreadMarkerLine} />
             <View style={styles.unreadMarkerChip}>
-              <Animated.Text style={styles.unreadMarkerText}>
-                {"O'qilmagan xabarlar"}
-              </Animated.Text>
+              <Text style={styles.unreadMarkerText}>{"O'qilmagan xabarlar"}</Text>
             </View>
             <View style={styles.unreadMarkerLine} />
           </View>
@@ -252,7 +242,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
     ({ section }: { section: ChatSection }) => (
       <View style={styles.dateHeader}>
         <View style={styles.dateHeaderChip}>
-          <Animated.Text style={styles.dateText}>{section.date}</Animated.Text>
+          <Text style={styles.dateText}>{section.date}</Text>
         </View>
       </View>
     ),
@@ -264,7 +254,6 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
     const task = InteractionManager.runAfterInteractions(() => {
       canTrackReadRef.current = true;
     });
-
     return () => {
       canTrackReadRef.current = false;
       task.cancel();
@@ -314,9 +303,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
     navigation.setOptions({
       title: "Habarlar",
       freezeOnBlur: true,
-      headerTitleStyle: {
-        fontSize: +moderateScale(18).toFixed(0),
-      },
+      headerTitleStyle: { fontSize: +moderateScale(18).toFixed(0) },
       headerRight: () => (
         <Pressable
           android_ripple={{
@@ -367,9 +354,9 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
           keyboardShouldPersistTaps="handled"
-          initialNumToRender={8}
-          maxToRenderPerBatch={6}
-          windowSize={4}
+          initialNumToRender={10}
+          maxToRenderPerBatch={8}
+          windowSize={5}
           updateCellsBatchingPeriod={40}
           removeClippedSubviews={Platform.OS === "android"}
           onScrollToIndexFailed={() => {
@@ -391,7 +378,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
         {showScrollToBottom && (
           <Animated.View style={styles.scrollToBottomContainer}>
             <TouchableOpacity
-              activeOpacity={1}
+              activeOpacity={0.85}
               style={styles.scrollToBottomButton}
               onPress={scrollToBottom}
             >
@@ -419,19 +406,13 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.colors.background },
-    headerRight: {
-      width: 40,
-      height: 40,
-      justifyContent: "center",
-      alignItems: "center",
-    },
     chatContainer: { flex: 1, backgroundColor: theme.colors.background },
     loadingOverlay: {
       ...StyleSheet.absoluteFillObject,
       justifyContent: "center",
       alignItems: "center",
       zIndex: 10,
-      backgroundColor: "rgba(255, 255, 255, 0.06)",
+      backgroundColor: "rgba(0,0,0,0.04)",
     },
     messagesList: { flex: 1, paddingHorizontal: moderateScale(8) },
     dateHeader: { alignItems: "center", marginVertical: 12 },
@@ -454,9 +435,8 @@ const createStyles = (theme: Theme) =>
     },
     unreadMarkerLine: {
       flex: 1,
-      height: 1,
+      height: StyleSheet.hairlineWidth,
       backgroundColor: theme.colors.divider,
-      opacity: 0.65,
     },
     unreadMarkerChip: {
       backgroundColor: theme.colors.card,
@@ -473,13 +453,11 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.warning,
     },
     messageContainer: {
-      marginVertical: 4,
+      marginVertical: 3,
       maxWidth: "80%",
       borderRadius: moderateScale(14),
     },
-    messageContent: {
-      padding: moderateScale(10),
-    },
+    messageContent: { padding: moderateScale(10) },
     sentMessage: {
       alignSelf: "flex-end",
       backgroundColor: theme.colors.primary,
@@ -490,6 +468,10 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.card,
       borderBottomLeftRadius: 4,
       elevation: 1,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.06,
+      shadowRadius: 2,
     },
     messageText: { fontSize: moderateScale(14), lineHeight: 20 },
     sentMessageText: { color: theme.colors.text },
@@ -508,11 +490,16 @@ const createStyles = (theme: Theme) =>
       bottom: 120,
       right: 16,
       zIndex: 1000,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      elevation: 4,
     },
     scrollToBottomButton: {
       width: moderateScale(36),
       height: moderateScale(36),
-      borderRadius: moderateScale(20),
+      borderRadius: moderateScale(18),
       backgroundColor: theme.colors.primary,
       justifyContent: "center",
       alignItems: "center",
@@ -534,16 +521,16 @@ const createStyles = (theme: Theme) =>
       paddingVertical: moderateScale(10),
       fontSize: moderateScale(14),
       color: theme.colors.text,
-      maxHeight: 100,
+      maxHeight: 120,
     },
     sendButton: {
       marginLeft: moderateScale(6),
-      marginBottom: moderateScale(2),
+      marginBottom: moderateScale(4),
       height: moderateScale(34),
       width: moderateScale(34),
       justifyContent: "center",
       alignItems: "center",
       backgroundColor: theme.colors.primary,
-      borderRadius: moderateScale(18),
+      borderRadius: moderateScale(17),
     },
   });

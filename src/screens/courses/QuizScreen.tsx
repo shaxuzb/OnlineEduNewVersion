@@ -1,6 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ScreenCapture from "expo-screen-capture";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -1062,7 +1068,7 @@ const createStyles = (theme: Theme) =>
       marginLeft: SPACING.xs,
     },
     finishButton: {
-      paddingVertical: moderateScale(SPACING.sm),
+      paddingVertical: moderateScale(SPACING.sm + 2),
       paddingHorizontal: moderateScale(SPACING.xs),
       flexDirection: "row",
       alignItems: "center",

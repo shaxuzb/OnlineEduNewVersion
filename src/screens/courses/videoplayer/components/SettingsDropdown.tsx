@@ -1,103 +1,94 @@
-// SettingsDropdown.tsx
-import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useRef } from "react";
+import React, { memo, useEffect, useRef } from "react";
 import {
   Animated,
+  Dimensions,
   Modal,
+  StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  StyleSheet,
-  Dimensions,
-  ScrollView,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { moderateScale } from "react-native-size-matters";
 
 const { height: screenHeight } = Dimensions.get("window");
 
-export const SettingsDropdown: React.FC<{
+const PLAYBACK_RATES = [
+  { label: "0.5x", value: 0.5 },
+  { label: "0.75x", value: 0.75 },
+  { label: "Normal", value: 1.0 },
+  { label: "1.25x", value: 1.25 },
+  { label: "1.5x", value: 1.5 },
+  { label: "2.0x", value: 2.0 },
+] as const;
+
+interface SettingsDropdownProps {
   visible: boolean;
   onClose: () => void;
   playbackRate: number;
   onPlaybackRateChange: (rate: number) => void;
-}> = ({ visible, onClose, playbackRate, onPlaybackRateChange }) => {
-  const slideAnim = useRef(new Animated.Value(0)).current;
+}
+
+const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
+  visible,
+  onClose,
+  playbackRate,
+  onPlaybackRateChange,
+}) => {
+  const animValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (visible) {
-      Animated.timing(slideAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [visible, slideAnim]);
+    Animated.timing(animValue, {
+      toValue: visible ? 1 : 0,
+      duration: visible ? 260 : 180,
+      useNativeDriver: true,
+    }).start();
+  }, [visible, animValue]);
 
-  const translateY = slideAnim.interpolate({
+  const translateY = animValue.interpolate({
     inputRange: [0, 1],
-    outputRange: [-20, 0],
+    outputRange: [-16, 0],
   });
 
-  const opacity = slideAnim.interpolate({
+  const opacity = animValue.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 1],
   });
-
-  const playbackRates = [
-    { label: "0.5x", value: 0.5 },
-    { label: "0.75x", value: 0.75 },
-    { label: "Normal", value: 1.0 },
-    { label: "1.25x", value: 1.25 },
-    { label: "1.5x", value: 1.5 },
-    { label: "2.0x", value: 2.0 },
-  ];
 
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="none"
       supportedOrientations={["portrait", "landscape"]}
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }}>
-        <TouchableOpacity
-          style={styles.dropdownOverlay}
-          activeOpacity={1}
-          onPress={onClose}
+      <TouchableOpacity
+        style={styles.overlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <Animated.View
+          style={[styles.container, { opacity, transform: [{ translateY }] }]}
         >
-          <Animated.View
-            style={[
-              styles.dropdownContainer,
-              {
-                opacity,
-                transform: [{ translateY }],
-              },
-            ]}
-          >
-            <View style={styles.dropdownHeader}>
-              <Text style={styles.dropdownTitle}>Tezlik</Text>
-              <TouchableOpacity onPress={onClose}>
-                <Ionicons name="close" size={moderateScale(24)} color="#FFF" />
-              </TouchableOpacity>
-            </View>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Tezlik</Text>
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="close" size={moderateScale(22)} color="#fff" />
+            </TouchableOpacity>
+          </View>
 
-            <View style={styles.playbackRatesContainer}>
-              {playbackRates.map((rate) => (
+          <View style={styles.ratesContainer}>
+            {PLAYBACK_RATES.map((rate) => {
+              const isActive = playbackRate === rate.value;
+              return (
                 <TouchableOpacity
                   key={rate.value}
-                  style={[
-                    styles.playbackRateButton,
-                    playbackRate === rate.value &&
-                      styles.playbackRateButtonActive,
-                  ]}
+                  style={[styles.rateRow, isActive && styles.rateRowActive]}
                   onPress={() => {
                     onPlaybackRateChange(rate.value);
                     onClose();
@@ -105,89 +96,88 @@ export const SettingsDropdown: React.FC<{
                   activeOpacity={0.7}
                 >
                   <Text
-                    style={[
-                      styles.playbackRateText,
-                      playbackRate === rate.value &&
-                        styles.playbackRateTextActive,
-                    ]}
+                    style={[styles.rateLabel, isActive && styles.rateLabelActive]}
                   >
                     {rate.label}
                   </Text>
-                  {playbackRate === rate.value && (
+                  {isActive && (
                     <Ionicons
                       name="checkmark"
-                      size={moderateScale(20)}
+                      size={moderateScale(18)}
                       color="#007AFF"
                     />
                   )}
                 </TouchableOpacity>
-              ))}
-            </View>
-          </Animated.View>
-        </TouchableOpacity>
-      </ScrollView>
+              );
+            })}
+          </View>
+        </Animated.View>
+      </TouchableOpacity>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  dropdownOverlay: {
+  overlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    backgroundColor: "rgba(0,0,0,0.65)",
     justifyContent: "flex-start",
     paddingTop: screenHeight * 0.1,
+    paddingHorizontal: moderateScale(20),
   },
-  dropdownContainer: {
-    backgroundColor: "rgba(28, 28, 30, 0.95)",
-    marginHorizontal: 20,
-    borderRadius: 14,
-    padding: 20,
+  container: {
+    backgroundColor: "rgba(22,22,24,0.97)",
+    borderRadius: moderateScale(14),
+    padding: moderateScale(18),
     borderWidth: 1,
-    borderColor: "#3A3A3C",
+    borderColor: "rgba(255,255,255,0.08)",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 10,
   },
-  dropdownHeader: {
+  header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#3A3A3C",
+    marginBottom: moderateScale(14),
+    paddingBottom: moderateScale(14),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(255,255,255,0.15)",
   },
-  dropdownTitle: {
-    color: "#FFF",
-    fontSize: moderateScale(18),
+  headerTitle: {
+    color: "#fff",
+    fontSize: moderateScale(17),
     fontWeight: "600",
+    letterSpacing: 0.2,
   },
-  playbackRatesContainer: {
-    gap: 12,
+  ratesContainer: {
+    gap: moderateScale(6),
   },
-  playbackRateButton: {
+  rateRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: moderateScale(14),
-    paddingHorizontal: moderateScale(16),
+    paddingVertical: moderateScale(13),
+    paddingHorizontal: moderateScale(14),
     borderRadius: moderateScale(10),
-    backgroundColor: "rgba(44, 44, 46, 0.9)",
+    backgroundColor: "rgba(44,44,46,0.8)",
   },
-  playbackRateButtonActive: {
-    backgroundColor: "rgba(0, 122, 255, 0.15)",
+  rateRowActive: {
+    backgroundColor: "rgba(0,122,255,0.12)",
     borderWidth: 1,
-    borderColor: "rgba(0, 122, 255, 0.3)",
+    borderColor: "rgba(0,122,255,0.35)",
   },
-  playbackRateText: {
-    color: "#FFF",
-    fontSize: moderateScale(16),
+  rateLabel: {
+    color: "#fff",
+    fontSize: moderateScale(15),
     fontWeight: "500",
   },
-  playbackRateTextActive: {
+  rateLabelActive: {
     color: "#007AFF",
-    fontWeight: "600",
+    fontWeight: "700",
   },
 });
+
+export default memo(SettingsDropdown);

@@ -1,9 +1,9 @@
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   RefreshControl,
   ActivityIndicator,
   TouchableOpacity,
@@ -17,124 +17,121 @@ import { useTheme } from "../../context/ThemeContext";
 import { lightColors } from "@/src/constants/theme";
 import { moderateScale } from "react-native-size-matters";
 
-export default function NewsScreen({ navigation }: { navigation: any }) {
-  const { theme } = useTheme();
-  const styles = createStyles(theme);
+type NewsStyles = ReturnType<typeof createStyles>;
 
-  const { data, isLoading, isFetching, refetch, error } = useNews();
+// ── Module-scope pure helpers (no per-render allocation) ──────────────────────
+function formatDate(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInHours = Math.floor(
+    (now.getTime() - date.getTime()) / (1000 * 60 * 60),
+  );
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = Math.floor(
-      (now.getTime() - date.getTime()) / (1000 * 60 * 60)
-    );
+  if (diffInHours < 1) return "Hozirgina";
+  if (diffInHours < 24) return `${diffInHours} soat oldin`;
 
-    if (diffInHours < 1) {
-      return "Hozirgina";
-    } else if (diffInHours < 24) {
-      return `${diffInHours} soat oldin`;
-    } else {
-      const diffInDays = Math.floor(diffInHours / 24);
-      if (diffInDays === 1) {
-        return "Kecha";
-      } else if (diffInDays < 7) {
-        return `${diffInDays} kun oldin`;
-      } else {
-        return date.toLocaleDateString("uz-UZ");
-      }
-    }
-  };
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays === 1) return "Kecha";
+  if (diffInDays < 7) return `${diffInDays} kun oldin`;
+  return date.toLocaleDateString("uz-UZ");
+}
 
-  const getNewsTypeIcon = (newsType: number) => {
-    switch (newsType) {
-      case 1:
-        return "warning";
-      case 2:
-        return "information-circle";
-      case 3:
-        return "newspaper";
-      default:
-        return "newspaper";
-    }
-  };
+function getNewsTypeIcon(newsType: number): keyof typeof Ionicons.glyphMap {
+  switch (newsType) {
+    case 1:
+      return "warning";
+    case 2:
+      return "information-circle";
+    case 3:
+      return "newspaper";
+    default:
+      return "newspaper";
+  }
+}
 
-  const getNewsTypeColor = (newsType: number) => {
-    switch (newsType) {
-      case 1:
-        return theme.colors.warning;
-      case 2:
-        return theme.colors.primary;
-      case 3:
-        return theme.colors.success;
-      default:
-        return theme.colors.primary;
-    }
-  };
+function getNewsTypeColor(newsType: number, theme: Theme): string {
+  switch (newsType) {
+    case 1:
+      return theme.colors.warning;
+    case 2:
+      return theme.colors.primary;
+    case 3:
+      return theme.colors.success;
+    default:
+      return theme.colors.primary;
+  }
+}
 
-  const renderNewsItem = (item: NewsItem) => (
-    <TouchableOpacity
-      key={item.id}
-      style={[
-        styles.newsItem,
-        {
-          backgroundColor: theme.colors.card,
-          borderColor: theme.colors.border,
-        },
-      ]}
-      activeOpacity={0.7}
-    >
+// ── Memoized row — only re-renders when its own props change ───────────────────
+const NewsCard = React.memo(function NewsCard({
+  item,
+  theme,
+  styles,
+}: {
+  item: NewsItem;
+  theme: Theme;
+  styles: NewsStyles;
+}) {
+  const typeColor = getNewsTypeColor(item.newsType, theme);
+  return (
+    <TouchableOpacity style={styles.newsItem} activeOpacity={0.7}>
       <View style={styles.newsHeader}>
         <View style={styles.newsHeaderLeft}>
           <View
-            style={[
-              styles.newsTypeIcon,
-              { backgroundColor: getNewsTypeColor(item.newsType) + "20" },
-            ]}
+            style={[styles.newsTypeIcon, { backgroundColor: typeColor + "20" }]}
           >
             <Ionicons
               name={getNewsTypeIcon(item.newsType)}
               size={moderateScale(16)}
-              color={getNewsTypeColor(item.newsType)}
+              color={typeColor}
             />
           </View>
           <View style={styles.newsTitleContainer}>
             <View style={styles.titleRow}>
-              <Text
-                style={[styles.newsTitle, { color: theme.colors.text }]}
-                numberOfLines={1}
-              >
+              <Text style={styles.newsTitle} numberOfLines={1}>
                 {item.title}
               </Text>
-              {item.isPinned && (
+              {item.isPinned ? (
                 <Ionicons
                   name="pin"
                   size={moderateScale(14)}
                   color={theme.colors.primary}
                   style={styles.pinIcon}
                 />
-              )}
+              ) : null}
             </View>
-            <Text style={[styles.newsDate, { color: theme.colors.textMuted }]}>
-              {formatDate(item.createdAt)}
-            </Text>
+            <Text style={styles.newsDate}>{formatDate(item.createdAt)}</Text>
           </View>
         </View>
-        {!item.isPublished && (
+        {!item.isPublished ? (
           <View style={[styles.statusBadge, styles.draftBadge]}>
             <Text style={styles.statusBadgeText}>Draft</Text>
           </View>
-        )}
+        ) : null}
       </View>
 
-      <Text
-        style={[styles.newsBody, { color: theme.colors.textSecondary }]}
-        numberOfLines={3}
-      >
+      <Text style={styles.newsBody} numberOfLines={3}>
         {item.body}
       </Text>
     </TouchableOpacity>
   );
+});
+
+export default function NewsScreen({ navigation }: { navigation: any }) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
+  const { data, isLoading, isFetching, refetch, error } = useNews();
+
+  const keyExtractor = useCallback((item: NewsItem) => String(item.id), []);
+
+  const renderItem = useCallback(
+    ({ item }: { item: NewsItem }) => (
+      <NewsCard item={item} theme={theme} styles={styles} />
+    ),
+    [theme, styles],
+  );
+
   useEffect(() => {
     navigation.setOptions({
       title: "Yangiliklar",
@@ -159,19 +156,14 @@ export default function NewsScreen({ navigation }: { navigation: any }) {
         </Pressable>
       ),
     });
-  }, [navigation]);
+  }, [navigation, refetch]);
+
   if (isLoading) {
     return (
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: theme.colors.background }]}
-      >
+      <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text
-            style={[styles.loadingText, { color: theme.colors.textSecondary }]}
-          >
-            Yangiliklar yuklanmoqda...
-          </Text>
+          <Text style={styles.loadingText}>Yangiliklar yuklanmoqda...</Text>
         </View>
       </SafeAreaView>
     );
@@ -179,23 +171,16 @@ export default function NewsScreen({ navigation }: { navigation: any }) {
 
   if (error) {
     return (
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: theme.colors.background }]}
-      >
+      <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={moderateScale(56)} color={theme.colors.error} />
-          <Text style={[styles.errorTitle, { color: theme.colors.text }]}>
-            Xatolik yuz berdi
-          </Text>
-          <Text
-            style={[styles.errorMessage, { color: theme.colors.textSecondary }]}
-          >
-            {error.message}
-          </Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={() => refetch()}
-          >
+          <Ionicons
+            name="alert-circle"
+            size={moderateScale(56)}
+            color={theme.colors.error}
+          />
+          <Text style={styles.errorTitle}>Xatolik yuz berdi</Text>
+          <Text style={styles.errorMessage}>{error.message}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
             <Text style={styles.retryButtonText}>Qayta urinish</Text>
           </TouchableOpacity>
         </View>
@@ -204,50 +189,39 @@ export default function NewsScreen({ navigation }: { navigation: any }) {
   }
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-      edges={["bottom"]}
-    >
-      <ScrollView
-        style={styles.scrollView}
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
+      <FlatList
+        data={data?.items ?? []}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        removeClippedSubviews
         refreshControl={
           <RefreshControl
             refreshing={isLoading || isFetching}
-            onRefresh={() => refetch()}
+            onRefresh={refetch}
             tintColor={theme.colors.primary}
             colors={[theme.colors.primary]}
           />
         }
-        showsVerticalScrollIndicator={false}
-      >
-        {data?.items.length === 0 ? (
+        ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons
               name="newspaper-outline"
               size={moderateScale(56)}
               color={theme.colors.textMuted}
             />
-            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
-              Yangiliklar yo'q
-            </Text>
-            <Text
-              style={[
-                styles.emptyMessage,
-                { color: theme.colors.textSecondary },
-              ]}
-            >
+            <Text style={styles.emptyTitle}>Yangiliklar yo'q</Text>
+            <Text style={styles.emptyMessage}>
               Hozircha yangiliklar mavjud emas. Keyinroq qaytib ko'ring.
             </Text>
           </View>
-        ) : (
-          <>
-            {data?.items.map(renderNewsItem)}
-            {data?.items.map(renderNewsItem)}
-            <View style={styles.bottomSpacing} />
-          </>
-        )}
-      </ScrollView>
+        }
+      />
     </SafeAreaView>
   );
 }
@@ -256,19 +230,21 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-    },
-    scrollView: {
-      flex: 1,
+      backgroundColor: theme.colors.background,
     },
     scrollContent: {
+      flexGrow: 1,
       paddingHorizontal: moderateScale(14),
       paddingTop: moderateScale(14),
+      paddingBottom: moderateScale(24),
     },
     newsItem: {
       padding: moderateScale(14),
       marginBottom: moderateScale(6),
       borderRadius: moderateScale(10),
       borderWidth: 1,
+      backgroundColor: theme.colors.card,
+      borderColor: theme.colors.border,
       shadowColor: "#000",
       shadowOffset: {
         width: 0,
@@ -309,12 +285,14 @@ const createStyles = (theme: Theme) =>
       fontSize: moderateScale(15),
       fontWeight: "600",
       flex: 1,
+      color: theme.colors.text,
     },
     pinIcon: {
       marginLeft: moderateScale(4),
     },
     newsDate: {
       fontSize: moderateScale(10),
+      color: theme.colors.textMuted,
     },
     statusBadge: {
       paddingHorizontal: moderateScale(8),
@@ -332,6 +310,7 @@ const createStyles = (theme: Theme) =>
     newsBody: {
       fontSize: moderateScale(14),
       lineHeight: moderateScale(20),
+      color: theme.colors.textSecondary,
     },
     loadingContainer: {
       flex: 1,
@@ -341,6 +320,7 @@ const createStyles = (theme: Theme) =>
     loadingText: {
       marginTop: 16,
       fontSize: 16,
+      color: theme.colors.textSecondary,
     },
     errorContainer: {
       flex: 1,
@@ -353,11 +333,13 @@ const createStyles = (theme: Theme) =>
       fontWeight: "bold",
       marginTop: 16,
       marginBottom: 8,
+      color: theme.colors.text,
     },
     errorMessage: {
       fontSize: 16,
       textAlign: "center",
       marginBottom: 24,
+      color: theme.colors.textSecondary,
     },
     retryButton: {
       backgroundColor: theme.colors.primary,
@@ -381,13 +363,12 @@ const createStyles = (theme: Theme) =>
       fontWeight: "bold",
       marginTop: moderateScale(16),
       marginBottom: moderateScale(8),
+      color: theme.colors.text,
     },
     emptyMessage: {
       fontSize: moderateScale(14),
       textAlign: "center",
       paddingHorizontal: moderateScale(24),
-    },
-    bottomSpacing: {
-      height: 24,
+      color: theme.colors.textSecondary,
     },
   });

@@ -102,8 +102,6 @@ export default function QuizResultsScreen({
         </View>
       ),
       freezeOnBlur: true,
-      headerRight: () => null,
-      headerLeft: () => <Text></Text>,
     });
   }, [navigation]);
   if (resultsLoading)

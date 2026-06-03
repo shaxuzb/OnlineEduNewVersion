@@ -42,64 +42,67 @@ export default function SubjectScreen({
     [data?.results],
   );
 
-  const handleThemePress = useCallback((chapterTheme: ChapterTheme) => {
-    if (chapterTheme.hasAccess) {
-      if (subjectCode === "NATIONAL") {
-        if (chapterTheme?.testId) {
-          alertService.open({
-            type: "default",
-            iconName: "time-outline",
-            title: "Imtihon rejimini tanlang",
-            description: "Testni qanday ishlamoqchisiz?",
-            cancelText: "Bekor qilish",
-            secondaryText: "Vaqtga qo'ymasdan",
-            okText: "Vaqtga qo'yib",
-            onSecondary: () => {
-              navigation.navigate("QuizScreenSertificate", {
-                testId: chapterTheme.testId,
-                percent: 2,
-                title: "Mashqlar",
-                mavzu: `${chapterTheme.ordinalNumber}-MS imtihoni`,
-                testMode: "untimed",
-              });
-            },
-            onOk: () => {
-              navigation.navigate("QuizScreenSertificate", {
-                testId: chapterTheme.testId,
-                percent: 2,
-                title: "Mashqlar",
-                mavzu: `${chapterTheme.ordinalNumber}-MS imtihoni`,
-                testMode: "timed",
-              });
-            },
-          });
+  const handleThemePress = useCallback(
+    (chapterTheme: ChapterTheme) => {
+      if (chapterTheme.hasAccess) {
+        if (subjectCode === "NATIONAL") {
+          if (chapterTheme?.testId) {
+            alertService.open({
+              type: "default",
+              iconName: "time-outline",
+              title: "Imtihon rejimini tanlang",
+              description: "Testni qanday ishlamoqchisiz?",
+              cancelText: "Bekor qilish",
+              secondaryText: "Vaqtga qo'ymasdan",
+              okText: "Vaqtga qo'yib",
+              onSecondary: () => {
+                navigation.navigate("QuizScreenSertificate", {
+                  testId: chapterTheme.testId,
+                  percent: 2,
+                  title: "Mashqlar",
+                  mavzu: `${chapterTheme.ordinalNumber}-MS imtihoni`,
+                  testMode: "untimed",
+                });
+              },
+              onOk: () => {
+                navigation.navigate("QuizScreenSertificate", {
+                  testId: chapterTheme.testId,
+                  percent: 2,
+                  title: "Mashqlar",
+                  mavzu: `${chapterTheme.ordinalNumber}-MS imtihoni`,
+                  testMode: "timed",
+                });
+              },
+            });
+          } else {
+            alertService.open({
+              type: "warning",
+              title: "Test tayyor emas",
+              description:
+                "Test hali yuklanmagan. Tayyor bo‘lgach, siz uni boshlashingiz mumkin.",
+              showCancel: false,
+              okText: "Yopish",
+            });
+            // setEmptyModal({
+            //   open: true,
+            //   title: "Testlar hali mavjud emas",
+            //   description: "Bu mavzu bo‘yicha testlar hali joylanmagan.",
+            // });
+          }
         } else {
-          alertService.open({
-            type: "warning",
-            title: "Test tayyor emas",
-            description:
-              "Test hali yuklanmagan. Tayyor bo‘lgach, siz uni boshlashingiz mumkin.",
-            showCancel: false,
-            okText: "Yopish",
+          navigation.navigate("LessonDetail", {
+            themeId: chapterTheme.id,
+            percent: chapterTheme.percent,
+            themeOrdinalNumber: chapterTheme.ordinalNumber,
+            themeName: chapterTheme.name,
           });
-          // setEmptyModal({
-          //   open: true,
-          //   title: "Testlar hali mavjud emas",
-          //   description: "Bu mavzu bo‘yicha testlar hali joylanmagan.",
-          // });
         }
       } else {
-        navigation.navigate("LessonDetail", {
-          themeId: chapterTheme.id,
-          percent: chapterTheme.percent,
-          themeOrdinalNumber: chapterTheme.ordinalNumber,
-          themeName: chapterTheme.name,
-        });
+        modalService.open();
       }
-    } else {
-      modalService.open();
-    }
-  }, [navigation, subjectCode]);
+    },
+    [navigation, subjectCode],
+  );
 
   const keyExtractor = useCallback((item: ChapterTheme) => String(item.id), []);
 
@@ -169,7 +172,13 @@ export default function SubjectScreen({
         )}
       </TouchableOpacity>
     ),
-    [handleThemePress, styles, subjectCode, theme.colors.success, theme.colors.textMuted],
+    [
+      handleThemePress,
+      styles,
+      subjectCode,
+      theme.colors.success,
+      theme.colors.textMuted,
+    ],
   );
 
   useEffect(() => {
@@ -178,8 +187,10 @@ export default function SubjectScreen({
       title: subjectName.toString(),
       freezeOnBlur: true,
 
-      headerRight: () => (
-        <Text style={styles.headerPercent}>{percent}%</Text>
+      headerRight: (props: any) => (
+        <Text style={[styles.headerPercent, { color: props.tintColor }]}>
+          {percent}%
+        </Text>
       ),
     });
   }, [navigation, percent, styles.headerPercent, subjectName]);

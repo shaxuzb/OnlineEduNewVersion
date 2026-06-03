@@ -103,8 +103,7 @@ const MainStackNavigator = () => (
     <Stack.Screen
       name="StatistikaDetail"
       getComponent={() =>
-        require("../screens/statistics/details/StatistikaSubjectScreen")
-          .default
+        require("../screens/statistics/details/StatistikaSubjectScreen").default
       }
       options={{
         headerStyle: {
@@ -154,7 +153,9 @@ const MainStackNavigator = () => (
     />
     <Stack.Screen
       name="LessonDetail"
-      getComponent={() => require("../screens/courses/LessonDetailScreen").default}
+      getComponent={() =>
+        require("../screens/courses/LessonDetailScreen").default
+      }
       options={{
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
@@ -183,7 +184,9 @@ const MainStackNavigator = () => (
     />
     <Stack.Screen
       name="ThemeAbstract"
-      getComponent={() => require("../screens/courses/ThemeAbstractScreen").default}
+      getComponent={() =>
+        require("../screens/courses/ThemeAbstractScreen").default
+      }
       options={{
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
@@ -260,7 +263,9 @@ const MainStackNavigator = () => (
     />
     <Stack.Screen
       name="QuizResults"
-      getComponent={() => require("../screens/courses/QuizResultsScreen").default}
+      getComponent={() =>
+        require("../screens/courses/QuizResultsScreen").default
+      }
       options={{
         headerStyle: {
           backgroundColor: isTablet ? "#3a5dde" : undefined,
@@ -312,9 +317,8 @@ const MainStackNavigator = () => (
     <Stack.Screen
       name="QuizResultsHistorySertificate"
       getComponent={() =>
-        require(
-          "../screens/courses/sertificatetests/QuizResultsHistoryScreenSertificate"
-        ).default
+        require("../screens/courses/sertificatetests/QuizResultsHistoryScreenSertificate")
+          .default
       }
       options={{
         presentation: "transparentModal",
@@ -395,6 +399,7 @@ const MainStackNavigator = () => (
             />
           );
         },
+
         freezeOnBlur: true,
         headerTitleAlign: "center",
         headerTitleStyle: {
@@ -504,7 +509,12 @@ export default function AppNavigation() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer
+      theme={{
+        ...DefaultTheme,
+        dark: false,
+      }}
+    >
       <ThemeProvider value={navigationTheme}>
         <StatusBar
           hidden
