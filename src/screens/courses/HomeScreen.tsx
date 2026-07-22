@@ -75,61 +75,78 @@ const HomeScreen: React.FC = () => {
     [navigation],
   );
 
-  const getSubjectIcon = useCallback((name: string) => {
-    switch (name) {
-      case "Algebra":
-        return (
-          <Image
-            resizeMode="contain"
-            style={{ flex: 1, resizeMode: "contain" }}
-            source={require("@/src/assets/icons/subjects/algebra.png")}
-          />
-        );
-      case "Geometriya":
-        return (
-          <Image
-            resizeMode="contain"
-            style={{ flex: 1, resizeMode: "contain" }}
-            source={require("@/src/assets/icons/subjects/geometry.png")}
-          />
-        );
-      case "Milliy Sertifikat":
-        return (
-          <Image
-            resizeMode="contain"
-            style={{ flex: 1, resizeMode: "contain" }}
-            source={require("@/src/assets/icons/subjects/milliysertificat.png")}
-          />
-        );
-      case "Maktab Dasturi":
-        return (
-          <Image
-            resizeMode="contain"
-            style={{ flex: 1, resizeMode: "contain" }}
-            source={require("@/src/assets/icons/subjects/bolalar.png")}
-          />
-        );
-      case "Digital SAT":
-        return (
-          <Image
-            resizeMode="contain"
-            style={{
-              flex: 1,
-              resizeMode: "contain",
-            }}
-            source={require("@/src/assets/icons/subjects/bolalar.png")}
-          />
-        );
-      default:
-        return (
-          <Image
-            resizeMode="contain"
-            style={{ flex: 1, resizeMode: "contain" }}
-            source={require("@/src/assets/icons/subjects/bolalar.png")}
-          />
-        );
-    }
-  }, []);
+  const getSubjectLabelStyle = useCallback(
+    (name: string) => {
+      const labelLength = name.trim().length;
+
+      if (labelLength > 18) {
+        return [styles.categoryLabel, styles.categoryLabelSmall];
+      }
+
+      if (labelLength > 10) {
+        return [styles.categoryLabel, styles.categoryLabelMedium];
+      }
+
+      return [styles.categoryLabel, styles.categoryLabelLarge];
+    },
+    [styles],
+  );
+
+  const getSubjectIcon = useCallback(
+    (name: string) => {
+      switch (name) {
+        case "Algebra":
+          return (
+            <Image
+              resizeMode="contain"
+              style={styles.subjectIconImage}
+              source={require("@/src/assets/icons/subjects/algebra.png")}
+            />
+          );
+        case "Geometriya":
+          return (
+            <Image
+              resizeMode="contain"
+              style={styles.subjectIconImage}
+              source={require("@/src/assets/icons/subjects/geometry.png")}
+            />
+          );
+        case "Milliy Sertifikat":
+          return (
+            <Image
+              resizeMode="contain"
+              style={styles.subjectIconImage}
+              source={require("@/src/assets/icons/subjects/milliysertificat.png")}
+            />
+          );
+        case "Maktab Dasturi":
+          return (
+            <Image
+              resizeMode="contain"
+              style={styles.subjectIconImage}
+              source={require("@/src/assets/icons/subjects/bolalar.png")}
+            />
+          );
+        case "Digital SAT":
+          return (
+            <Image
+              resizeMode="contain"
+              style={styles.subjectIconImage}
+              source={require("@/src/assets/icons/subjects/bolalar3.png")}
+            />
+          );
+        default:
+          return (
+            <Image
+              resizeMode="contain"
+              style={styles.subjectIconImage}
+              source={require("@/src/assets/icons/subjects/bolalar3.png")}
+            />
+          );
+      }
+    },
+    [styles.subjectIconImage],
+  );
   useEffect(() => {
     navigation.setOptions({
       statusBarStyle: !isDark ? "dark" : "light",
@@ -308,14 +325,16 @@ const HomeScreen: React.FC = () => {
                             end={{ x: 0.5, y: 0.0 }}
                             style={{
                               flexGrow: 1,
-                              borderRadius: moderateScale(40),
+                              width: "40%",
+                              borderRadius: moderateScale(50),
                             }}
                           >
                             <View style={{ padding: moderateScale(1) }}>
                               <View
                                 style={{
-                                  paddingVertical: moderateScale(2),
-                                  paddingHorizontal: moderateScale(16),
+                                  height: moderateScale(25),
+                                  justifyContent: "center",
+                                  paddingHorizontal: moderateScale(10),
                                   backgroundColor: "#3a5dde",
                                   borderRadius: moderateScale(40),
                                 }}
@@ -323,10 +342,11 @@ const HomeScreen: React.FC = () => {
                                 <Text
                                   style={{
                                     fontSize: moderateScale(15),
-                                    lineHeight: moderateScale(18),
                                     color: "white",
                                     fontWeight: "500",
                                   }}
+                                  numberOfLines={1}
+                                  adjustsFontSizeToFit
                                 >
                                   {s.subjectName}
                                 </Text>
@@ -381,7 +401,7 @@ const HomeScreen: React.FC = () => {
                               color: "white",
                               fontSize: moderateScale(38),
                               fontWeight: "700",
-                              padding: moderateScale(3),
+                              padding: moderateScale(0),
                             }}
                             numberOfLines={1}
                             adjustsFontSizeToFit
@@ -468,14 +488,28 @@ const HomeScreen: React.FC = () => {
                           <TouchableOpacity
                             onPress={() => handleSubjectPress(s)}
                             activeOpacity={0.8}
-                            style={styles.categoryItem}
+                            style={[styles.categoryItem]}
                           >
-                            <View style={[styles.categoryIconContainer]}>
+                            <View
+                              style={[
+                                styles.categoryIconContainer,
+                                s.subjectCode === "SCHOOL"
+                                  ? { padding: 0 }
+                                  : {},
+                              ]}
+                            >
                               {getSubjectIcon(s.subjectName)}
                             </View>
-                            <Text style={styles.categoryLabel}>
-                              {s.subjectName}
-                            </Text>
+                            <View style={styles.categoryLabelItem}>
+                              <Text
+                                adjustsFontSizeToFit
+                                minimumFontScale={0.72}
+                                numberOfLines={2}
+                                style={getSubjectLabelStyle(s.subjectName)}
+                              >
+                                {s.subjectName}
+                              </Text>
+                            </View>
                           </TouchableOpacity>
                         </LinearGradient>
                       </View>
@@ -515,29 +549,54 @@ const createStyles = (theme: Theme) =>
     categoryItem: {
       flexDirection: "column",
       alignItems: "center",
-      padding: moderateScale(10),
       paddingHorizontal: moderateScale(5),
+      paddingVertical: moderateScale(6),
       aspectRatio: 1,
       overflow: "hidden",
     },
     categoryIconContainer: {
       borderRadius: moderateScale(12),
-      padding: moderateScale(15),
-      flexShrink: 1,
+      padding: moderateScale(8),
+      flex: 1,
+      width: "100%",
       justifyContent: "center",
       alignItems: "center",
+    },
+    subjectIconImage: {
+      width: "100%",
+      height: "100%",
+      resizeMode: "contain",
+    },
+    categoryLabelItem: {
+      height: moderateScale(50),
+      alignItems: "flex-end",
+      justifyContent: "flex-end",
+    },
+    categoryLabel: {
+      flexShrink: 0,
+      color: "white",
+      fontWeight: "500",
+      paddingHorizontal: moderateScale(4),
+      paddingTop: moderateScale(2),
+      paddingBottom: moderateScale(4),
+      textAlign: "center",
+    },
+    categoryLabelLarge: {
+      fontSize: moderateScale(22),
+      lineHeight: moderateScale(25),
+    },
+    categoryLabelMedium: {
+      fontSize: moderateScale(20),
+      lineHeight: moderateScale(23),
+    },
+    categoryLabelSmall: {
+      fontSize: moderateScale(18),
+      lineHeight: moderateScale(21),
     },
     iconText: {
       color: "#fff",
       fontSize: moderateScale(80),
       fontWeight: "bold",
-    },
-    categoryLabel: {
-      fontSize: moderateScale(22),
-      flexGrow: 1,
-      color: "white",
-      fontWeight: "500",
-      textAlign: "center",
     },
     linkButton: { alignItems: "center", paddingVertical: 10 },
     linkText: {

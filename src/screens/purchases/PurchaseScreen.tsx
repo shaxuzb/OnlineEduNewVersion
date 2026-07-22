@@ -17,7 +17,7 @@ import { moderateScale } from "react-native-size-matters";
 import { useTheme } from "@/src/context/ThemeContext";
 import { SubscriptionPlan, SubscriptionPlanOption, Theme } from "@/src/types";
 
-import { FontAwesome6, Octicons } from "@expo/vector-icons";
+import { FontAwesome6, Ionicons, Octicons } from "@expo/vector-icons";
 import { usePurchases } from "@/src/hooks/usePurchases";
 import { Periods } from "@/src/constants/periods";
 import { numberSpacing } from "@/src/utils";
@@ -239,39 +239,76 @@ const PlanCard = memo(function PlanCard({
       </View>
 
       {/* CTA */}
-      {isPremium ? (
-        <Pressable
-          onPress={() => onSelect(itemPlan)}
-          style={({ pressed }) => [
-            styles.cta,
-            styles.ctaPremium,
-            { opacity: pressed ? 0.88 : 1 },
-          ]}
-        >
-          <Text style={styles.ctaTextPremium}>
-            {itemPlan.name} tarifni tanlash
-          </Text>
-        </Pressable>
-      ) : (
-        <LinearGradient
-          colors={["#3a5dde", "#5e84e6"]}
-          start={{ x: 0.5, y: 1.0 }}
-          end={{ x: 0.5, y: 0.0 }}
-          style={[styles.ctaGradient, isPending && { opacity: 0.8 }]}
-        >
+      {/* Show CTA when canPurchaseTariff is true, or when stateId === 2 even if canPurchaseTariff is false.
+          Hide CTA when stateId === 1 and canPurchaseTariff is false. */}
+      {itemPlan && (itemPlan.canPurchaseTariff || itemPlan.stateId === 2) ? (
+        isPremium ? (
           <Pressable
             onPress={() => onSelect(itemPlan)}
             style={({ pressed }) => [
               styles.cta,
-              { opacity: pressed ? 0.9 : 1 },
+              styles.ctaPremium,
+              itemPlan.stateId === 2 && {
+                backgroundColor: isDark ? "#252B40" : "#B8BEDC",
+              },
+              { opacity: pressed ? 0.88 : 1 },
             ]}
-            disabled={isPending}
+            disabled={isPending || itemPlan.stateId === 2}
           >
-            {isPending && <ActivityIndicator color="white" size="small" />}
-            <Text style={styles.ctaText}>{itemPlan.name} tarifni tanlash</Text>
+            {itemPlan?.stateId === 2 && (
+              <Ionicons
+                name="lock-closed"
+                color={isDark ? "#C8CEEA" : "#FFFFFF"}
+              />
+            )}
+            <Text
+              style={[
+                styles.ctaTextPremium,
+                itemPlan.stateId === 2 && { color: "#fff" },
+              ]}
+            >
+              {itemPlan.stateId === 2
+                ? "Tez kunda"
+                : `${itemPlan.name} tarifni tanlash`}
+            </Text>
           </Pressable>
-        </LinearGradient>
-      )}
+        ) : (
+          <LinearGradient
+            colors={
+              itemPlan.stateId === 2
+                ? isDark
+                  ? ["#343A55", "#252B40"]
+                  : ["#C5CCE9", "#B8BEDC"]
+                : ["#3a5dde", "#5e84e6"]
+            }
+            start={{ x: 0.5, y: 1.0 }}
+            end={{ x: 0.5, y: 0.0 }}
+            style={[styles.ctaGradient, isPending && { opacity: 0.8 }]}
+          >
+            <Pressable
+              onPress={() => onSelect(itemPlan)}
+              style={({ pressed }) => [
+                styles.cta,
+                { opacity: pressed ? 0.9 : 1 },
+              ]}
+              disabled={isPending}
+            >
+              {isPending && <ActivityIndicator color="white" size="small" />}
+              {itemPlan?.stateId === 2 && (
+                <Ionicons
+                  name="lock-closed"
+                  color={isDark ? "#C8CEEA" : "#FFFFFF"}
+                />
+              )}
+              <Text style={styles.ctaText}>
+                {itemPlan.stateId === 2
+                  ? "Tez kunda"
+                  : `${itemPlan.name} tarifni tanlash`}
+              </Text>
+            </Pressable>
+          </LinearGradient>
+        )
+      ) : null}
       {plan && plan?.plan?.tierCode === itemPlan.code && (
         <View style={{ marginTop: 10 }}>
           <Text
@@ -488,6 +525,7 @@ const createStyles = (theme: Theme, isDarkMode: boolean) =>
       fontWeight: "900",
       letterSpacing: 0.2,
       color: theme.colors.text,
+      gap: 6,
     },
 
     footerNote: {

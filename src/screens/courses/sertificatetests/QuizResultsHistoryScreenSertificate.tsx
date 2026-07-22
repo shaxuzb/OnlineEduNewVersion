@@ -1,53 +1,124 @@
+import ErrorData from "@/src/components/exceptions/ErrorData";
+import EmptyData from "@/src/components/exceptions/EmptyData";
+import LoadingData from "@/src/components/exceptions/LoadingData";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useQuizResultsHistory } from "@/src/hooks/useQuiz";
 import { QuizResultHistoryItem, Theme } from "@/src/types";
-import { BORDER_RADIUS, FONT_SIZES, SPACING } from "@/src/utils";
-import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useMemo } from "react";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import React, { memo, useCallback, useMemo } from "react";
 import {
-  ActivityIndicator,
-  SectionList,
+  FlatList,
+  ListRenderItemInfo,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import LinearGradient from "react-native-linear-gradient";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { moderateScale } from "react-native-size-matters";
 
-interface HistorySection {
-  title: string;
-  dateKey: string;
-  data: QuizResultHistoryItem[];
+const BRAND_GRADIENT = ["#3a5dde", "#5e84e6"] as const;
+
+type Styles = ReturnType<typeof createStyles>;
+type ResultStatus = "fail" | "pass" | "best";
+
+const pad = (n: number) => String(n).padStart(2, "0");
+const formatDate = (iso: string) => {
+  const d = new Date(iso);
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+};
+const formatTime = (iso: string) => {
+  const d = new Date(iso);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+// ── Status visuals (red = no score, green = passed, amber = personal best) ─────
+interface StatusVisual {
+  solid: string;
+  tint: string;
+  icon: keyof typeof Ionicons.glyphMap;
 }
-
-const formatDateLabel = (isoDate: string) => {
-  const date = new Date(isoDate);
-  return date.toLocaleDateString("uz-UZ", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+const STATUS_VISUALS: Record<ResultStatus, StatusVisual> = {
+  fail: { solid: "#E5484D", tint: "#FDEDED", icon: "close" },
+  pass: { solid: "#1FA85A", tint: "#E7F6EE", icon: "checkmark" },
+  best: { solid: "#F5A524", tint: "#FEF2E0", icon: "stats-chart" },
 };
 
-const formatTimeLabel = (isoDate: string) => {
-  const date = new Date(isoDate);
-  return date.toLocaleTimeString("uz-UZ", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
+// ── Memoized result row (receives primitives only) ────────────────────────────
+const ResultCard = memo(function ResultCard({
+  date,
+  time,
+  score,
+  maxScore,
+  percent,
+  status,
+  styles,
+}: {
+  date: string;
+  time: string;
+  score: number;
+  maxScore: number;
+  percent: number;
+  status: ResultStatus;
+  styles: Styles;
+}) {
+  const v = STATUS_VISUALS[status];
+  return (
+    <View style={styles.card}>
+      <View style={[styles.statusCircle, { backgroundColor: v.solid }]}>
+        <Ionicons name={v.icon} size={moderateScale(20)} color="#fff" />
+      </View>
 
-const toDateKey = (isoDate: string) => {
-  const date = new Date(isoDate);
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-};
+      <View style={styles.cardBody}>
+        <View style={styles.cardRow}>
+          <Text style={styles.dateText}>{date}</Text>
+          <Text style={styles.timeText}>{time}</Text>
+        </View>
+        <View style={styles.cardRow}>
+          <Text style={styles.scoreText}>
+            {score}
+            <Text style={styles.scoreTotal}> / {maxScore}</Text>
+          </Text>
+          <View style={[styles.badge, { backgroundColor: v.tint }]}>
+            <Text style={[styles.badgeText, { color: v.solid }]}>
+              {Math.round(percent)}%
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <Ionicons
+        name="chevron-forward"
+        size={moderateScale(18)}
+        color={styles.chevron.color}
+      />
+    </View>
+  );
+});
+
+// ── Hero stat column ──────────────────────────────────────────────────────────
+const HeroStat = memo(function HeroStat({
+  value,
+  label,
+  styles,
+}: {
+  value: string;
+  label: string;
+  styles: Styles;
+}) {
+  return (
+    <View style={styles.heroStat}>
+      <Text style={styles.heroStatValue} numberOfLines={1} adjustsFontSizeToFit>
+        {value}
+      </Text>
+      <Text style={styles.heroStatLabel} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
+});
 
 export default function QuizResultsHistoryScreenSertificate({
   navigation,
@@ -57,292 +128,330 @@ export default function QuizResultsHistoryScreenSertificate({
   route: any;
 }) {
   const { theme } = useTheme();
-  const styles = createStyles(theme);
-  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { userId, themeId } = route.params;
 
-  const {
-    data: historyData,
-    isLoading,
-    isFetching,
-    error,
-    refetch,
-  } = useQuizResultsHistory(Number(userId), Number(themeId));
+  const { data, isLoading, error, refetch } = useQuizResultsHistory(
+    Number(userId),
+    Number(themeId),
+  );
 
-  const sections = useMemo<HistorySection[]>(() => {
-    if (!historyData || historyData.length === 0) {
-      return [];
-    }
-
-    const sorted = [...historyData].sort(
+  // Newest first
+  const items = useMemo<QuizResultHistoryItem[]>(() => {
+    if (!Array.isArray(data) || data.length === 0) return [];
+    return [...data].sort(
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
+  }, [data]);
 
-    const grouped = sorted.reduce(
-      (acc, item) => {
-        const dateKey = toDateKey(item.createdAt);
-        if (!acc[dateKey]) {
-          acc[dateKey] = {
-            dateKey,
-            title: formatDateLabel(item.createdAt),
-            data: [],
-          };
-        }
-        acc[dateKey].data.push(item);
-        return acc;
-      },
-      {} as Record<string, HistorySection>,
-    );
+  // Everything in the hero card is computed from the data.
+  const stats = useMemo(() => {
+    if (items.length === 0) {
+      return {
+        title: "",
+        count: 0,
+        highest: 0,
+        average: 0,
+        lastScore: 0,
+        best: 0,
+      };
+    }
+    const percents = items.map((i) => i.percent);
+    const scores = items.map((i) => i.score);
+    const sum = percents.reduce((a, b) => a + b, 0);
+    return {
+      title: route.params?.themeName ?? items[0].testName ?? "Test natijalari",
+      count: items.length,
+      highest: Math.round(Math.max(...percents)),
+      average: Math.round(sum / items.length),
+      lastScore: items[0].score, // most recent attempt
+      best: Math.max(...scores), // personal-best score (drives the amber icon)
+    };
+  }, [items, route.params?.themeName]);
 
-    return Object.values(grouped).sort((a, b) =>
-      b.dateKey.localeCompare(a.dateKey),
-    );
-  }, [historyData]);
+  const getStatus = useCallback(
+    (score: number): ResultStatus => {
+      if (score <= 0) return "fail";
+      if (score === stats.best && stats.best > 0) return "best";
+      return "pass";
+    },
+    [stats.best],
+  );
 
-  useEffect(() => {
-    navigation.setOptions({
-      headerShown: false,
-      presentation: "transparentModal",
-      animation: "slide_from_bottom",
-    });
-  }, [navigation]);
+  const keyExtractor = useCallback(
+    (item: QuizResultHistoryItem) => String(item.id),
+    [],
+  );
+
+  const renderItem = useCallback(
+    ({ item }: ListRenderItemInfo<QuizResultHistoryItem>) => (
+      <ResultCard
+        date={formatDate(item.createdAt)}
+        time={formatTime(item.createdAt)}
+        score={item.score}
+        maxScore={item.maxScore}
+        percent={item.percent}
+        status={getStatus(item.score)}
+        styles={styles}
+      />
+    ),
+    [getStatus, styles],
+  );
+
+  const listHeader = useMemo(
+    () => (
+      <LinearGradient
+        colors={BRAND_GRADIENT as unknown as string[]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.heroCard}
+      >
+        <View style={styles.heroCardMain}>
+          <View style={styles.heroTopRow}>
+            <Text style={styles.heroTitle} numberOfLines={2}>
+              {stats.title}
+            </Text>
+            <View style={styles.heroIconCircle}>
+              <MaterialCommunityIcons
+                name="book-open-variant"
+                size={moderateScale(22)}
+                color="#fff"
+              />
+            </View>
+          </View>
+
+          <View style={styles.heroStatsRow}>
+            <HeroStat
+              value={String(stats.count)}
+              label="Testlar"
+              styles={styles}
+            />
+            <HeroStat
+              value={`${stats.highest}%`}
+              label="Eng yuqori"
+              styles={styles}
+            />
+            <HeroStat
+              value={`${stats.average}%`}
+              label="O'rtacha"
+              styles={styles}
+            />
+            <HeroStat
+              value={String(stats.lastScore)}
+              label="So'nggi ball"
+              styles={styles}
+            />
+          </View>
+        </View>
+      </LinearGradient>
+    ),
+    [styles, stats],
+  );
 
   return (
-    <SafeAreaView style={styles.overlay} edges={["bottom"]}>
-      <View style={styles.sheet}>
-        <View style={styles.handle} />
-
-        <View style={styles.headerRow}>
-          <View style={styles.headerTitleWrap}>
-            <Text style={styles.headerTitle}>Ishlangan testlar tarixi</Text>
-          </View>
+    <View style={styles.container}>
+      <StatusBar barStyle={theme.isDark ? "light-content" : "dark-content"} />
+      <SafeAreaView edges={["top"]} style={styles.navSafeArea}>
+        {/* Fixed nav header */}
+        <View style={styles.navRow}>
           <TouchableOpacity
-            style={styles.closeButton}
+            style={styles.navBtn}
             onPress={() => navigation.goBack()}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            activeOpacity={0.7}
           >
             <Ionicons
-              name="close"
-              size={moderateScale(20)}
+              name="arrow-back"
+              size={moderateScale(24)}
               color={theme.colors.text}
             />
           </TouchableOpacity>
+          <Text style={styles.navTitle}>Tarixni ko'rish</Text>
+          <View style={styles.navBtn} />
         </View>
+      </SafeAreaView>
 
-        {isLoading || isFetching ? (
-          <View style={styles.centerState}>
-            <ActivityIndicator size="small" color={theme.colors.primary} />
-            <Text style={styles.stateText}>Tarix yuklanmoqda...</Text>
-          </View>
-        ) : error ? (
-          <View style={styles.centerState}>
-            <Text style={styles.errorText}>
-              Tarixni yuklashda xatolik yuz berdi.
-            </Text>
-            <TouchableOpacity
-              style={styles.retryButton}
-              onPress={() => refetch()}
-            >
-              <Text style={styles.retryText}>Qayta yuklash</Text>
-            </TouchableOpacity>
-          </View>
-        ) : sections.length === 0 ? (
-          <View style={styles.centerState}>
-            <Text style={styles.emptyText}>Tarix ma'lumotlari topilmadi.</Text>
-          </View>
-        ) : (
-          <SectionList
-            sections={sections}
-            keyExtractor={(item) => String(item.id)}
-            stickySectionHeadersEnabled={false}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[
-              styles.listContent,
-              { paddingBottom: moderateScale(24) + insets.bottom },
-            ]}
-            renderSectionHeader={({ section }) => (
-              <Text style={styles.sectionTitle}>{section.title}</Text>
-            )}
-            renderItem={({ item }) => (
-              <View style={styles.card}>
-                <View style={styles.cardTopRow}>
-                  <Text style={styles.testName} numberOfLines={1}>
-                    {item.testName}
-                  </Text>
-                  <Text style={styles.timeText}>
-                    {formatTimeLabel(item.createdAt)}
-                  </Text>
-                </View>
-
-                <View style={styles.metricsRow}>
-                  <View style={styles.metricChip}>
-                    <Text style={styles.metricLabel}>Ball</Text>
-                    <Text style={styles.metricValue}>
-                      {item.score}/{item.maxScore}
-                    </Text>
-                  </View>
-                  <View style={styles.metricChip}>
-                    <Text style={styles.metricLabel}>Foiz</Text>
-                    <Text style={styles.metricValue}>{item.percent}%</Text>
-                  </View>
-                  {item.degree && (
-                    <View style={styles.metricChip}>
-                      <Text style={styles.metricLabel}>
-                        Sertifikat darajasi
-                      </Text>
-                      <Text style={styles.metricValue}>{item.degree}</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-            )}
-          />
-        )}
-      </View>
-    </SafeAreaView>
+      {isLoading ? (
+        <LoadingData />
+      ) : error ? (
+        <ErrorData refetch={refetch} />
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={<EmptyData />}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={9}
+          removeClippedSubviews
+        />
+      )}
+    </View>
   );
 }
 
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
-    overlay: {
+    container: {
       flex: 1,
-      backgroundColor: "rgba(0, 0, 0, 0.3)",
-      justifyContent: "flex-end",
-    },
-    sheet: {
-      height: "90%",
       backgroundColor: theme.colors.background,
-      borderTopLeftRadius: moderateScale(BORDER_RADIUS.lg),
-      borderTopRightRadius: moderateScale(BORDER_RADIUS.lg),
-      paddingHorizontal: moderateScale(SPACING.base),
-      paddingTop: moderateScale(SPACING.xs),
     },
-    handle: {
-      alignSelf: "center",
-      width: moderateScale(44),
-      height: moderateScale(4),
-      borderRadius: moderateScale(2),
-      backgroundColor: theme.colors.textMuted,
-      marginTop: moderateScale(SPACING.xs),
-      marginBottom: moderateScale(SPACING.sm),
+
+    // ── Nav header ───────────────────────────────────────────
+    navSafeArea: {
+      backgroundColor: theme.colors.background,
     },
-    headerRow: {
+    navRow: {
       flexDirection: "row",
-      justifyContent: "space-between",
       alignItems: "center",
-      marginBottom: moderateScale(SPACING.sm),
-      gap: moderateScale(SPACING.sm),
+      justifyContent: "space-between",
+      paddingHorizontal: moderateScale(12),
+      paddingVertical: moderateScale(8),
     },
-    headerTitleWrap: {
-      flex: 1,
-    },
-    headerTitle: {
-      color: theme.colors.text,
-      fontSize: moderateScale(FONT_SIZES.lg),
-      fontWeight: "700",
-    },
-    closeButton: {
-      width: moderateScale(32),
-      height: moderateScale(32),
-      borderRadius: moderateScale(16),
-      backgroundColor: theme.colors.card,
+    navBtn: {
+      width: moderateScale(40),
+      height: moderateScale(40),
       alignItems: "center",
       justifyContent: "center",
     },
-    listContent: {
-      paddingBottom: moderateScale(24),
-      gap: moderateScale(SPACING.xs),
-    },
-    sectionTitle: {
-      color: theme.colors.text,
-      fontSize: moderateScale(FONT_SIZES.base),
+    navTitle: {
+      flex: 1,
+      textAlign: "center",
+      fontSize: moderateScale(18),
       fontWeight: "700",
-      marginTop: moderateScale(SPACING.xs),
-      marginBottom: moderateScale(SPACING.xs),
+      color: theme.colors.text,
     },
-    card: {
-      backgroundColor: theme.colors.card,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      borderRadius: moderateScale(BORDER_RADIUS.base),
-      paddingHorizontal: moderateScale(SPACING.sm),
-      paddingVertical: moderateScale(SPACING.sm),
-      marginBottom: moderateScale(SPACING.xs),
-      gap: moderateScale(SPACING.xs),
+
+    // ── List ─────────────────────────────────────────────────
+    listContent: {
+      paddingHorizontal: moderateScale(16),
+      paddingBottom: moderateScale(28),
+      flexGrow: 1,
     },
-    cardTopRow: {
+
+    // ── Hero card ────────────────────────────────────────────
+    heroCardMain: {
+      borderRadius: moderateScale(20),
+      padding: moderateScale(18),
+    },
+    heroCard: {
+      borderRadius: moderateScale(20),
+      marginTop: moderateScale(8),
+      marginBottom: moderateScale(18),
+      shadowColor: "#1b2a6b",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.22,
+      shadowRadius: 16,
+      elevation: 8,
+    },
+    heroTopRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: moderateScale(12),
+      marginBottom: moderateScale(18),
+    },
+    heroTitle: {
+      flex: 1,
+      color: "#fff",
+      fontSize: moderateScale(19),
+      fontWeight: "800",
+      lineHeight: moderateScale(25),
+    },
+    heroIconCircle: {
+      width: moderateScale(44),
+      height: moderateScale(44),
+      borderRadius: moderateScale(14),
+      backgroundColor: "rgba(255,255,255,0.22)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    heroStatsRow: {
       flexDirection: "row",
       justifyContent: "space-between",
-      alignItems: "center",
-      gap: moderateScale(SPACING.sm),
     },
-    testName: {
+    heroStat: {
       flex: 1,
-      color: theme.colors.text,
-      fontSize: moderateScale(FONT_SIZES.sm),
+    },
+    heroStatValue: {
+      color: "#fff",
+      fontSize: moderateScale(21),
+      fontWeight: "800",
+    },
+    heroStatLabel: {
+      color: "rgba(255,255,255,0.82)",
+      fontSize: moderateScale(11),
+      marginTop: moderateScale(2),
+    },
+
+    // ── Result card ──────────────────────────────────────────
+    card: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.colors.card,
+      borderRadius: moderateScale(16),
+      paddingVertical: moderateScale(12),
+      paddingHorizontal: moderateScale(12),
+      marginBottom: moderateScale(12),
+      gap: moderateScale(12),
+      shadowColor: "#1b2a6b",
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: theme.isDark ? 0.3 : 0.08,
+      shadowRadius: 10,
+      elevation: 4,
+    },
+    statusCircle: {
+      width: moderateScale(42),
+      height: moderateScale(42),
+      borderRadius: moderateScale(21),
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    cardBody: {
+      flex: 1,
+      gap: moderateScale(6),
+    },
+    cardRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    dateText: {
+      fontSize: moderateScale(13),
       fontWeight: "600",
+      color: theme.colors.textSecondary,
     },
     timeText: {
+      fontSize: moderateScale(12),
       color: theme.colors.textMuted,
-      fontSize: moderateScale(FONT_SIZES.xs),
-      fontWeight: "500",
     },
-    metricsRow: {
-      flexDirection: "row",
-      gap: moderateScale(SPACING.xs),
-    },
-    metricChip: {
-      flex: 1,
-      borderRadius: moderateScale(BORDER_RADIUS.sm),
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.background,
-      paddingHorizontal: moderateScale(SPACING.xs),
-      paddingVertical: moderateScale(6),
-    },
-    metricLabel: {
-      color: theme.colors.textMuted,
-      fontSize: moderateScale(FONT_SIZES.xs),
-      marginBottom: moderateScale(2),
-    },
-    metricValue: {
+    scoreText: {
+      fontSize: moderateScale(18),
+      fontWeight: "800",
       color: theme.colors.text,
-      fontSize: moderateScale(FONT_SIZES.sm),
-      fontWeight: "700",
     },
-    centerState: {
-      flex: 1,
-      justifyContent: "center",
+    scoreTotal: {
+      fontSize: moderateScale(13),
+      fontWeight: "600",
+      color: theme.colors.textMuted,
+    },
+    badge: {
+      minWidth: moderateScale(48),
+      paddingHorizontal: moderateScale(10),
+      paddingVertical: moderateScale(4),
+      borderRadius: moderateScale(10),
       alignItems: "center",
-      gap: moderateScale(SPACING.sm),
-      paddingHorizontal: moderateScale(SPACING.base),
     },
-    stateText: {
-      color: theme.colors.text,
-      fontSize: moderateScale(FONT_SIZES.sm),
+    badgeText: {
+      fontSize: moderateScale(13),
+      fontWeight: "800",
     },
-    emptyText: {
+    chevron: {
       color: theme.colors.textMuted,
-      fontSize: moderateScale(FONT_SIZES.sm),
-      fontWeight: "500",
-    },
-    errorText: {
-      color: theme.colors.error,
-      fontSize: moderateScale(FONT_SIZES.sm),
-      fontWeight: "600",
-      textAlign: "center",
-    },
-    retryButton: {
-      borderWidth: 1,
-      borderColor: theme.colors.primary,
-      borderRadius: moderateScale(BORDER_RADIUS.sm),
-      paddingHorizontal: moderateScale(SPACING.base),
-      paddingVertical: moderateScale(SPACING.xs),
-    },
-    retryText: {
-      color: theme.colors.primary,
-      fontSize: moderateScale(FONT_SIZES.sm),
-      fontWeight: "600",
     },
   });

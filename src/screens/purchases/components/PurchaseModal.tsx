@@ -139,7 +139,7 @@ export const PurchaseModal = (/* { isDark }: PurchaseModalProps */) => {
         style={{
           flex: 1,
           paddingTop: insets.top,
-          paddingBottom: 10,
+          paddingBottom: insets.bottom + 10,
           backgroundColor: "transparent",
         }}
       >
@@ -202,7 +202,7 @@ export const PurchaseModal = (/* { isDark }: PurchaseModalProps */) => {
           {/* Periods */}
           {selectedPlan && (
             <View style={styles.periods}>
-              {selectedPlan.plans.map((period) => (
+              {selectedPlan?.plans.map((period) => (
                 <TouchableOpacity
                   key={period.id}
                   style={[
@@ -280,7 +280,7 @@ export const PurchaseModal = (/* { isDark }: PurchaseModalProps */) => {
           {/* Features */}
           {selectedPlan && (
             <View style={[styles.features, { backgroundColor: theme.card }]}>
-              {selectedPlan.features.map((f) => (
+              {selectedPlan?.features.map((f) => (
                 <View key={f.id} style={styles.feature}>
                   <Ionicons
                     name="checkmark-circle"
@@ -296,21 +296,20 @@ export const PurchaseModal = (/* { isDark }: PurchaseModalProps */) => {
               ))}
             </View>
           )}
-          {selectedPlan.code === "TESTPREMIUM" && (
+          {selectedPlan?.code === "TESTPREMIUM" && (
             <View
               style={[styles.descriptionCard, { backgroundColor: theme.card }]}
             >
               <Text
                 style={[styles.descriptionText, { color: theme.textSecondary }]}
               >
-                Test Premium faqat <Text style={styles.bold}>3 kun</Text>{" "}
-                davomida ishlaydi.
+                <Text style={styles.bold}>
+                  Test Premium 1 yil davomida ishlaydi.
+                </Text>{" "}
                 {"\n\n"}
-                Ushbu vaqt ichida <Text style={styles.bold}>Algebra</Text>,{" "}
-                <Text style={styles.bold}>Geometriya</Text> va{" "}
-                <Text style={styles.bold}>Milliy Sertifikat</Text> bo‘limlaridan
-                faqat <Text style={styles.bold}>1–2 mavzular</Text> ochiq
-                bo‘ladi.
+                Ushbu imkoniyat doirasida faqat{" "}
+                <Text style={styles.bold}>Algebra</Text>, bo‘limining birinchi{" "}
+                <Text style={styles.bold}>5 ta mavzusi</Text> ochiq bo‘ladi.
                 {"\n\n"}
                 Premiumdagi barcha imkoniyatlarni aynan shu mavzularda sinab
                 ko‘rish mumkin.
@@ -320,7 +319,7 @@ export const PurchaseModal = (/* { isDark }: PurchaseModalProps */) => {
         </ScrollView>
         <View style={{ paddingHorizontal: scale(14) }}>
           {error && <Text style={{ color: "red" }}>{error}</Text>}
-          {plan && plan?.plan?.tierCode === selectedPlan.code && (
+          {plan && plan?.plan?.tierCode === selectedPlan?.code && (
             <View style={{ marginBottom: 10 }}>
               <Text
                 style={[
@@ -332,7 +331,7 @@ export const PurchaseModal = (/* { isDark }: PurchaseModalProps */) => {
                     borderRadius: 999,
                     alignSelf: "flex-start",
                   },
-                  selectedPlan.code === "PREMIUM"
+                  selectedPlan?.code === "PREMIUM"
                     ? { backgroundColor: "#fff", color: "#3a5dde" }
                     : { backgroundColor: "#3a5dde", color: "#fff" },
                 ]}
@@ -346,20 +345,56 @@ export const PurchaseModal = (/* { isDark }: PurchaseModalProps */) => {
               </Text>
             </View>
           )}
+
           <LinearGradient
-            colors={[theme.accent, isDark ? "#4f46e5" : "#4f46e5"]}
+            colors={
+              selectedPlan?.stateId === 2
+                ? isDark
+                  ? ["#343A55", "#252B40"]
+                  : ["#C5CCE9", "#B8BEDC"]
+                : [theme.accent, isDark ? "#4f46e5" : "#4f46e5"]
+            }
             style={[styles.gradient, isPending && { opacity: 0.8 }]}
           >
+            {/* {selectedPlan && selectedPlan?.stateId === 2 && (
+              <Text
+                style={[
+                  {
+                    fontWeight: "700",
+                    fontSize: 13,
+                    paddingVertical: 4,
+                    paddingHorizontal: 10,
+                    borderRadius: 999,
+                    alignSelf: "flex-start",
+                  },
+                  selectedPlan?.code === "PREMIUM"
+                    ? { backgroundColor: "#fff", color: "#3a5dde" }
+                    : { backgroundColor: "#3a5dde", color: "#fff" },
+                ]}
+              >
+                Tez kunda
+              </Text>
+            )} */}
             <TouchableOpacity
-              style={styles.buyButton}
+              style={[styles.buyButton]}
               onPress={handlePressBuy}
               activeOpacity={0.85}
-              disabled={isPending}
+              disabled={isPending || selectedPlan?.stateId === 2}
             >
               {isPending && <ActivityIndicator color="white" size="small" />}
-              <Text style={styles.buyText}>
-                {formatPrice(selectedItem?.price)} so‘m • Sotib olish
-              </Text>
+              {selectedPlan && selectedPlan?.stateId === 2 && (
+                <Ionicons
+                  name="lock-closed"
+                  color={isDark ? "#C8CEEA" : "#FFFFFF"}
+                />
+              )}
+              {selectedPlan && selectedPlan?.stateId === 2 ? (
+                <Text style={styles.buyText}>Tez kunda</Text>
+              ) : (
+                <Text style={styles.buyText}>
+                  {formatPrice(selectedItem?.price)} so‘m • Sotib olish
+                </Text>
+              )}
             </TouchableOpacity>
           </LinearGradient>
         </View>
@@ -480,6 +515,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 10,
   },
+  buyButtonDisabled: {},
   gradient: {
     marginBottom: scale(0),
     borderRadius: 18,

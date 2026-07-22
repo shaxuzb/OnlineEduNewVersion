@@ -2,7 +2,7 @@
   "expo": {
     "name": "MATH ME",
     "slug": "mathme",
-    "version": "1.0.28",
+    "version": "1.0.33",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mathme",
@@ -41,7 +41,7 @@
       "checkAutomatically": "ON_ERROR_RECOVERY",
       "fallbackToCacheTimeout": 0
     },
-    "plugins": ["expo-dev-client", "expo-secure-store"],
+    "plugins": ["expo-dev-client", "expo-secure-store", "./plugins/withFmtFix"],
     "extra": {
       "API_URL": "https://edu-api.crmuz.uz",
       "router": {},

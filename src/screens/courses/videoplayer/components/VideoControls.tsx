@@ -1,23 +1,4 @@
-/**
- * VideoControls – YouTube-like controls overlay.
- *
- * Layout:
- * ┌─────────────────────────────────────────────────────┐  ← safe-area top
- * │  [←]          Lesson title                  [⚙]    │
- * ├─────────────────────────────────────────────────────┤
- * │                                                     │
- * │           [◀10]    [▶/⏸]    [10▶]                 │  center
- * │                                                     │
- * ├─────────────────────────────────────────────────────┤
- * │  0:00  ████████▓▓░░░░░░░────────  5:00    [⛶]     │
- * └─────────────────────────────────────────────────────┘  ← safe-area bottom
- *
- * The top bar, center and bottom bar are absolutely anchored to their edges
- * (instead of relying on flex space-between) so they can never collapse or be
- * pushed off-screen. Safe-area insets are applied on ALL four edges so the
- * header/slider stay clear of the notch in landscape (the cause of the iOS
- * "header & slider not visible" bug).
- */
+
 import React, { memo } from "react";
 import {
   ActivityIndicator,
@@ -26,7 +7,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import LinearGradient from "react-native-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Icon from "@expo/vector-icons/MaterialIcons";
 import { Ionicons } from "@expo/vector-icons";

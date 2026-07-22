@@ -321,8 +321,7 @@ const MainStackNavigator = () => (
           .default
       }
       options={{
-        presentation: "transparentModal",
-        animation: "slide_from_bottom",
+        animation: "slide_from_right",
         headerShown: false,
       }}
     />

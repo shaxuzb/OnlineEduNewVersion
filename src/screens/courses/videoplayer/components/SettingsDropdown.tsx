@@ -3,6 +3,7 @@ import {
   Animated,
   Dimensions,
   Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -64,55 +65,60 @@ const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <TouchableOpacity
-        style={styles.overlay}
-        activeOpacity={1}
-        onPress={onClose}
-      >
-        <Animated.View
-          style={[styles.container, { opacity, transform: [{ translateY }] }]}
+      <ScrollView style={{ flex: 1 }}>
+        <TouchableOpacity
+          style={styles.overlay}
+          activeOpacity={1}
+          onPress={onClose}
         >
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Tezlik</Text>
-            <TouchableOpacity
-              onPress={onClose}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="close" size={moderateScale(22)} color="#fff" />
-            </TouchableOpacity>
-          </View>
+          <Animated.View
+            style={[styles.container, { opacity, transform: [{ translateY }] }]}
+          >
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>Tezlik</Text>
+              <TouchableOpacity
+                onPress={onClose}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={moderateScale(22)} color="#fff" />
+              </TouchableOpacity>
+            </View>
 
-          <View style={styles.ratesContainer}>
-            {PLAYBACK_RATES.map((rate) => {
-              const isActive = playbackRate === rate.value;
-              return (
-                <TouchableOpacity
-                  key={rate.value}
-                  style={[styles.rateRow, isActive && styles.rateRowActive]}
-                  onPress={() => {
-                    onPlaybackRateChange(rate.value);
-                    onClose();
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[styles.rateLabel, isActive && styles.rateLabelActive]}
+            <View style={styles.ratesContainer}>
+              {PLAYBACK_RATES.map((rate) => {
+                const isActive = playbackRate === rate.value;
+                return (
+                  <TouchableOpacity
+                    key={rate.value}
+                    style={[styles.rateRow, isActive && styles.rateRowActive]}
+                    onPress={() => {
+                      onPlaybackRateChange(rate.value);
+                      onClose();
+                    }}
+                    activeOpacity={0.7}
                   >
-                    {rate.label}
-                  </Text>
-                  {isActive && (
-                    <Ionicons
-                      name="checkmark"
-                      size={moderateScale(18)}
-                      color="#007AFF"
-                    />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </Animated.View>
-      </TouchableOpacity>
+                    <Text
+                      style={[
+                        styles.rateLabel,
+                        isActive && styles.rateLabelActive,
+                      ]}
+                    >
+                      {rate.label}
+                    </Text>
+                    {isActive && (
+                      <Ionicons
+                        name="checkmark"
+                        size={moderateScale(18)}
+                        color="#007AFF"
+                      />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </Animated.View>
+        </TouchableOpacity>
+      </ScrollView>
     </Modal>
   );
 };

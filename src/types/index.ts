@@ -490,6 +490,7 @@ export interface SubscriptionPlanOption {
   price: number;
   stateId: number;
   periodCode: string;
+  canPurchaseTariff: boolean;
   periodDurationValue: number;
   periodDurationUnit: string;
   annualDiscountPercent: number;
@@ -534,6 +535,7 @@ export interface SubscriptionPlan {
   id: number;
   code: string;
   name: string;
+  canPurchaseTariff: boolean;
   description: string;
   stateId: number;
   state: string;
