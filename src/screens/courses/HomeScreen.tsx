@@ -25,7 +25,7 @@ import LinearGradient from "react-native-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation();
-  const { theme, themeMode, isDark } = useTheme();
+  const { theme, themeMode } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const userId = useCurrentUserId();
   const {
@@ -147,11 +147,6 @@ const HomeScreen: React.FC = () => {
     },
     [styles.subjectIconImage],
   );
-  useEffect(() => {
-    navigation.setOptions({
-      statusBarStyle: !isDark ? "dark" : "light",
-    });
-  }, [navigation, isDark]);
   return (
     <LinearGradient
       colors={["#3a5dde", theme.colors.background]}

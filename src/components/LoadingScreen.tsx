@@ -4,7 +4,6 @@ import {
   Text,
   ActivityIndicator,
   StyleSheet,
-  StatusBar,
   Animated,
   Dimensions,
 } from "react-native";
@@ -45,8 +44,6 @@ const LoadingScreen: React.FC = () => {
       end={{ x: 0.5, y: 0.0 }}
       style={styles.container}
     >
-      <StatusBar barStyle="light-content" backgroundColor="transparent" />
-
       <Animated.View
         style={[
           styles.logoContainer,

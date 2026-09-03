@@ -15,14 +15,21 @@ import * as Yup from "yup";
 import { useTheme } from "../../../context/ThemeContext";
 import { Theme } from "../../../types";
 import { Ionicons } from "@expo/vector-icons";
-import { $axiosPrivate } from "@/src/services/AxiosService";
+import { passwordResetService } from "@/src/services/passwordResetService";
 import { useResetPassword } from "@/src/context/ResetPasswordContext";
-
-const phoneRegex = /^\+998\d{9}$/;
+import {
+  formatUzbekPhone,
+  isCompleteUzbekPhone,
+  normalizeUzbekPhone,
+} from "../../../utils/phone";
 
 const Step2Schema = Yup.object().shape({
   phone: Yup.string()
-    .matches(phoneRegex, "Telefon raqam formati: +998XXXXXXXXX")
+    .test(
+      "uzbek-phone",
+      "Telefon raqam formati: +998 90 123 45 67",
+      (value) => Boolean(value && isCompleteUzbekPhone(value)),
+    )
     .required("Telefon raqam majburiy"),
 });
 
@@ -33,17 +40,16 @@ const Step1NumberInfo: React.FC = () => {
   const styles = createStyles(theme);
 
   const handleNext = async (values: { phone: string }) => {
+    const phone = normalizeUzbekPhone(values.phone);
     try {
       updateResetPasswordData({
-        phone: values.phone,
+        phone,
       });
-      await $axiosPrivate.post(`account/password-reset/request`, {
-        phone: values.phone,
-      });
+      await passwordResetService.request(phone);
       nextStep();
       Alert.alert(
         "SMS yuborildi!",
-        `${values.phone} raqamiga tasdiqlash kodi yuborildi`
+        `${formatUzbekPhone(phone)} raqamiga tasdiqlash kodi yuborildi`
       );
       // Show SMS sending confirmation
     } catch (error: any) {
@@ -70,13 +76,13 @@ const Step1NumberInfo: React.FC = () => {
           </View>
           <Formik
             initialValues={{
-              phone: resetPasswordData.phone || "+998",
+              phone: formatUzbekPhone(resetPasswordData.phone || "+998"),
             }}
             validationSchema={Step2Schema}
             onSubmit={handleNext}
           >
             {({
-              handleChange,
+              setFieldValue,
               handleBlur,
               handleSubmit,
               values,
@@ -93,12 +99,15 @@ const Step1NumberInfo: React.FC = () => {
                       styles.input,
                       touched.phone && errors.phone && styles.inputError,
                     ]}
-                    placeholder="+998XXXXXXXXX"
+                    placeholder="+998 90 123 45 67"
                     placeholderTextColor={theme.colors.textMuted}
                     keyboardType="phone-pad"
                     value={values.phone}
-                    onChangeText={handleChange("phone")}
+                    onChangeText={(value) =>
+                      setFieldValue("phone", formatUzbekPhone(value))
+                    }
                     onBlur={handleBlur("phone")}
+                    maxLength={17}
                   />
                   {touched.phone && errors.phone && (
                     <Text style={styles.errorText}>{errors.phone}</Text>

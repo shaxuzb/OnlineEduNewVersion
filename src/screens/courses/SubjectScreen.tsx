@@ -41,11 +41,10 @@ export default function SubjectScreen({
       })) ?? [],
     [data?.results],
   );
-
   const handleThemePress = useCallback(
     (chapterTheme: ChapterTheme) => {
       if (chapterTheme.hasAccess) {
-        if (subjectCode === "NATIONAL") {
+        if (subjectCode === "NATIONAL_CERTIFICATE") {
           if (chapterTheme?.testId) {
             alertService.open({
               type: "default",
@@ -142,7 +141,7 @@ export default function SubjectScreen({
           </View>
           <View style={styles.themeInfo}>
             <Text style={styles.themeNumber}>
-              {subjectCode === "NATIONAL"
+              {subjectCode === "NATIONAL_CERTIFICATE"
                 ? chapterTheme.content
                 : `${chapterTheme.ordinalNumber}-mavzu`}
             </Text>
@@ -156,13 +155,13 @@ export default function SubjectScreen({
               {chapterTheme.name}
             </Text>
           </View>
-          {subjectCode !== "NATIONAL" && (
+          {subjectCode !== "NATIONAL_CERTIFICATE" && (
             <View>
               <Text style={styles.loadingText}>{chapterTheme.percent}%</Text>
             </View>
           )}
         </View>
-        {subjectCode === "NATIONAL" && (
+        {subjectCode === "NATIONAL_CERTIFICATE" && (
           <>
             <Text style={styles.themeCountloadingText}>
               {chapterTheme.percent}%

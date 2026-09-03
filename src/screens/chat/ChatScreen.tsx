@@ -54,6 +54,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [message, setMessage] = useState("");
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [isInteractionReady, setIsInteractionReady] = useState(false);
 
   const sectionListRef = useRef<SectionList<ChatMessage, ChatSection>>(null);
   const isAtBottomRef = useRef(true);
@@ -75,6 +76,8 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
 
   const messageSections: ChatSection[] = useMemo(() => {
+    if (!isInteractionReady) return [];
+
     const normalizedMessages = (data || [])
       .map((item) => ({
         ...item,
@@ -97,7 +100,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
     });
 
     return sections;
-  }, [data]);
+  }, [data, isInteractionReady]);
 
   const unreadMarker = useMemo(() => {
     for (let si = 0; si < messageSections.length; si++) {
@@ -135,7 +138,8 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
   const flushPendingRead = useCallback(() => {
     if (!userId || isReadFlushInProgressRef.current) return;
     const pendingUpToId = pendingReadUpToIdRef.current;
-    if (pendingUpToId == null || pendingUpToId <= markedUpToIdRef.current) return;
+    if (pendingUpToId == null || pendingUpToId <= markedUpToIdRef.current)
+      return;
 
     pendingReadUpToIdRef.current = null;
     isReadFlushInProgressRef.current = true;
@@ -227,7 +231,9 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
           <View style={styles.unreadMarkerContainer}>
             <View style={styles.unreadMarkerLine} />
             <View style={styles.unreadMarkerChip}>
-              <Text style={styles.unreadMarkerText}>{"O'qilmagan xabarlar"}</Text>
+              <Text style={styles.unreadMarkerText}>
+                {"O'qilmagan xabarlar"}
+              </Text>
             </View>
             <View style={styles.unreadMarkerLine} />
           </View>
@@ -252,9 +258,11 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
   useEffect(() => {
     canTrackReadRef.current = false;
     const task = InteractionManager.runAfterInteractions(() => {
+      setIsInteractionReady(true);
       canTrackReadRef.current = true;
     });
     return () => {
+      setIsInteractionReady(false);
       canTrackReadRef.current = false;
       task.cancel();
     };
@@ -517,8 +525,8 @@ const createStyles = (theme: Theme) =>
     },
     textInputFull: {
       flex: 1,
-      paddingHorizontal: moderateScale(14),
-      paddingVertical: moderateScale(10),
+      paddingHorizontal: moderateScale(4),
+      paddingVertical: moderateScale(12),
       fontSize: moderateScale(14),
       color: theme.colors.text,
       maxHeight: 120,

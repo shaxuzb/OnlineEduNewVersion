@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { View, TouchableOpacity, Text, Dimensions, StyleSheet } from 'react-native';
-import Video from 'react-native-video';
+import Video, { type VideoRef } from 'react-native-video';
 import { Ionicons } from '@expo/vector-icons';
 
 interface VideoPlayerProps {
@@ -15,7 +15,7 @@ export default function VideoPlayer({ uri, title }: VideoPlayerProps) {
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [showControls, setShowControls] = useState(true);
-  const videoRef = useRef<Video>(null);
+  const videoRef = useRef<VideoRef | null>(null);
 
   const handlePlayPause = () => {
     setPaused(!paused);

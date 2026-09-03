@@ -1,7 +1,7 @@
 import { alertService } from "@/src/components/modals/customalert/alertService";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
-import { $axiosPrivate } from "@/src/services/AxiosService";
+import { accountService } from "@/src/services/accountService";
 import { Theme } from "@/src/types";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -26,7 +26,7 @@ function UserDetailScreen() {
   const styles = createStyles(theme);
   const mutation = useMutation({
     mutationFn: async () => {
-      await $axiosPrivate.delete("/account/my-account");
+      await accountService.deleteMyAccount();
     },
   });
   const { user, logout } = useAuth();

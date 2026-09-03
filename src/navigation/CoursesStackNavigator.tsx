@@ -7,7 +7,7 @@ import DeviceInfo from "react-native-device-info";
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const isTablet = DeviceInfo.isTablet();
 
-export function CoursesStackNavigator() {
+export const CoursesStackNavigator = React.memo(function CoursesStackNavigator() {
   return (
     <Stack.Navigator
       screenOptions={{
@@ -19,7 +19,7 @@ export function CoursesStackNavigator() {
     >
       <Stack.Screen
         name="CoursesList"
-        options={{ headerShown: false, statusBarStyle: "inverted" }}
+        options={{ headerShown: false }}
         getComponent={() => require("../screens/courses/HomeScreen").default}
       />
       <Stack.Screen
@@ -47,4 +47,4 @@ export function CoursesStackNavigator() {
       />
     </Stack.Navigator>
   );
-}
+});

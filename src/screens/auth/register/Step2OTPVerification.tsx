@@ -15,7 +15,7 @@ import { useRegister } from "../../../context/RegisterContext";
 import { useTheme } from "../../../context/ThemeContext";
 import { Theme } from "../../../types";
 import { Ionicons } from "@expo/vector-icons";
-import { $axiosBase } from "@/src/services/AxiosService";
+import { registrationService } from "@/src/services/registrationService";
 
 const Step2OTPVerification: React.FC = () => {
   const { registerData, otpData, setOtpData, nextStep, prevStep } =
@@ -85,10 +85,10 @@ const Step2OTPVerification: React.FC = () => {
     setIsVerifying(true);
     try {
       // Simulate OTP verification API call
-      const { data } = await $axiosBase.post(`/sms/verify`, {
-        phone: registerData.phoneNumber,
+      const { data } = await registrationService.verifySms(
+        registerData.phoneNumber,
         code,
-      });
+      );
       // console.log(data);
 
       // For demo purposes, accept any 6-digit code
@@ -120,9 +120,7 @@ const Step2OTPVerification: React.FC = () => {
 
     try {
       // Simulate resend API call
-      await $axiosBase.post("sms/send", {
-        phone: registerData.phoneNumber,
-      });
+      await registrationService.resendSms(registerData.phoneNumber);
 
       // Reset countdown and OTP
       setCountdown(60);

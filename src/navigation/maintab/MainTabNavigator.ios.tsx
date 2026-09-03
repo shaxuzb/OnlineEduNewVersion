@@ -21,7 +21,7 @@ import { useIsFocused, useNavigation } from "@react-navigation/native";
 
 const Tab = createBottomTabNavigator();
 const isTablet = DeviceInfo.isTablet();
-const MainTabNavigator = () => {
+const MainTabNavigator = React.memo(() => {
   const navigation = useNavigation<any>();
   const isTabsFocused = useIsFocused();
   const { theme } = useTheme();
@@ -246,6 +246,6 @@ const MainTabNavigator = () => {
       />
     </Tab.Navigator>
   );
-};
+});
 
 export default MainTabNavigator;

@@ -18,7 +18,7 @@ import LinearGradient from "react-native-linear-gradient";
 
 import { useTheme } from "@/src/context/ThemeContext";
 import { usePurchase } from "@/src/context/PurchaseContext";
-import { $axiosPrivate } from "@/src/services/AxiosService";
+import { purchaseService } from "@/src/services/purchaseService";
 import { Theme } from "@/src/types";
 import CreditCardInput from "./components/CreditCardInput";
 
@@ -47,10 +47,7 @@ export default function CreditCardScreen({
 
   const handleSendSms = async (orderId: any) => {
     try {
-      const { data } = await $axiosPrivate.post(
-        "transactions/subscribe/card/send-sms",
-        { orderId },
-      );
+      const data = await purchaseService.sendCardSms(orderId);
       setLoading(false);
       navigation.navigate("OTPCardVerification", {
         orderId,

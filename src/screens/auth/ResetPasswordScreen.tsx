@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
 } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
 import { Theme } from "../../types";
@@ -15,6 +14,10 @@ import {
   useResetPassword,
 } from "@/src/context/ResetPasswordContext";
 import Step2OTPVerification from "./resetpassword/Step2OTPVerification";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { AuthStackParamList } from "../../types";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 // Progress indicator component
 const ProgressIndicator: React.FC<{
@@ -81,6 +84,8 @@ const ResetPasswordScreenContent: React.FC<ResetPasswordScreenContentProps> = ({
   onClose,
 }) => {
   const { currentStep, resetDatas } = useResetPassword();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
   const { theme } = useTheme();
   const styles = createStyles(theme);
 
@@ -88,6 +93,8 @@ const ResetPasswordScreenContent: React.FC<ResetPasswordScreenContentProps> = ({
     resetDatas();
     if (onClose) {
       onClose();
+    } else {
+      navigation.goBack();
     }
   };
 
@@ -101,7 +108,7 @@ const ResetPasswordScreenContent: React.FC<ResetPasswordScreenContentProps> = ({
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} >
       
 
       {/* Header with close button and progress - hide on success screen */}
@@ -152,8 +159,8 @@ const createStyles = (theme: Theme) =>
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      paddingHorizontal: 20,
-      paddingVertical: 16,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
     },

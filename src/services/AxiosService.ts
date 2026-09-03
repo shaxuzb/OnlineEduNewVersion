@@ -6,10 +6,21 @@ import { AuthToken } from "../types";
 
 // 🔹 Queue management for refresh token
 let isRefreshing = false;
+let authInvalidationHandler: (() => void) | null = null;
 let failedQueue: Array<{
   resolve: (token: string) => void;
   reject: (error: any) => void;
 }> = [];
+
+export function subscribeToAuthInvalidation(handler: () => void) {
+  authInvalidationHandler = handler;
+
+  return () => {
+    if (authInvalidationHandler === handler) {
+      authInvalidationHandler = null;
+    }
+  };
+}
 
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((prom) => {
@@ -110,6 +121,7 @@ const handleResponseError = async (error: AxiosError) => {
 
       // 🔐 Sessionni tozalash
       await SecureStore.deleteItemAsync("session");
+      authInvalidationHandler?.();
 
       // TODO: Foydalanuvchini login sahifasiga yo'naltirish
       // Masalan: navigation.navigate('Login');

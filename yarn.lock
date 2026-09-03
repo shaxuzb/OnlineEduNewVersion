@@ -1887,22 +1887,7 @@
   dependencies:
     nanoid "^3.3.11"
 
-"@rneui/base@^4.0.0-rc.8":
-  version "4.0.0-rc.8"
-  resolved "https://registry.npmjs.org/@rneui/base/-/base-4.0.0-rc.8.tgz"
-  integrity sha512-teJ6bUki+TQ+r+abefEWYb2wRUaMgRhp1oxtKa84UfDqTiCF0ItyJ0L8FhMb6AAkTOkWC34301T7j3H4df6ueA==
-  dependencies:
-    "@types/react-native-vector-icons" "^6.4.10"
-    color "^3.2.1"
-    deepmerge "^4.2.2"
-    hoist-non-react-statics "^3.3.2"
-    react-native-ratings "^8.1.0"
-    react-native-size-matters "^0.4.0"
-
-"@rneui/themed@^4.0.0-rc.8":
-  version "4.0.0-rc.8"
-  resolved "https://registry.npmjs.org/@rneui/themed/-/themed-4.0.0-rc.8.tgz"
-  integrity sha512-8L/XOrL9OK/r+/iBLvx63TbIdZOXF8SIjN9eArMYm6kRbMr8m4BitXllDN8nBhBsSPNYvL6EAgjk+i2MfY4sBA==
+"@sideway/address@^4.1.5":
 
 "@sideway/address@^4.1.5":
   version "4.1.5"
@@ -3842,14 +3827,6 @@ expo-splash-screen@~0.30.10:
   integrity sha512-Tt9va/sLENQDQYeOQ6cdLdGvTZ644KR3YG9aRlnpcs2/beYjOX1LHT510EGzVN9ljUTg+1ebEo5GGt2arYtPjw==
   dependencies:
     "@expo/prebuild-config" "^9.0.10"
-
-expo-status-bar@~2.2.3:
-  version "2.2.3"
-  resolved "https://registry.npmjs.org/expo-status-bar/-/expo-status-bar-2.2.3.tgz"
-  integrity sha512-+c8R3AESBoduunxTJ8353SqKAKpxL6DvcD8VKBuh81zzJyUUbfB4CVjr1GufSJEKsMzNPXZU+HJwXx7Xh7lx8Q==
-  dependencies:
-    react-native-edge-to-edge "1.6.0"
-    react-native-is-edge-to-edge "^1.1.6"
 
 expo-updates-interface@~1.1.0:
   version "1.1.0"
@@ -6432,22 +6409,6 @@ react-is@^19.0.0, react-is@^19.1.0:
   resolved "https://registry.npmjs.org/react-is/-/react-is-19.2.0.tgz"
   integrity sha512-x3Ax3kNSMIIkyVYhWPyO09bu0uttcAIoecO/um/rKGQ4EltYWVYtyiGkS/3xMynrbVQdS69Jhlv8FXUEZehlzA==
 
-react-native-blob-util@^0.23.2:
-  version "0.23.2"
-  resolved "https://registry.npmjs.org/react-native-blob-util/-/react-native-blob-util-0.23.2.tgz"
-  integrity sha512-ZsUUFQYyZ7BI57c31XdPCkPlteoH7+PvcVy2w6wh1OPSUWGtKL79pj7fa6MepMX0v87fn0V9Heq0n6OjEpLdCw==
-  dependencies:
-    base-64 "0.1.0"
-    glob "^10.3.10"
-
-react-native-credit-card-input@^1.0.0:
-  version "1.0.0"
-  resolved "https://registry.npmjs.org/react-native-credit-card-input/-/react-native-credit-card-input-1.0.0.tgz"
-  integrity sha512-x7TKe0o065LKuSWrHIqrBG/o8Qa21aOTihi986hG+7bLnP8D5W5TcZS+C3RKVECpaEn/KLnmqcxhyZ5Ano69BQ==
-  dependencies:
-    card-validator "^10.0.0"
-    react-native-flip-card "^3.5.7"
-
 react-native-device-info@^14.1.1:
   version "14.1.1"
   resolved "https://registry.npmjs.org/react-native-device-info/-/react-native-device-info-14.1.1.tgz"
@@ -6489,11 +6450,6 @@ react-native-is-edge-to-edge@^1.1.6, react-native-is-edge-to-edge@^1.1.7, react-
   version "1.2.1"
   resolved "https://registry.npmjs.org/react-native-is-edge-to-edge/-/react-native-is-edge-to-edge-1.2.1.tgz"
   integrity sha512-FLbPWl/MyYQWz+KwqOZsSyj2JmLKglHatd3xLZWskXOpRaio4LfEDEz8E/A6uD8QoTHW6Aobw1jbEwK7KMgR7Q==
-
-react-native-keyboard-aware-scrollview@^2.1.0:
-  version "2.1.0"
-  resolved "https://registry.npmjs.org/react-native-keyboard-aware-scrollview/-/react-native-keyboard-aware-scrollview-2.1.0.tgz"
-  integrity sha512-XfWozWFPhdecfxN+wuqERX3mCGDrAim5siC6TWg3Qw7wK/zlwIwe1UIsHDNOQCzf9oIh0SkZXvoOFsMrnyIVmQ==
 
 react-native-keyboard-controller@^1.19.5:
   version "1.19.6"
@@ -6608,13 +6564,6 @@ react-native-toast-message@^2.3.3:
   resolved "https://registry.npmjs.org/react-native-toast-message/-/react-native-toast-message-2.3.3.tgz"
   integrity sha512-4IIUHwUPvKHu4gjD0Vj2aGQzqPATiblL1ey8tOqsxOWRPGGu52iIbL8M/mCz4uyqecvPdIcMY38AfwRuUADfQQ==
 
-react-native-video-controls@^2.8.1:
-  version "2.8.1"
-  resolved "https://registry.npmjs.org/react-native-video-controls/-/react-native-video-controls-2.8.1.tgz"
-  integrity sha512-dBmrE3TAKaR1gYMfbukjAM6Xo8OMZyRrxPzZtnaUgWcvGo11PQwzaI/j8HPD5fLgO+rlweP2pDpEJyIBsJvJkw==
-  dependencies:
-    lodash "^4.16.4"
-
 react-native-video@^6.16.1:
   version "6.16.1"
   resolved "https://registry.npmjs.org/react-native-video/-/react-native-video-6.16.1.tgz"
@@ -6696,15 +6645,6 @@ react-shallow-renderer@^16.15.0:
   dependencies:
     object-assign "^4.1.1"
     react-is "^16.12.0 || ^17.0.0 || ^18.0.0"
-
-react-test-renderer@18.2.0:
-  version "18.2.0"
-  resolved "https://registry.npmjs.org/react-test-renderer/-/react-test-renderer-18.2.0.tgz"
-  integrity sha512-JWD+aQ0lh2gvh4NM3bBM42Kx+XybOxCpgYK7F8ugAlpaTSnWsX+39Z4XkOykGZAHrjwwTZT3x3KxswVWxHPUqA==
-  dependencies:
-    react-is "^18.2.0"
-    react-shallow-renderer "^16.15.0"
-    scheduler "^0.23.0"
 
 react-test-renderer@19.0.0:
   version "19.0.0"

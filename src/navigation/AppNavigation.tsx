@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   DefaultTheme,
   NavigationContainer,
-  ThemeProvider,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useTheme } from "../context/ThemeContext";
@@ -14,8 +13,6 @@ import LoginScreen from "../screens/auth/LoginScreen";
 import LoadingScreen from "../components/LoadingScreen";
 import { useAuth } from "../context/AuthContext";
 
-import SystemNavigationBar from "react-native-system-navigation-bar";
-import { StatusBar } from "react-native";
 import PaymentOrders from "../screens/profile/screen/paymentorders";
 import LinearGradient from "react-native-linear-gradient";
 import { moderateScale } from "react-native-size-matters";
@@ -27,11 +24,28 @@ import { PurchaseStack } from "./PurchaseStack";
 import { PurchaseModal } from "../screens/purchases/components/PurchaseModal";
 import { PurchaseProvider } from "../context/PurchaseContext";
 import MainTabNavigator from "./maintab";
+import RegisterScreen from "../screens/auth/RegisterScreen";
+import ResetPasswordScreen from "../screens/auth/ResetPasswordScreen";
+import { AuthStackParamList } from "../types";
 
 const Stack = createNativeStackNavigator();
+const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const isTablet = DeviceInfo.isTablet();
 
-const MainStackNavigator = () => (
+const AuthStackNavigator = React.memo(() => (
+  <AuthStack.Navigator
+    screenOptions={{
+      headerShown: false,
+      animation: "slide_from_right",
+    }}
+  >
+    <AuthStack.Screen name="Login" component={LoginScreen} />
+    <AuthStack.Screen name="Register" component={RegisterScreen} />
+    <AuthStack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+  </AuthStack.Navigator>
+));
+
+const MainStackNavigator = React.memo(() => (
   <Stack.Navigator
     screenOptions={{
       animation: "ios_from_right",
@@ -467,7 +481,7 @@ const MainStackNavigator = () => (
       }}
     />
   </Stack.Navigator>
-);
+));
 
 export default function AppNavigation() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -476,6 +490,7 @@ export default function AppNavigation() {
   const navigationTheme = useMemo(
     () => ({
       ...DefaultTheme,
+      dark: theme.isDark,
       colors: {
         ...DefaultTheme.colors,
         background: theme.colors.background,
@@ -491,15 +506,6 @@ export default function AppNavigation() {
 
     return () => unsubscribe();
   }, []);
-  // Show loading screen (splash screen) while checking authentication
-  useEffect(() => {
-    try {
-      SystemNavigationBar.setBarMode(theme.isDark ? "light" : "dark");
-      SystemNavigationBar.setNavigationColor(theme.colors.tabBarBackground);
-    } catch (error) {
-      console.warn("SystemNavigationBar error:", error);
-    }
-  }, [theme]);
   if (!isConnected) {
     return <NoConnection setIsConnected={setIsConnected} />;
   }
@@ -508,24 +514,11 @@ export default function AppNavigation() {
   }
 
   return (
-    <NavigationContainer
-      theme={{
-        ...DefaultTheme,
-        dark: false,
-      }}
-    >
-      <ThemeProvider value={navigationTheme}>
-        <StatusBar
-          hidden
-          translucent
-          backgroundColor={"transparent"}
-          barStyle={"light-content"}
-        />
-        <PurchaseProvider>
-          {isAuthenticated ? <MainStackNavigator /> : <LoginScreen />}
-          <PurchaseModal />
-        </PurchaseProvider>
-      </ThemeProvider>
+    <NavigationContainer theme={navigationTheme}>
+      <PurchaseProvider>
+        {isAuthenticated ? <MainStackNavigator /> : <AuthStackNavigator />}
+        <PurchaseModal />
+      </PurchaseProvider>
     </NavigationContainer>
   );
 }

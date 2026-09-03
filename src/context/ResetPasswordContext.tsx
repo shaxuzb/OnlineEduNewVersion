@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
-import { $axiosBase } from "../services/AxiosService";
+import { passwordResetService } from "../services/passwordResetService";
 
 export interface ResetPassword {
   phone: string;
@@ -76,10 +76,7 @@ export const ResetPasswordProvider: React.FC<RegisterProviderProps> = ({
     confirmPassword: string;
     code: string;
   }) => {
-    await $axiosBase.post("account/password-reset/confirm", {
-      ...resetPasswordData,
-      ...values,
-    });
+    await passwordResetService.confirm({ ...resetPasswordData, ...values });
     updateResetPasswordData(values);
   };
 

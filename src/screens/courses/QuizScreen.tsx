@@ -12,6 +12,7 @@ import {
   Alert,
   Dimensions,
   FlatList,
+  InteractionManager,
   Platform,
   StyleSheet,
   Text,
@@ -516,37 +517,46 @@ export default function QuizScreen({
       isScreenGuardEnabledRef.current = enabled;
       const requestId = ++guardRequestIdRef.current;
 
-      (async () => {
-        try {
-          if (enabled) {
-            try {
-              await ScreenGuardModule.unregister();
-            } catch {}
+      InteractionManager.runAfterInteractions(() => {
+        if (
+          guardRequestIdRef.current !== requestId ||
+          (enabled && !isScreenGuardEnabledRef.current)
+        ) {
+          return;
+        }
 
-            await ScreenGuardModule.initSettings({
-              displayScreenGuardOverlay: false,
-              timeAfterResume: 500,
-              getScreenshotPath: false,
-            });
+        void (async () => {
+          try {
+            if (enabled) {
+              try {
+                await ScreenGuardModule.unregister();
+              } catch {}
 
-            if (
-              guardRequestIdRef.current !== requestId ||
-              !isScreenGuardEnabledRef.current
-            ) {
+              await ScreenGuardModule.initSettings({
+                displayScreenGuardOverlay: false,
+                timeAfterResume: 500,
+                getScreenshotPath: false,
+              });
+
+              if (
+                guardRequestIdRef.current !== requestId ||
+                !isScreenGuardEnabledRef.current
+              ) {
+                return;
+              }
+
+              await ScreenGuardModule.registerWithBlurView({
+                radius: 20,
+              });
               return;
             }
 
-            await ScreenGuardModule.registerWithBlurView({
-              radius: 20,
-            });
-            return;
+            await ScreenGuardModule.unregister();
+          } catch (error) {
+            console.warn("Quiz iOS ScreenGuard error:", error);
           }
-
-          await ScreenGuardModule.unregister();
-        } catch (error) {
-          console.warn("Quiz iOS ScreenGuard error:", error);
-        }
-      })();
+        })();
+      });
 
       return;
     }

@@ -8,14 +8,10 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
-  Modal,
-  StatusBar,
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { Theme } from "../../types";
-import RegisterScreen from "./RegisterScreen";
-import ResetPasswordScreen from "./ResetPasswordScreen";
 import { Ionicons } from "@expo/vector-icons";
 import SupportModal from "./SupportModal";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -24,14 +20,17 @@ import {
   KeyboardAwareScrollView,
 } from "react-native-keyboard-controller";
 import { moderateScale } from "react-native-size-matters";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { AuthStackParamList } from "../../types";
 const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showRegister, setShowRegister] = useState(false);
   const [supportModal, setSupportModal] = useState(false);
-  const [showResetPassword, setShowResetPassword] = useState(false);
   const { login, isLoginLoading } = useAuth();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
   const { theme } = useTheme();
   const styles = createStyles(theme);
 
@@ -68,10 +67,6 @@ const LoginScreen: React.FC = () => {
             flex: 1,
           }}
         >
-          <StatusBar
-            barStyle={theme.isDark ? "light-content" : "dark-content"}
-            backgroundColor={theme.colors.background}
-          />
           <ScrollView
             contentContainerStyle={styles.scrollContainer}
             keyboardShouldPersistTaps="handled"
@@ -143,7 +138,7 @@ const LoginScreen: React.FC = () => {
                 {/* Forgot Password Link */}
                 <TouchableOpacity
                   style={styles.forgotPasswordContainer}
-                  onPress={() => setShowResetPassword(true)}
+                  onPress={() => navigation.navigate("ResetPassword")}
                 >
                   <Text style={styles.forgotPasswordText}>
                     Parolni unutdingizmi?
@@ -153,7 +148,7 @@ const LoginScreen: React.FC = () => {
                 {/* Register Link */}
                 <TouchableOpacity
                   style={styles.registerContainer}
-                  onPress={() => setShowRegister(true)}
+                  onPress={() => navigation.navigate("Register")}
                 >
                   <Text style={styles.registerText}>Ro'yxatdan o'tish</Text>
                 </TouchableOpacity>
@@ -161,27 +156,10 @@ const LoginScreen: React.FC = () => {
             </View>
           </ScrollView>
 
-          {/* Register Modal */}
           <SupportModal
             visible={supportModal}
             onClose={() => setSupportModal(false)}
           />
-          <Modal
-            visible={showResetPassword}
-            animationType="slide"
-            presentationStyle="fullScreen"
-            onRequestClose={() => setShowResetPassword(false)}
-          >
-            <ResetPasswordScreen onClose={() => setShowResetPassword(false)} />
-          </Modal>
-          <Modal
-            visible={showRegister}
-            animationType="slide"
-            presentationStyle="fullScreen"
-            onRequestClose={() => setShowRegister(false)}
-          >
-            <RegisterScreen onClose={() => setShowRegister(false)} />
-          </Modal>
       </KeyboardAwareScrollView>
     </SafeAreaView>
   );

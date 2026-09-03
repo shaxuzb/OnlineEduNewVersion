@@ -33,7 +33,10 @@ expoAutolinking.useExpoModules()
 
 rootProject.name = 'MATH ME'
 
-expoAutolinking.useExpoVersionCatalog()
+expoAutolinking.useExpoVersionCatalog {
+  // AGP 8.9.1 is the minimum supported toolchain for Android API 36.
+  version("agp", "8.9.1")
+}
 
 include ':app'
 includeBuild(expoAutolinking.reactNativeGradlePlugin)

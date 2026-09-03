@@ -16,14 +16,21 @@ import { useRegister } from "../../../context/RegisterContext";
 import { useTheme } from "../../../context/ThemeContext";
 import { Theme } from "../../../types";
 import { Ionicons } from "@expo/vector-icons";
-import { $axiosPrivate } from "@/src/services/AxiosService";
+import { registrationService } from "@/src/services/registrationService";
 import Toast from "react-native-toast-message";
-
-const phoneRegex = /^\+998\d{9}$/;
+import {
+  formatUzbekPhone,
+  isCompleteUzbekPhone,
+  normalizeUzbekPhone,
+} from "../../../utils/phone";
 
 const Step2Schema = Yup.object().shape({
   phoneNumber: Yup.string()
-    .matches(phoneRegex, "Telefon raqam formati: +998XXXXXXXXX")
+    .test(
+      "uzbek-phone",
+      "Telefon raqam formati: +998 90 123 45 67",
+      (value) => Boolean(value && isCompleteUzbekPhone(value)),
+    )
     .required("Telefon raqam majburiy"),
   email: Yup.string()
     .email("Elektron pochta formati noto'g'ri")
@@ -42,21 +49,20 @@ const Step2ContactInfo: React.FC = () => {
     phoneNumber: string;
     email: string | null;
   }) => {
+    const phoneNumber = normalizeUzbekPhone(values.phoneNumber);
     try {
       updateRegisterData({
-        phoneNumber: values.phoneNumber,
+        phoneNumber,
         email: values.email || "",
       });
-      await $axiosPrivate.post(`sms/send`, {
-        phone: values.phoneNumber,
-      });
+      await registrationService.sendSms(phoneNumber);
 
       // Show SMS sending confirmation
       nextStep();
       Toast.show({
         type: "success", // 'success' | 'error' | 'info'
         text1: "SMS yuborildi!",
-        text2: `${values.phoneNumber} raqamiga tasdiqlash kodi yuborildi`,
+        text2: `${formatUzbekPhone(phoneNumber)} raqamiga tasdiqlash kodi yuborildi`,
       });
     } catch (error: any) {
       if (error.status === 400) {
@@ -91,7 +97,7 @@ const Step2ContactInfo: React.FC = () => {
 
           <Formik
             initialValues={{
-              phoneNumber: registerData.phoneNumber || "+998",
+              phoneNumber: formatUzbekPhone(registerData.phoneNumber || "+998"),
               email: registerData.email || "",
             }}
             validationSchema={Step2Schema}
@@ -99,6 +105,7 @@ const Step2ContactInfo: React.FC = () => {
           >
             {({
               handleChange,
+              setFieldValue,
               handleBlur,
               handleSubmit,
               values,
@@ -117,12 +124,15 @@ const Step2ContactInfo: React.FC = () => {
                         errors.phoneNumber &&
                         styles.inputError,
                     ]}
-                    placeholder="+998XXXXXXXXX"
+                    placeholder="+998 90 123 45 67"
                     placeholderTextColor={theme.colors.textMuted}
                     keyboardType="phone-pad"
                     value={values.phoneNumber}
-                    onChangeText={handleChange("phoneNumber")}
+                    onChangeText={(value) =>
+                      setFieldValue("phoneNumber", formatUzbekPhone(value))
+                    }
                     onBlur={handleBlur("phoneNumber")}
+                    maxLength={17}
                   />
                   {touched.phoneNumber && errors.phoneNumber && (
                     <Text style={styles.errorText}>{errors.phoneNumber}</Text>

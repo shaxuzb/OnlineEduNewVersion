@@ -1,3 +1,4 @@
+import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import PurchaseScreen from "../screens/purchases/PurchaseScreen";
 import { moderateScale } from "react-native-size-matters";
@@ -8,7 +9,7 @@ import PurchasePriceScreen from "../screens/purchases/PurchasePriceScreen";
 import LinearGradient from "react-native-linear-gradient";
 
 const Stack = createNativeStackNavigator();
-export function PurchaseStack() {
+export const PurchaseStack = React.memo(function PurchaseStack() {
   return (
     <Stack.Navigator
       screenOptions={{
@@ -50,4 +51,4 @@ export function PurchaseStack() {
       />
     </Stack.Navigator>
   );
-}
+});

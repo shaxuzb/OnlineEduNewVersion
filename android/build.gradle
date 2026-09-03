@@ -6,7 +6,8 @@ buildscript {
     mavenCentral()
   }
   dependencies {
-    classpath('com.android.tools.build:gradle')
+    // API 36 requires an AGP version with Android 16 support.
+    classpath('com.android.tools.build:gradle:8.9.1')
     classpath('com.facebook.react:react-native-gradle-plugin')
     classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
   }

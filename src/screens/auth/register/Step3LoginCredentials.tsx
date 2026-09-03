@@ -29,7 +29,7 @@ const Step3Schema = Yup.object().shape({
     )
     .required("Login majburiy"),
   password: Yup.string()
-    .min(6, "Parol kamida 6 ta belgidan iborat bo'lishi kerak")
+    .min(5, "Parol kamida 5 ta belgidan iborat bo'lishi kerak")
     // .matches(/[A-Z]/, 'Parol kamida bitta katta harf bo\'lishi kerak')
     // .matches(/[a-z]/, 'Parol kamida bitta kichik harf bo\'lishi kerak')
     // .matches(/[0-9]/, 'Parol kamida bitta raqam bo\'lishi kerak')

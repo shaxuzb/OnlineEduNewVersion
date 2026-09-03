@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
-import { $axiosBase } from "../services/AxiosService";
-import DeviceInfo from "react-native-device-info";
+import { registrationService } from "../services/registrationService";
 
 export interface RegisterData {
   // Step 1 - Personal Info
@@ -110,13 +109,14 @@ export const RegisterProvider: React.FC<RegisterProviderProps> = ({
     password: string;
     confirmPassword: string;
   }) => {
-    await $axiosBase.post("account/register", {
-      ...registerData,
-      ...values,
-      uniqueId: (await DeviceInfo.getUniqueId()).toString(),
-    });
-    updateRegisterData(values);
-    setCurrentStep(5);
+    setIsLoading(true);
+    try {
+      await registrationService.register({ ...registerData, ...values });
+      updateRegisterData(values);
+      setCurrentStep(5);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const resetRegistration = () => {

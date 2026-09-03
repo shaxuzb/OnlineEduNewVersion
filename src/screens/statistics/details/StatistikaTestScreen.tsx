@@ -36,7 +36,7 @@ function StatistikaTestScreen({
   const { testId, userId, subjectId, themeName, themeId, subjectCode, mavzu } =
     route.params;
 
-  const isNationalSubject = subjectCode === "NATIONAL";
+  const isNationalSubject = subjectCode === "NATIONAL_CERTIFICATE";
 
   const {
     data: themeTestStatistics,
@@ -312,7 +312,7 @@ function StatistikaTestScreen({
                     (item) => item.code === "SOLUTION",
                   )
                 ) {
-                  if (subjectCode === "NATIONAL") {
+                  if (subjectCode === "NATIONAL_CERTIFICATE") {
                     return navigation.navigate("QuizSolutionSertificate", {
                       userId,
                       testId,

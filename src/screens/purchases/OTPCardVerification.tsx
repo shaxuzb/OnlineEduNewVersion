@@ -16,7 +16,7 @@ import LinearGradient from "react-native-linear-gradient";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 
 import { useTheme } from "@/src/context/ThemeContext";
-import { $axiosBase, $axiosPrivate } from "@/src/services/AxiosService";
+import { purchaseService } from "@/src/services/purchaseService";
 import getQueryClient from "@/src/utils/helpers/queryClient";
 import { Theme } from "@/src/types";
 import { useAuth } from "@/src/context/AuthContext";
@@ -90,10 +90,7 @@ const OTPCardVerification = ({
   const handleVerifyOtp = async (code: string) => {
     setIsVerifying(true);
     try {
-      await $axiosPrivate.post(`transactions/subscribe/card/pay`, {
-        orderId: orderId,
-        code,
-      });
+      await purchaseService.verifyCardPayment(orderId, code);
       queries.clear();
 
       Toast.show({
@@ -138,9 +135,7 @@ const OTPCardVerification = ({
   const handleResendCode = async () => {
     setIsResending(true);
     try {
-      await $axiosBase.post("transactions/subscribe/card/send-sms", {
-        orderId: orderId,
-      });
+      await purchaseService.resendCardSms(orderId);
 
       setCountdown(60);
       setCanResend(false);

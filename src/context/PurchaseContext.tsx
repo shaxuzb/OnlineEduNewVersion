@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
-import { $axiosPrivate } from "../services/AxiosService";
 import { SubscriptionPlanOption } from "../types";
+import { purchaseService } from "../services/purchaseService";
 // 🟦 Sotib olishni yuborish funksiyasi (post)
 interface SubmitPurchaseProps {
   values: {
@@ -35,7 +35,7 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({
         ...values,
       };
 
-      const { data } = await $axiosPrivate.post("purchase-orders", body);
+      const data = await purchaseService.createOrder(body);
       setSelectedItem(null);
       return data;
     },

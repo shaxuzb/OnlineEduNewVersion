@@ -8,9 +8,12 @@ import React, {
   ReactNode,
 } from "react";
 import * as SecureStore from "expo-secure-store";
+import { isAxiosError } from "axios";
 import { AuthToken, AuthUserData, UserSubscription } from "../types";
-import { $axiosBase, $axiosPrivate } from "../services/AxiosService";
-import DeviceInfo from "react-native-device-info";
+import {
+  subscribeToAuthInvalidation,
+} from "../services/AxiosService";
+import { authService } from "../services/authService";
 import { queryClient } from "../utils/helpers/queryClient";
 import { useQuery } from "@tanstack/react-query";
 interface AuthContextType {
@@ -36,19 +39,14 @@ interface AuthProviderProps {
 const AUTH_TOKEN_SESSION = "session";
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isLoginLoading, setIsLoginLoading] = useState(false);
   const [user, setUser] = useState<AuthUserData | null>(null);
   const isAuthenticated = !!user;
 
   const { data: plan, refetch } = useQuery<UserSubscription>({
     queryKey: ["current-plan", user?.id],
-    queryFn: async () => {
-      const response = await $axiosPrivate.get<UserSubscription>(
-        "subscription-plan/current-plan",
-      );
-      return response.data;
-    },
+    queryFn: authService.getCurrentPlan,
     enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
@@ -76,6 +74,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     checkAuthStatus();
   }, [checkAuthStatus]);
 
+  useEffect(
+    () =>
+      subscribeToAuthInvalidation(() => {
+        queryClient.clear();
+        setUser(null);
+      }),
+    [],
+  );
+
   const login = useCallback(
     async (
       email: string,
@@ -83,11 +90,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     ): Promise<boolean | { status: number }> => {
       setIsLoginLoading(true);
       try {
-        const { data } = await $axiosBase.post<AuthToken>("/account/login", {
-          userName: email,
-          password,
-          uniqueId: (await DeviceInfo.getUniqueId()).toString(),
-        });
+        const data = await authService.login(email, password);
         if (data) {
           await SecureStore.setItemAsync(
             AUTH_TOKEN_SESSION,
@@ -98,8 +101,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
         return false;
       } catch (error) {
-        const status =
-          (error as any)?.response?.status ?? (error as any)?.status;
+        const status = isAxiosError(error) ? error.response?.status : undefined;
         if (typeof status === "number") {
           return { status };
         }

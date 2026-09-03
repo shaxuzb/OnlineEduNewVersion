@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-} from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { RegisterProvider, useRegister } from "../../context/RegisterContext";
 import { useTheme } from "../../context/ThemeContext";
 import { Theme } from "../../types";
@@ -15,7 +9,10 @@ import Step2OTPVerification from "./register/Step2OTPVerification";
 import Step3LoginCredentials from "./register/Step3LoginCredentials";
 import SuccessScreen from "./register/SuccessScreen";
 import { Ionicons } from "@expo/vector-icons";
-import Toast from "react-native-toast-message";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { AuthStackParamList } from "../../types";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 // Progress indicator component
 const ProgressIndicator: React.FC<{
@@ -82,6 +79,8 @@ const RegisterScreenContent: React.FC<RegisterScreenContentProps> = ({
   onClose,
 }) => {
   const { currentStep, resetRegistration } = useRegister();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
   const { theme } = useTheme();
   const styles = createStyles(theme);
 
@@ -89,6 +88,8 @@ const RegisterScreenContent: React.FC<RegisterScreenContentProps> = ({
     resetRegistration();
     if (onClose) {
       onClose();
+    } else {
+      navigation.goBack();
     }
   };
 
@@ -111,8 +112,6 @@ const RegisterScreenContent: React.FC<RegisterScreenContentProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-     
-
       {/* Header with close button and progress - hide on success screen */}
       {currentStep !== 5 && (
         <View style={styles.header}>
@@ -159,8 +158,8 @@ const createStyles = (theme: Theme) =>
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      paddingHorizontal: 20,
-      paddingVertical: 16,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
     },
@@ -212,7 +211,7 @@ const createStyles = (theme: Theme) =>
       color: "white",
     },
     progressLine: {
-      width: 40,
+      width: 20,
       height: 2,
       backgroundColor: theme.colors.border,
       marginHorizontal: 8,

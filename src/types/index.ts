@@ -131,6 +131,12 @@ export interface Theme {
 
 export type ThemeMode = "light" | "dark" | "system";
 
+export type AuthStackParamList = {
+  Login: undefined;
+  Register: undefined;
+  ResetPassword: undefined;
+};
+
 export type RootStackParamList = {
   MainTabs: undefined;
   CoursesList: undefined;

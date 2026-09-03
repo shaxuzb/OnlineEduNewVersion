@@ -8,5 +8,12 @@
       "@/*": ["./*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", "nativewind-env.d.ts", "src/types", "index.js"]
+  "include": ["App.tsx", "index.js", "src/**/*.ts", "src/**/*.tsx", "nativewind-env.d.ts"],
+  "exclude": [
+    "[locale]/**",
+    "android/**",
+    "node_modules/**",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
+  ]
 }

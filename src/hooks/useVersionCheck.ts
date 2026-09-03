@@ -14,7 +14,7 @@ interface UseVersionCheckReturn {
 
 const LAST_CHECK_KEY = "@last_update_check";
 const DISMISSED_VERSION_KEY = "@dismissed_version";
-const CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes for testing
+const CHECK_INTERVAL = 24 * 60 * 60 * 1000;
 
 export const useVersionCheck = (): UseVersionCheckReturn => {
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
@@ -106,10 +106,6 @@ export const useVersionCheck = (): UseVersionCheckReturn => {
       hasCheckedRef.current = true;
 
       // console.log('Initializing version check...');
-
-      // Clear cache for testing - remove this in production
-      await AsyncStorage.removeItem(LAST_CHECK_KEY);
-      await AsyncStorage.removeItem(DISMISSED_VERSION_KEY);
 
       const shouldCheckNow = await shouldCheck();
       // console.log('Should check for updates:', shouldCheckNow);

@@ -4,6 +4,7 @@ import AppNavigation from "./src/navigation/AppNavigation";
 import { AuthProvider } from "./src/context/AuthContext";
 import { BookmarkProvider } from "./src/context/BookmarkContext";
 import { ThemeProvider } from "./src/context/ThemeContext";
+import ThemeStatusBar from "./src/components/ThemeStatusBar";
 import { QueryProvider } from "./src/providers/QueryProvider";
 import * as SplashScreen from "expo-splash-screen";
 import { UpdateNotificationSheet } from "./src/components";
@@ -86,6 +87,7 @@ export default function App() {
       <KeyboardProvider>
         <QueryProvider>
           <ThemeProvider>
+            <ThemeStatusBar />
             <AuthProvider>
               <BookmarkProvider>
                 <SafeAreaProvider>

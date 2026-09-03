@@ -14,8 +14,8 @@ import {
 import { useTheme } from "../../../context/ThemeContext";
 import { Theme } from "../../../types";
 import { Ionicons } from "@expo/vector-icons";
-import { $axiosBase } from "@/src/services/AxiosService";
 import { useResetPassword } from "@/src/context/ResetPasswordContext";
+import { passwordResetService } from "@/src/services/passwordResetService";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import { OtpInput } from "react-native-otp-entry";
@@ -25,7 +25,7 @@ const Step3Schema = Yup.object().shape({
     .min(6, "Kod to'liq emas")
     .required("Tasdiqlash kodi majburiy"),
   newPassword: Yup.string()
-    .min(8, "Parol kamida 8 ta belgidan iborat bo'lishi kerak")
+    .min(5, "Parol kamida 5 ta belgidan iborat bo'lishi kerak")
     // .matches(/[A-Z]/, 'Parol kamida bitta katta harf bo\'lishi kerak')
     // .matches(/[a-z]/, 'Parol kamida bitta kichik harf bo\'lishi kerak')
     // .matches(/[0-9]/, 'Parol kamida bitta raqam bo\'lishi kerak')
@@ -117,9 +117,7 @@ const Step2OTPVerification: React.FC<Step2OTPVerificationProps> = ({
 
     try {
       // Simulate resend API call
-      await $axiosBase.post("account/password-reset/request", {
-        phone: resetPasswordData.phone,
-      });
+      await passwordResetService.requestPublic(resetPasswordData.phone);
 
       setCountdown(180);
       setCanResend(false);

@@ -9,7 +9,6 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { memo, useCallback, useMemo } from "react";
 import {
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -61,7 +60,6 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
   }, [theme.colors.error, theme.colors.primary, theme.colors.success, theme.colors.warning]);
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      <StatusBar barStyle={"dark-content"} />
       {isLoading ? (
         <LoadingData />
       ) : error ? (
