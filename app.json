@@ -41,7 +41,12 @@
       "checkAutomatically": "ON_ERROR_RECOVERY",
       "fallbackToCacheTimeout": 0
     },
-    "plugins": ["expo-dev-client", "expo-secure-store", "./plugins/withFmtFix"],
+    "plugins": [
+      "expo-dev-client",
+      "expo-secure-store",
+      "expo-notifications",
+      "./plugins/withFmtFix"
+    ],
     "extra": {
       "API_URL": "https://edu-api.crmuz.uz",
       "router": {},

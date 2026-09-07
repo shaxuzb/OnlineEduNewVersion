@@ -1,9 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { chatService } from "../services/chatService";
 import { ChatMessage } from "../types";
+import { ChatUnreadState } from "../services/chatRealtimeUtils";
+import { ChatReader } from "../services/chatService";
 
 export const chatKeys = {
-  getMessages: "getAllMessages",
+  messages: (userId: number) => ["chat", "messages", userId] as const,
+  unread: ["chat", "unread"] as const,
+  threads: ["chat", "threads"] as const,
 };
 
 export const useChat = <TData = ChatMessage[] | null>(
@@ -15,7 +19,7 @@ export const useChat = <TData = ChatMessage[] | null>(
   },
 ) => {
   return useQuery<ChatMessage[] | null, Error, TData>({
-    queryKey: [chatKeys.getMessages, userId],
+    queryKey: chatKeys.messages(userId),
     queryFn: () => chatService.getChatMessages(userId),
     enabled: options?.enabled ?? !!userId,
     refetchInterval: options?.refetchInterval,
@@ -25,20 +29,21 @@ export const useChat = <TData = ChatMessage[] | null>(
   });
 };
 
-export const useUnreadChatCount = (
-  userId: number,
-  options?: { refetchInterval?: number; enabled?: boolean },
-) =>
-  useChat(userId, {
-    refetchInterval: options?.refetchInterval,
-    enabled: options?.enabled,
-    select: (messages) =>
-      (messages ?? []).reduce((count, msg) => {
-        if (msg.senderType === 1 && !msg.isRead) {
-          return count + 1;
-        }
-        return count;
-      }, 0),
+export const useChatUnread = (options?: { enabled?: boolean }) =>
+  useQuery<ChatUnreadState, Error>({
+    queryKey: chatKeys.unread,
+    queryFn: chatService.getUnread,
+    enabled: options?.enabled ?? true,
+    staleTime: Infinity,
+    gcTime: 30 * 60 * 1000,
+  });
+
+export const useChatThreads = (options?: { enabled?: boolean }) =>
+  useQuery({
+    queryKey: chatKeys.threads,
+    queryFn: chatService.getThreads,
+    enabled: options?.enabled ?? true,
+    staleTime: 60 * 1000,
   });
 
 export const useSendMessage = () => {
@@ -52,15 +57,18 @@ export const useSendMessage = () => {
     }) => chatService.sendMessage(values),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
-        queryKey: [chatKeys.getMessages, variables.userId],
+        queryKey: chatKeys.messages(variables.userId),
       });
     },
   });
 };
 
-export const useReadMessage = (userId: number, reader: number) => {
+export const useReadMessage = (
+  userId: number,
+  reader: ChatReader,
+) => {
   const queryClient = useQueryClient();
-  const queryKey = [chatKeys.getMessages, userId] as const;
+  const queryKey = chatKeys.messages(userId);
 
   return useMutation({
     mutationFn: (values: { upToMessageId: number }) =>

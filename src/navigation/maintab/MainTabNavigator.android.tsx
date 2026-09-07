@@ -1,14 +1,13 @@
 import React, { useCallback, useMemo } from "react";
 import DeviceInfo from "react-native-device-info";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { useIsFocused, useNavigation } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../context/ThemeContext";
 import { useSession } from "../../hooks/useSession";
 import { useAuth } from "../../context/AuthContext";
 import { useGeo } from "../../hooks/useGeo";
-import { useUnreadChatCount } from "../../hooks/useChat";
+import { useChatUnread } from "../../hooks/useChat";
 import { useAppIconBadge } from "../../hooks/useAppIconBadge";
-import { useCurrentUserId } from "../../hooks/useQuiz";
 import { modalService } from "../../components/modals/modalService";
 import { moderateScale } from "react-native-size-matters";
 import { FontAwesome6, Ionicons } from "@expo/vector-icons";
@@ -24,16 +23,12 @@ const isTablet = DeviceInfo.isTablet();
 
 const MainTabNavigator = React.memo(() => {
   const navigation = useNavigation<any>();
-  const isTabsFocused = useIsFocused();
   const { theme } = useTheme();
   const { isSuperAdmin } = useSession();
   const { plan } = useAuth();
   const { countryCode } = useGeo();
-  const userId = useCurrentUserId();
-  const { data: unreadChatCount = 0 } = useUnreadChatCount(Number(userId), {
-    enabled: isTabsFocused,
-    refetchInterval: isTabsFocused ? 10000 : undefined,
-  });
+  const { data: unreadState } = useChatUnread();
+  const unreadChatCount = unreadState?.totalUnreadMessages ?? 0;
 
   useAppIconBadge(unreadChatCount);
 

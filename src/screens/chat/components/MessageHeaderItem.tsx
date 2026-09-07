@@ -18,7 +18,7 @@ const MessageHeaderItem: FC<MessageHeaderItemProps> = ({
   userId,
 }) => {
   const markedIdsRef = useRef<Set<number>>(new Set()); // ✅ qayta yuborilmasin
-  const mutation = useReadMessage(userId, 0);
+  const mutation = useReadMessage(userId, "User");
   const markAsRead = useCallback((id: number) => {
     if (markedIdsRef.current.has(id)) return; // ✅ agar oldin yuborilgan bo‘lsa, qayta yuborma
     markedIdsRef.current.add(id);

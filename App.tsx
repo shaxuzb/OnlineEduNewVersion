@@ -6,6 +6,7 @@ import { BookmarkProvider } from "./src/context/BookmarkContext";
 import { ThemeProvider } from "./src/context/ThemeContext";
 import ThemeStatusBar from "./src/components/ThemeStatusBar";
 import { QueryProvider } from "./src/providers/QueryProvider";
+import { ChatRealtimeProvider } from "./src/providers/ChatRealtimeProvider";
 import * as SplashScreen from "expo-splash-screen";
 import { UpdateNotificationSheet } from "./src/components";
 import { useVersionCheck } from "./src/hooks/useVersionCheck";
@@ -89,22 +90,24 @@ export default function App() {
           <ThemeProvider>
             <ThemeStatusBar />
             <AuthProvider>
-              <BookmarkProvider>
-                <SafeAreaProvider>
-                  <AppNavigation />
-                  <AlertHost />
-                  <Toast config={toastConfig} topOffset={50} />
-                  {/* Update Notification Bottom Sheet */}
-                  {versionInfo && (
-                    <UpdateNotificationSheet
-                      visible={showUpdateSheet}
-                      versionInfo={versionInfo}
-                      onClose={() => setShowUpdateSheet(false)}
-                      onUpdateLater={handleUpdateLater}
-                    />
-                  )}
-                </SafeAreaProvider>
-              </BookmarkProvider>
+              <ChatRealtimeProvider>
+                <BookmarkProvider>
+                  <SafeAreaProvider>
+                    <AppNavigation />
+                    <AlertHost />
+                    <Toast config={toastConfig} topOffset={50} />
+                    {/* Update Notification Bottom Sheet */}
+                    {versionInfo && (
+                      <UpdateNotificationSheet
+                        visible={showUpdateSheet}
+                        versionInfo={versionInfo}
+                        onClose={() => setShowUpdateSheet(false)}
+                        onUpdateLater={handleUpdateLater}
+                      />
+                    )}
+                  </SafeAreaProvider>
+                </BookmarkProvider>
+              </ChatRealtimeProvider>
             </AuthProvider>
           </ThemeProvider>
         </QueryProvider>

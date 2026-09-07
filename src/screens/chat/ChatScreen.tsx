@@ -2,6 +2,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { useChat, useReadMessage, useSendMessage } from "@/src/hooks/useChat";
 import { useCurrentUserId } from "@/src/hooks/useQuiz";
 import { ChatMessage, Theme } from "@/src/types";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import React, {
   useCallback,
@@ -15,7 +16,6 @@ import {
   Animated,
   InteractionManager,
   Platform,
-  Pressable,
   SectionList,
   StyleSheet,
   Text,
@@ -26,9 +26,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import MessageInput from "./components/MessageInput";
 import MessageItem from "./components/MessageItem";
 import { COLORS } from "@/src/utils";
-import { lightColors } from "@/src/constants/theme";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { moderateScale } from "react-native-size-matters";
+import { setChatScreenVisible } from "@/src/services/chatPresenceService";
 
 interface ChatSection {
   date: string;
@@ -71,9 +71,16 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
   }, []);
 
   const mutation = useSendMessage();
-  const readMutation = useReadMessage(Number(userId), 0);
-  const { data = [], isLoading, refetch } = useChat(Number(userId));
+  const readMutation = useReadMessage(Number(userId), "User");
+  const { data = [], isLoading } = useChat(Number(userId));
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
+
+  useFocusEffect(
+    useCallback(() => {
+      setChatScreenVisible(Number(userId), true);
+      return () => setChatScreenVisible(Number(userId), false);
+    }, [userId]),
+  );
 
   const messageSections: ChatSection[] = useMemo(() => {
     if (!isInteractionReady) return [];
@@ -312,27 +319,8 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
       title: "Habarlar",
       freezeOnBlur: true,
       headerTitleStyle: { fontSize: +moderateScale(18).toFixed(0) },
-      headerRight: () => (
-        <Pressable
-          android_ripple={{
-            foreground: true,
-            color: lightColors.ripple,
-            borderless: true,
-            radius: moderateScale(30),
-          }}
-          style={{
-            width: moderateScale(40),
-            height: moderateScale(40),
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-          onPress={() => refetch()}
-        >
-          <Ionicons name="reload" size={moderateScale(18)} color="white" />
-        </Pressable>
-      ),
     });
-  }, [navigation, refetch]);
+  }, [navigation]);
 
   return (
     <KeyboardAvoidingView
