@@ -1,21 +1,23 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useCallback, useContext, useState } from "react";
 import { SubscriptionPlanOption } from "../types";
 import { purchaseService } from "../services/purchaseService";
-// 🟦 Sotib olishni yuborish funksiyasi (post)
+import {
+  CreatePurchaseOrderRequest,
+  PurchaseOrderResponse,
+} from "../services/purchaseTypes";
+
 interface SubmitPurchaseProps {
-  values: {
-    planId: number;
-    paymentType: string;
-    card?: {
-      number: string;
-      expire: string;
-    };
-  };
+  values: Omit<CreatePurchaseOrderRequest, "scopeIds">;
 }
+
 interface PurchaseContextType {
   selectedItem: SubscriptionPlanOption | null;
-  submitPurchase: (values: SubmitPurchaseProps) => Promise<void>;
-  setSelectedItem: React.Dispatch<React.SetStateAction<SubscriptionPlanOption | null>>;
+  submitPurchase: (
+    values: SubmitPurchaseProps,
+  ) => Promise<PurchaseOrderResponse>;
+  setSelectedItem: React.Dispatch<
+    React.SetStateAction<SubscriptionPlanOption | null>
+  >;
 }
 
 const PurchaseContext = createContext<PurchaseContextType | null>(null);
@@ -26,11 +28,9 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({
   const [selectedItem, setSelectedItem] =
     useState<SubscriptionPlanOption | null>(null);
 
-  // 🟩 Checkout bosilganda
-
   const submitPurchase = useCallback(
-    async ({ values }: SubmitPurchaseProps) => {
-      const body = {
+    async ({ values }: SubmitPurchaseProps): Promise<PurchaseOrderResponse> => {
+      const body: CreatePurchaseOrderRequest = {
         scopeIds: selectedItem?.id,
         ...values,
       };
@@ -39,7 +39,7 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({
       setSelectedItem(null);
       return data;
     },
-    [selectedItem]
+    [selectedItem],
   );
 
   return (
@@ -57,7 +57,8 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({
 
 export const usePurchase = () => {
   const context = useContext(PurchaseContext);
-  if (!context)
+  if (!context) {
     throw new Error("usePurchase must be used within PurchaseProvider");
+  }
   return context;
 };
