@@ -46,9 +46,14 @@ export const purchaseService = {
   },
 
   resendCardSms: async (orderId: number): Promise<void> => {
-    await $axiosPrivate.post("transactions/subscribe/card/send-sms", {
-      orderId,
-    });
+    try {
+      await $axiosPrivate.post("transactions/subscribe/card/send-sms", {
+        orderId,
+      });
+    } catch (error) {
+      if (getRecoverableCardSmsResponse(error)) return;
+      throw error;
+    }
   },
 
   verifyCardPayment: (orderId: number, code: string): Promise<void> =>
