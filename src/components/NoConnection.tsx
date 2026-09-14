@@ -5,16 +5,17 @@ import {
   Dimensions,
   TouchableOpacity,
 } from "react-native";
-import React, { SetStateAction, useRef } from "react";
+import React, { useRef } from "react";
 import LottieView from "lottie-react-native";
-import NetInfo from "@react-native-community/netinfo";
 import { COLORS } from "../utils";
 import { useTheme } from "../context/ThemeContext";
+
 const windowWidth = Dimensions.get("window").width;
+
 export default function NoConnection({
-  setIsConnected,
+  onRetry,
 }: {
-  setIsConnected: React.Dispatch<SetStateAction<boolean>>;
+  onRetry: () => void | Promise<void>;
 }) {
   const theme = useTheme();
   const animation = useRef<LottieView>(null);
@@ -33,7 +34,6 @@ export default function NoConnection({
           width: windowWidth - 50,
           height: windowWidth - 50,
         }}
-        // Find more Lottie files at https://lottiefiles.com/featured
         source={require("../../assets/lotties/noconnection.json")}
       />
       <Text
@@ -57,11 +57,7 @@ export default function NoConnection({
 
       <TouchableOpacity
         activeOpacity={0.9}
-        onPress={() => {
-          NetInfo.fetch().then((state) => {
-            setIsConnected(!!state.isConnected); // bu state yuqoridan prop sifatida yuborilishi kerak
-          });
-        }}
+        onPress={() => void onRetry()}
         style={style.button}
       >
         <Text
@@ -80,7 +76,13 @@ export default function NoConnection({
 
 const style = StyleSheet.create({
   container: {
-    flex: 1,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+    elevation: 1000,
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
