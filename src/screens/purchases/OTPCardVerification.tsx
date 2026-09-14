@@ -14,7 +14,10 @@ import Toast from "react-native-toast-message";
 import { SafeAreaView } from "react-native-safe-area-context";
 import LinearGradient from "react-native-linear-gradient";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import {
+  NativeStackNavigationProp,
+  NativeStackScreenProps,
+} from "@react-navigation/native-stack";
 
 import { useTheme } from "@/src/context/ThemeContext";
 import { purchaseService } from "@/src/services/purchaseService";
@@ -22,12 +25,15 @@ import getQueryClient from "@/src/utils/helpers/queryClient";
 import { Theme } from "@/src/types";
 import { useAuth } from "@/src/context/AuthContext";
 import { PurchaseStackParamList } from "@/src/navigation/purchaseTypes";
+import { RootStackParamList } from "@/src/navigation/rootTypes";
 import { invalidateAfterSuccessfulPayment } from "./paymentCache";
 
 type Props = NativeStackScreenProps<
   PurchaseStackParamList,
   "OTPCardVerification"
 >;
+
+const RESEND_DELAY_SECONDS = 60;
 
 const OTPCardVerification = ({ navigation, route }: Props) => {
   const { theme, isDark } = useTheme();
@@ -36,7 +42,7 @@ const OTPCardVerification = ({ navigation, route }: Props) => {
   const { refetchPlan } = useAuth();
   const { phoneNumber, orderId } = route.params;
   const [otpCode, setOtpCode] = useState(["", "", "", "", "", ""]);
-  const [countdown, setCountdown] = useState(60);
+  const [countdown, setCountdown] = useState(RESEND_DELAY_SECONDS);
   const [canResend, setCanResend] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -44,11 +50,12 @@ const OTPCardVerification = ({ navigation, route }: Props) => {
   const otpRefs = useRef<(TextInput | null)[]>([]);
 
   useEffect(() => {
+    if (canResend) return;
+
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
           setCanResend(true);
-          clearInterval(timer);
           return 0;
         }
         return prev - 1;
@@ -56,7 +63,7 @@ const OTPCardVerification = ({ navigation, route }: Props) => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [canResend]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -101,24 +108,26 @@ const OTPCardVerification = ({ navigation, route }: Props) => {
         text2: "To'lov amalga oshirildi",
       });
 
-      navigation.reset({
-        index: 0,
-        routes: [
-          {
-            name: "MainTabs" as never,
-            state: {
-              routes: [
-                {
-                  name: "Courses",
-                  state: {
-                    routes: [{ name: "CoursesList" }],
-                  },
-                },
-              ],
+      const rootNavigation =
+        navigation.getParent<NativeStackNavigationProp<RootStackParamList>>();
+
+      if (rootNavigation) {
+        rootNavigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: "MainTabs",
+              params: {
+                screen: "Courses",
+                params: { screen: "CoursesList" },
+              },
             },
-          },
-        ],
-      });
+          ],
+        });
+      } else {
+        console.warn("[PaymentOTP] Root navigation is unavailable");
+      }
+
       refetchPlan();
     } catch (error) {
       Toast.show({
@@ -138,7 +147,7 @@ const OTPCardVerification = ({ navigation, route }: Props) => {
     try {
       await purchaseService.resendCardSms(orderId);
 
-      setCountdown(60);
+      setCountdown(RESEND_DELAY_SECONDS);
       setCanResend(false);
       setOtpCode(["", "", "", "", "", ""]);
       otpRefs.current[0]?.focus();
@@ -272,9 +281,7 @@ const OTPCardVerification = ({ navigation, route }: Props) => {
                 <MaterialIcons name="timer" size={20} color="#5e84e6" />
               </View>
               <View style={styles.timerContent}>
-                <Text style={styles.timerLabel}>
-                  Kodning amal qilish muddati
-                </Text>
+                <Text style={styles.timerLabel}>Qayta yuborish mumkin:</Text>
                 <Text style={styles.timerText}>{formatTime(countdown)}</Text>
               </View>
             </View>
