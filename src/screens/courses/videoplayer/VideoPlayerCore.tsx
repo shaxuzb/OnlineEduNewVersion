@@ -7,9 +7,7 @@
  *  • Navigation-bar chrome
  *  • Back-button handling
  */
-import Constants from "expo-constants";
 import * as ScreenOrientation from "expo-screen-orientation";
-import * as SecureStore from "expo-secure-store";
 import React, {
   useCallback,
   useEffect,
@@ -17,7 +15,14 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Alert, Dimensions, Platform, StyleSheet, View } from "react-native";
+import {
+  Alert,
+  AppState,
+  Dimensions,
+  Platform,
+  StyleSheet,
+  View,
+} from "react-native";
 import {
   Gesture,
   GestureDetector,
@@ -30,22 +35,24 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Video, { OnProgressData, ViewType } from "react-native-video";
+import { getStoredAccessToken, refreshAccessToken } from "../../../services/AxiosService";
+import {
+  buildProtectedMediaSource,
+  isMediaAuthError,
+} from "../../../services/mediaAuthService";
 import SettingsDropdown from "./components/SettingsDropdown";
 import VideoControls from "./components/VideoControls";
 import SeekRipple from "./components/SeekRipple";
 
-// ─── constants ────────────────────────────────────────────────────────────────
 const CONTROLS_HIDE_DELAY = 3500;
 const MIN_SCALE = 1.0;
 const MAX_SCALE = 3.5;
 
-// worklet-safe clamp
 function clamp(v: number, lo: number, hi: number): number {
   "worklet";
   return Math.min(hi, Math.max(lo, v));
 }
 
-// ─── props ────────────────────────────────────────────────────────────────────
 export interface VideoPlayerCoreProps {
   lessonTitle: string;
   videoFileId: string;
@@ -53,43 +60,36 @@ export interface VideoPlayerCoreProps {
   onBack: () => void;
 }
 
-// ─── component ────────────────────────────────────────────────────────────────
 const VideoPlayerCore: React.FC<VideoPlayerCoreProps> = ({
   lessonTitle,
   videoFileId,
   onBack,
 }) => {
-  // ── React state ────────────────────────────────────────────────
   const [videoUrl, setVideoUrl] = useState("");
   const [videoHeaders, setVideoHeaders] = useState<Record<string, string>>({});
   const [paused, setPaused] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);   // drives time labels
+  const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [buffered, setBuffered] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [buffering, setBuffering] = useState(true);
-  // Controls pointer-events: "box-none" = interactive, "none" = transparent
   const [controlsPE, setControlsPE] = useState<"box-none" | "none">("box-none");
 
-  // ── Refs (no re-render) ────────────────────────────────────────
   const videoRef = useRef<any>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Slider sliding guard — prevents onProgress from fighting the thumb
   const isSlidingRef = useRef(false);
   const pendingSeekRef = useRef<number | null>(null);
   const currentTimeRef = useRef(0);
   const durationRef = useRef(0);
-  // double-tap seek accumulation
   const leftCountRef = useRef(0);
   const rightCountRef = useRef(0);
   const leftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // screen width for double-tap side detection (cached)
   const screenWidthRef = useRef(Dimensions.get("window").width);
+  const mediaRecoveryAttemptedRef = useRef(false);
 
-  // ── Animated shared values ─────────────────────────────────────
   const controlsOpacity = useSharedValue(1);
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
@@ -98,27 +98,62 @@ const VideoPlayerCore: React.FC<VideoPlayerCoreProps> = ({
   const leftSeekSecs = useSharedValue(10);
   const rightSeekSecs = useSharedValue(10);
 
-  // ── Load video URL ─────────────────────────────────────────────
+  const loadVideoSource = useCallback(
+    async (forceRefresh = false) => {
+      const token = forceRefresh
+        ? await refreshAccessToken()
+        : await getStoredAccessToken();
+      if (!token || !videoFileId) {
+        throw new Error("Missing media access token");
+      }
+
+      const source = buildProtectedMediaSource(`/videos/${videoFileId}`, token);
+      setVideoUrl(source.uri);
+      setVideoHeaders(source.headers);
+    },
+    [videoFileId],
+  );
+
   useEffect(() => {
     let active = true;
-    (async () => {
-      try {
-        const session = await SecureStore.getItemAsync("session");
-        if (!active || !session || !videoFileId) return;
-        const { token } = JSON.parse(session);
-        setVideoUrl(
-          `${Constants.expoConfig?.extra?.API_URL}/api/videos/${videoFileId}`,
-        );
-        setVideoHeaders({ Authorization: `Bearer ${token}` });
-      } catch {
-        if (!active) return;
-        Alert.alert("Xatolik", "Video yuklanmadi");
-      }
-    })();
-    return () => { active = false; };
-  }, [videoFileId]);
+    mediaRecoveryAttemptedRef.current = false;
 
-  // ── Controls visibility ────────────────────────────────────────
+    void loadVideoSource().catch(() => {
+      if (active) Alert.alert("Xatolik", "Video yuklanmadi");
+    });
+
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState !== "active" || !active) return;
+      void loadVideoSource().catch(() => undefined);
+    });
+
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, [loadVideoSource]);
+
+  const handleVideoError = useCallback(
+    async (error: unknown) => {
+      setBuffering(false);
+
+      if (isMediaAuthError(error) && !mediaRecoveryAttemptedRef.current) {
+        mediaRecoveryAttemptedRef.current = true;
+        try {
+          setBuffering(true);
+          await loadVideoSource(true);
+          return;
+        } catch (refreshError) {
+          console.warn("Video auth recovery failed:", refreshError);
+        }
+      }
+
+      console.warn("Video playback error:", error);
+      Alert.alert("Xatolik", "Video yuklanmadi");
+    },
+    [loadVideoSource],
+  );
+
   const clearHideTimer = useCallback(() => {
     if (hideTimerRef.current) {
       clearTimeout(hideTimerRef.current);
@@ -158,11 +193,9 @@ const VideoPlayerCore: React.FC<VideoPlayerCoreProps> = ({
     });
   }, [clearHideTimer, controlsOpacity]);
 
-  // Initial show on mount
   useEffect(() => {
     showControls(true);
     return clearHideTimer;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleToggleControls = useCallback(() => {
@@ -173,7 +206,6 @@ const VideoPlayerCore: React.FC<VideoPlayerCoreProps> = ({
     }
   }, [controlsOpacity, hideControlsNow, showControls]);
 
-  // ── Accumulated double-tap seek (YouTube) ──────────────────────
   const commitSeek = useCallback(
     (side: "left" | "right") => {
       const count = side === "left" ? leftCountRef.current : rightCountRef.current;
@@ -219,9 +251,7 @@ const VideoPlayerCore: React.FC<VideoPlayerCoreProps> = ({
     rightTimerRef.current = setTimeout(() => commitSeek("right"), 400);
   }, [commitSeek, rightRipple, rightSeekSecs]);
 
-  // ── Video event handlers ───────────────────────────────────────
   const onProgress = useCallback((data: OnProgressData) => {
-    // Ignore progress updates while user is scrubbing OR seek is pending
     if (isSlidingRef.current || pendingSeekRef.current !== null) return;
     currentTimeRef.current = data.currentTime;
     setCurrentTime(data.currentTime);
@@ -247,20 +277,14 @@ const VideoPlayerCore: React.FC<VideoPlayerCoreProps> = ({
     pendingSeekRef.current = null;
   }, []);
 
-  // ── Slider handlers ────────────────────────────────────────────
   const onSlidingStart = useCallback(() => {
     isSlidingRef.current = true;
-    showControlsForever(); // keep controls visible during scrub
+    showControlsForever();
   }, [showControlsForever]);
 
-  /**
-   * Only update the time labels here (for display).
-   * CustomSlider manages its own internal position – do NOT update
-   * `sliderValue` here or the native Slider will fight the finger.
-   */
   const onSliderValueChange = useCallback((v: number) => {
     currentTimeRef.current = v;
-    setCurrentTime(v); // updates time labels only
+    setCurrentTime(v);
   }, []);
 
   const onSlidingComplete = useCallback(
@@ -275,17 +299,15 @@ const VideoPlayerCore: React.FC<VideoPlayerCoreProps> = ({
     [paused, scheduleHide],
   );
 
-  // ── Play / pause ───────────────────────────────────────────────
   const togglePlayPause = useCallback(() => {
     setPaused((prev) => {
       const next = !prev;
-      if (next) showControlsForever(); // paused → keep controls
-      else showControls(true);          // playing → auto-hide
+      if (next) showControlsForever();
+      else showControls(true);
       return next;
     });
   }, [showControls, showControlsForever]);
 
-  // ── Fullscreen ─────────────────────────────────────────────────
   const toggleFullscreen = useCallback(async () => {
     if (fullscreen) {
       await ScreenOrientation.lockAsync(
@@ -300,7 +322,6 @@ const VideoPlayerCore: React.FC<VideoPlayerCoreProps> = ({
     }
   }, [fullscreen]);
 
-  // ── Settings ───────────────────────────────────────────────────
   const toggleSettings = useCallback(() => {
     setShowSettings((p) => !p);
     showControlsForever();
@@ -319,7 +340,6 @@ const VideoPlayerCore: React.FC<VideoPlayerCoreProps> = ({
     [closeSettings],
   );
 
-  // ── Animated styles ────────────────────────────────────────────
   const videoZoomStyle = useAnimatedStyle(() => ({
     flex: 1,
     transform: [{ scale: scale.value }],
@@ -329,7 +349,6 @@ const VideoPlayerCore: React.FC<VideoPlayerCoreProps> = ({
     opacity: controlsOpacity.value,
   }));
 
-  // ── Gestures ───────────────────────────────────────────────────
   const singleTap = Gesture.Tap()
     .maxDuration(250)
     .onStart(() => {
@@ -351,17 +370,19 @@ const VideoPlayerCore: React.FC<VideoPlayerCoreProps> = ({
     })
     .onEnd(() => {
       const snapped = clamp(scale.value, MIN_SCALE, MAX_SCALE);
-      scale.value = withSpring(snapped, { damping: 20, stiffness: 130, mass: 0.7 });
+      scale.value = withSpring(snapped, {
+        damping: 20,
+        stiffness: 130,
+        mass: 0.7,
+      });
       savedScale.value = snapped;
     });
 
-  // Pinch and tap run simultaneously; tap priority: doubleTap > singleTap
   const composed = Gesture.Simultaneous(
     Gesture.Exclusive(doubleTap, singleTap),
     pinch,
   );
 
-  // ── Video source ───────────────────────────────────────────────
   const videoSource = useMemo(
     () => ({
       uri: videoUrl,
@@ -377,13 +398,10 @@ const VideoPlayerCore: React.FC<VideoPlayerCoreProps> = ({
     [videoUrl, videoHeaders],
   );
 
-  // ── Render ─────────────────────────────────────────────────────
   return (
     <View style={styles.root}>
       <GestureDetector gesture={composed}>
         <View style={styles.touchArea}>
-
-          {/* ── Zoomable video ── */}
           <Animated.View style={videoZoomStyle}>
             <Video
               ref={videoRef}
@@ -392,11 +410,6 @@ const VideoPlayerCore: React.FC<VideoPlayerCoreProps> = ({
               paused={paused}
               rate={playbackRate}
               resizeMode="contain"
-              // Android renders video into a SurfaceView by default, which IGNORES
-              // React Native parent transforms — so pinch-zoom (scale on the parent
-              // Animated.View) has no visual effect. TextureView is a normal view
-              // that DOES honor transforms, enabling zoom. Window-level FLAG_SECURE
-              // (expo-screen-capture in the Android wrapper) still blocks screenshots.
               viewType={Platform.OS === "android" ? ViewType.TEXTURE : undefined}
               onProgress={onProgress}
               onLoad={onLoad}
@@ -404,6 +417,7 @@ const VideoPlayerCore: React.FC<VideoPlayerCoreProps> = ({
               onLoadStart={onLoadStart}
               onReadyForDisplay={onReadyForDisplay}
               onSeek={onSeek}
+              onError={handleVideoError}
               maxBitRate={4000000}
               ignoreSilentSwitch="ignore"
               playInBackground={false}
@@ -411,11 +425,17 @@ const VideoPlayerCore: React.FC<VideoPlayerCoreProps> = ({
             />
           </Animated.View>
 
-          {/* ── Seek ripples (always mounted, opacity animated) ── */}
-          <SeekRipple side="left"  active={leftRipple}  seekSeconds={leftSeekSecs}  />
-          <SeekRipple side="right" active={rightRipple} seekSeconds={rightSeekSecs} />
+          <SeekRipple
+            side="left"
+            active={leftRipple}
+            seekSeconds={leftSeekSecs}
+          />
+          <SeekRipple
+            side="right"
+            active={rightRipple}
+            seekSeconds={rightSeekSecs}
+          />
 
-          {/* ── Controls overlay (fade in / out) ── */}
           <Animated.View
             style={[StyleSheet.absoluteFill, controlsFadeStyle]}
             pointerEvents={controlsPE}
@@ -439,11 +459,9 @@ const VideoPlayerCore: React.FC<VideoPlayerCoreProps> = ({
               onSlidingComplete={onSlidingComplete}
             />
           </Animated.View>
-
         </View>
       </GestureDetector>
 
-      {/* Settings modal rendered outside the gesture area */}
       <SettingsDropdown
         visible={showSettings}
         onClose={closeSettings}
