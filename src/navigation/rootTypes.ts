@@ -1,10 +1,11 @@
 import type { NavigatorScreenParams } from "@react-navigation/native";
+import type { MainTabParamList } from "./mainTabTypes";
 import type { PurchaseStackParamList } from "./purchaseTypes";
 
 export type CertificateTestMode = "timed" | "untimed";
 
 export type RootStackParamList = {
-  MainTabs: undefined;
+  MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   Chat: undefined;
   News: undefined;
   StatistikaDetail: {
