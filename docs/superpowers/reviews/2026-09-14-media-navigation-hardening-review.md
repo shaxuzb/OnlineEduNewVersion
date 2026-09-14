@@ -8,7 +8,7 @@ Base: `refactor/production-hardening@c96e3acfd76b603b29357c54d0b66c566137eb4e`
 
 This branch is **not declared test/typecheck clean**.
 
-GitHub Actions repeatedly creates the `typecheck` and `test` jobs but no runner is assigned (`runner_id: 0`, empty runner name), no steps execute, and job logs are unavailable. Re-running a failed job reproduces the same scheduler-level failure. The current agent container also cannot clone GitHub because DNS resolution for `github.com` fails.
+GitHub Actions previously created the `typecheck` and `test` jobs without assigning a runner, so no steps executed and no logs were produced. The newest run for the current protected-PDF commit is queued at the time of this checkpoint and therefore does not yet provide executable evidence. The current agent container also cannot clone GitHub because DNS resolution for `github.com` fails.
 
 A merge must therefore wait for fresh executable evidence from either a working GitHub Actions runner or a local environment:
 
@@ -20,11 +20,14 @@ yarn test:ci
 
 ## Changes reviewed statically
 
-### Protected video playback
+### Protected media
 
 - Native `<Video>` rendering is gated until both a non-empty protected-media URI and an Authorization header are ready.
 - Successful video load resets the one-shot media-auth recovery guard so a later token-expiry event in the same mounted screen can recover again.
 - Android and iOS video wrappers use the canonical root route contract.
+- `ProtectedPdfViewer` owns protected-PDF token loading and one-shot auth recovery through the shared Axios refresh path.
+- Protected PDF source resolution now clears stale sources when the path changes, guards async source application after effect cleanup, and clears a stale document after fatal/auth-recovery failure.
+- Existing media-source regression tests cover API-path normalization and 401/403 auth-error recognition.
 
 ### Navigation contracts
 
@@ -32,8 +35,10 @@ yarn test:ci
 - Dedicated `CoursesStackParamList` and `MainTabParamList` contracts isolate nested navigator routes from the legacy type bundle.
 - `MainTabs` and `PurchaseGroup` are represented as nested navigator params through `NavigatorScreenParams`.
 - Android and iOS main-tab navigators are parameterized with `MainTabParamList`; root Chat and Purchase navigation no longer require `useNavigation<any>()`.
+- `HomeScreen` uses a composite Courses/root navigation contract, removing legacy casts for Subject, Profile, and News navigation.
 - `SubjectScreen` uses a composite Courses/root navigation contract, and invalid extra certificate-quiz params were removed.
-- `QuizScreen`, `LessonDetailScreen`, `QuizResultsScreen`, `MockQuizResultsScreen`, mock/certificate history screens, ThemeAbstract, and video wrappers have been moved to explicit navigation contracts.
+- `QuizScreen`, `LessonDetailScreen`, `QuizResultsScreen`, `MockQuizResultsScreen`, mock/certificate history screens, certificate results, ThemeAbstract, and video wrappers have been moved to explicit navigation contracts.
+- Certificate result navigation now supplies the required solution `percent`, guarantees a `mavzu` fallback, passes history metadata, and resets to the typed nested Courses route.
 - Quiz-result typing exposed and fixed missing solution-route data such as `percent` and history metadata.
 
 ### Realtime lifecycle
@@ -54,12 +59,11 @@ yarn test:ci
 
 ## Remaining frontend gaps
 
-1. **Executable verification remains blocked.** No successful `yarn typecheck` or `yarn test:ci` evidence exists for this branch yet.
-2. **Legacy protected PDF screens remain.** `MockQuizScreen`, `MockSolutionScreen`, `SolutionScreen`, `QuizScreenSertificate`, and `SolutionScreenSertificate` still own SecureStore / `react-native-pdf` media auth and should be migrated to `ProtectedPdfViewer` in a patch-capable workspace.
-3. **Certificate result screen remains partially legacy.** `QuizResultsScreenSertificate` still has `navigation: any` / `route: any` and its solution navigation should be reconciled with the required `percent` / `mavzu` contract. A full-file connector update for this file was blocked, so it was intentionally not forced.
-4. **Legacy root route type duplication remains.** `src/types/index.ts` still contains an older `RootStackParamList`. `CoursesStackNavigator` no longer depends on it, but deletion should wait until remaining imports are verified with reliable code search/typecheck evidence.
-5. **Some local navigation callback values remain broad.** Main-tab callback/event/icon helper values still contain local `any` types even though navigator and root navigation contracts are now explicit.
-6. **Purchase request typing still permits optional `scopeIds`.** Runtime guards protect the current UI flow, but the DTO should only be tightened after all direct order-creation callsites are verified because repository code search is incomplete.
+1. **Executable verification remains blocked/pending.** No successful `yarn typecheck` or `yarn test:ci` evidence exists for this branch yet.
+2. **Legacy protected PDF screens remain.** `MockQuizScreen`, `MockSolutionScreen`, `SolutionScreen`, `QuizScreenSertificate`, and `SolutionScreenSertificate` still own SecureStore / `react-native-pdf` media auth and should be migrated to `ProtectedPdfViewer`. The certificate quiz full blob is available, but the migration should be committed atomically rather than reconstructed from partial chunks.
+3. **Legacy root route type duplication remains.** `src/types/index.ts` still contains an older `RootStackParamList`. `CoursesStackNavigator` and hardened screens no longer depend on it, but deletion should wait until remaining imports are verified with reliable code search/typecheck evidence.
+4. **Some local navigation callback values remain broad.** Main-tab callback/event/icon helper values still contain local `any` types even though navigator and root navigation contracts are now explicit.
+5. **Purchase request typing still permits optional `scopeIds`.** Runtime guards protect the current UI flow, but the DTO should only be tightened after all direct order-creation callsites are verified because repository code search is incomplete.
 
 ## Merge gate
 
@@ -68,5 +72,4 @@ Do not merge this branch until:
 - `yarn typecheck` succeeds,
 - `yarn test:ci` succeeds,
 - remaining protected-PDF ownership is migrated or explicitly deferred with an owner,
-- certificate result navigation is reconciled or explicitly deferred,
 - final diff is reviewed against `refactor/production-hardening` and then against `main`.
