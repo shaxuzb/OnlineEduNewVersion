@@ -69,6 +69,11 @@ export default function ProtectedPdfViewer({
     };
   }, [loadSource, setLoadingState]);
 
+  const handleLoadComplete = useCallback(() => {
+    recoveryAttemptedRef.current = false;
+    setLoadingState(false);
+  }, [setLoadingState]);
+
   const handleError = useCallback(
     async (error: unknown) => {
       if (isMediaAuthError(error) && !recoveryAttemptedRef.current) {
@@ -108,7 +113,7 @@ export default function ProtectedPdfViewer({
       <Pdf
         key={`${source.uri}:${source.headers.Authorization}`}
         source={{ ...source, cache: false, method: "get" }}
-        onLoadComplete={() => setLoadingState(false)}
+        onLoadComplete={handleLoadComplete}
         onError={handleError}
         style={styles.pdf}
         trustAllCerts={false}
