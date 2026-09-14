@@ -240,6 +240,12 @@ export const ChatRealtimeProvider: React.FC<ChatRealtimeProviderProps> = ({
           }
 
           await nextConnection.start();
+
+          if (disposed || !canAttemptConnection()) {
+            await nextConnection.stop();
+            return;
+          }
+
           retryAttempt = 0;
           console.info("[ChatRealtime] Connected");
         } catch (error) {
