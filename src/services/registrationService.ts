@@ -1,5 +1,5 @@
 import DeviceInfo from "react-native-device-info";
-import { $axiosBase, $axiosPrivate } from "./AxiosService";
+import { $axiosBase } from "./AxiosService";
 
 interface RegistrationPayload {
   firstName: string;
@@ -21,7 +21,7 @@ export const registrationService = {
   },
 
   sendSms: async (phone: string) => {
-    await $axiosPrivate.post("sms/send", { phone });
+    await $axiosBase.post("sms/send", { phone });
   },
 
   verifySms: async (phone: string, code: string) => {
