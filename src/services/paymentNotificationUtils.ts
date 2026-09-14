@@ -75,7 +75,7 @@ export const getPaymentNotificationContent = (
   notification: PaymentNotification,
 ) => ({
   title: "To‘lov muvaffaqiyatli amalga oshirildi",
-  body: notification.message,
+  body: "To‘lov holatini ko‘rish uchun ilovani oching",
   data: {
     type: "payment-success",
     ...(notification.time ? { time: notification.time } : {}),
