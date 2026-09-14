@@ -1,27 +1,17 @@
 import React, { useEffect, useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { RouteProp, useRoute } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import ProtectedPdfViewer from "@/src/components/courses/ProtectedPdfViewer";
 import { useTheme } from "@/src/context/ThemeContext";
-import { Theme } from "@/src/types";
 import { RootStackParamList } from "@/src/navigation/rootTypes";
+import { Theme } from "@/src/types";
 
-type ThemeAbstractRoute = RouteProp<RootStackParamList, "ThemeAbstract">;
-type ThemeAbstractNavigation = NativeStackNavigationProp<
-  RootStackParamList,
-  "ThemeAbstract"
->;
+type Props = NativeStackScreenProps<RootStackParamList, "ThemeAbstract">;
 
-export default function ThemeAbstractScreen({
-  navigation,
-}: {
-  navigation: ThemeAbstractNavigation;
-}) {
+export default function ThemeAbstractScreen({ navigation, route }: Props) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const route = useRoute<ThemeAbstractRoute>();
   const { themeId, mavzu } = route.params;
 
   useEffect(() => {
