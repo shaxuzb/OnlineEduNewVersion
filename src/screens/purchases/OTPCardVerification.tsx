@@ -1,33 +1,35 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Toast from "react-native-toast-message";
 import { SafeAreaView } from "react-native-safe-area-context";
 import LinearGradient from "react-native-linear-gradient";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import { useTheme } from "@/src/context/ThemeContext";
 import { purchaseService } from "@/src/services/purchaseService";
 import getQueryClient from "@/src/utils/helpers/queryClient";
 import { Theme } from "@/src/types";
 import { useAuth } from "@/src/context/AuthContext";
+import { PurchaseStackParamList } from "@/src/navigation/purchaseTypes";
+import { invalidateAfterSuccessfulPayment } from "./paymentCache";
 
-const OTPCardVerification = ({
-  navigation,
-  route,
-}: {
-  navigation: any;
-  route: any;
-}) => {
+type Props = NativeStackScreenProps<
+  PurchaseStackParamList,
+  "OTPCardVerification"
+>;
+
+const OTPCardVerification = ({ navigation, route }: Props) => {
   const { theme, isDark } = useTheme();
   const styles = createStyles(theme, isDark);
   const queries = getQueryClient();
@@ -77,7 +79,7 @@ const OTPCardVerification = ({
 
     const fullCode = newOtpCode.join("");
     if (fullCode.length === 6) {
-      handleVerifyOtp(fullCode);
+      void handleVerifyOtp(fullCode);
     }
   };
 
@@ -91,7 +93,7 @@ const OTPCardVerification = ({
     setIsVerifying(true);
     try {
       await purchaseService.verifyCardPayment(orderId, code);
-      queries.clear();
+      await invalidateAfterSuccessfulPayment(queries);
 
       Toast.show({
         type: "success",
@@ -99,12 +101,11 @@ const OTPCardVerification = ({
         text2: "To'lov amalga oshirildi",
       });
 
-      // Success screenga o'tish
       navigation.reset({
         index: 0,
         routes: [
           {
-            name: "MainTabs",
+            name: "MainTabs" as never,
             state: {
               routes: [
                 {
@@ -119,7 +120,7 @@ const OTPCardVerification = ({
         ],
       });
       refetchPlan();
-    } catch (error: any) {
+    } catch (error) {
       Toast.show({
         type: "error",
         text1: "Xatolik",
@@ -145,7 +146,7 @@ const OTPCardVerification = ({
       Toast.show({
         type: "success",
         text1: "SMS yuborildi!",
-        text2: `Tasdiqlash kodi yuborildi`,
+        text2: "Tasdiqlash kodi yuborildi",
       });
     } catch (error) {
       Toast.show({
@@ -161,7 +162,7 @@ const OTPCardVerification = ({
   const handleManualVerify = () => {
     const fullCode = otpCode.join("");
     if (fullCode.length === 6) {
-      handleVerifyOtp(fullCode);
+      void handleVerifyOtp(fullCode);
     } else {
       Toast.show({
         type: "error",
@@ -174,15 +175,16 @@ const OTPCardVerification = ({
   const maskedPhone = phoneNumber
     ? phoneNumber.replace(/(\d{3})(\d{2})(\d{3})(\d{2})/, "$1 ** *** $4")
     : "**********";
+
   useEffect(() => {
     navigation.setOptions({
       headerShown: false,
       statusBarStyle: !isDark ? "dark" : "light",
     });
-  }, [navigation]);
+  }, [navigation, isDark]);
+
   return (
     <SafeAreaView style={styles.container} edges={["bottom", "top"]}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -208,7 +210,6 @@ const OTPCardVerification = ({
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.content}>
-            {/* Icon */}
             <View style={styles.iconContainer}>
               <LinearGradient
                 colors={["#3a5dde", "#5e84e6"]}
@@ -220,13 +221,11 @@ const OTPCardVerification = ({
               </LinearGradient>
             </View>
 
-            {/* Title */}
             <Text style={styles.title}>SMS tasdiqlash</Text>
             <Text style={styles.subtitle}>
               {maskedPhone} raqamiga yuborilgan SMS kodni kiriting
             </Text>
 
-            {/* OTP Inputs */}
             <View style={styles.otpSection}>
               <View style={styles.otpContainer}>
                 {otpCode.map((digit, index) => (
@@ -256,7 +255,6 @@ const OTPCardVerification = ({
                 ))}
               </View>
 
-              {/* Auto fill indicator */}
               {isVerifying ? (
                 <View style={styles.verifyingContainer}>
                   <ActivityIndicator size="small" color="#8B5CF6" />
@@ -269,7 +267,6 @@ const OTPCardVerification = ({
               )}
             </View>
 
-            {/* Countdown */}
             <View style={styles.timerCard}>
               <View style={styles.timerIcon}>
                 <MaterialIcons name="timer" size={20} color="#5e84e6" />
@@ -282,7 +279,6 @@ const OTPCardVerification = ({
               </View>
             </View>
 
-            {/* Verify Button */}
             <LinearGradient
               colors={
                 otpCode.join("").length === 6 && !isVerifying
@@ -314,7 +310,6 @@ const OTPCardVerification = ({
               </TouchableOpacity>
             </LinearGradient>
 
-            {/* Resend Code */}
             <View style={styles.resendContainer}>
               <Text style={styles.resendHint}>SMS kelmadimi?</Text>
               <TouchableOpacity
@@ -337,7 +332,6 @@ const OTPCardVerification = ({
               </TouchableOpacity>
             </View>
 
-            {/* Info Card */}
             <View style={styles.infoCard}>
               <View style={styles.infoIcon}>
                 <Ionicons name="information-circle" size={20} color="#94A3B8" />
