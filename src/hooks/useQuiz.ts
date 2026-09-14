@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { quizService } from "../services/quizService";
-import { QuizSubmissionRequest } from "../types";
+import { QuizAttemptSubmission } from "../services/quizAttemptUtils";
 import { useAuth } from "../context/AuthContext";
 
 export const quizKeys = {
@@ -21,7 +21,7 @@ export function useThemeTest(testId: number) {
   return useQuery({
     queryKey: quizKeys.themeTest(testId),
     queryFn: () => quizService.getThemeTest(testId),
-    enabled: !!testId, // Only run if testId is provided
+    enabled: !!testId,
   });
 }
 
@@ -37,18 +37,27 @@ export function useTestPdf(testId: number) {
   return useQuery({
     queryKey: quizKeys.testPdf(testId),
     queryFn: () => quizService.getTestPdf(testId),
-    enabled: !!testId, // Only run if testId is provided
+    enabled: !!testId,
   });
+}
+
+export function useCurrentUserId(): number | null {
+  const { user } = useAuth();
+  return user?.id || null;
 }
 
 export function useSubmitTestResults() {
   const queryClient = useQueryClient();
+  const userId = useCurrentUserId();
 
   return useMutation({
-    mutationFn: (submissionData: QuizSubmissionRequest) =>
-      quizService.submitTestResults(submissionData),
-    onSuccess: (data, variables) => {
-      // Invalidate quiz results when new results are submitted
+    mutationFn: (submissionData: QuizAttemptSubmission) => {
+      if (!userId) {
+        return Promise.reject(new Error("Authenticated user is required"));
+      }
+      return quizService.submitTestResults(submissionData, userId);
+    },
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["quizResults"],
       });
@@ -61,10 +70,15 @@ export function useSubmitTestResults() {
 
 export function useSubmitMockTestResults() {
   const queryClient = useQueryClient();
+  const userId = useCurrentUserId();
 
   return useMutation({
-    mutationFn: (submissionData: QuizSubmissionRequest) =>
-      quizService.submitMockTestResults(submissionData),
+    mutationFn: (submissionData: QuizAttemptSubmission) => {
+      if (!userId) {
+        return Promise.reject(new Error("Authenticated user is required"));
+      }
+      return quizService.submitMockTestResults(submissionData, userId);
+    },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["mockQuizResults"] });
       queryClient.invalidateQueries({
@@ -78,7 +92,7 @@ export function useQuizResults(userId: number, themeId: number) {
   return useQuery({
     queryKey: quizKeys.quizResults(userId, themeId),
     queryFn: () => quizService.getQuizResults(userId, themeId),
-    enabled: !!userId && !!themeId, // Only run if both userId and themeId are provided
+    enabled: !!userId && !!themeId,
   });
 }
 
@@ -89,17 +103,12 @@ export function useMockQuizResults(userId: number, mockTestId: number) {
     enabled: !!userId && !!mockTestId,
   });
 }
-// Helper hook to get current user ID from auth context
-export function useCurrentUserId(): number | null {
-  const { user } = useAuth();
-  return user?.id || null;
-}
 
 export function useQuizResultsHistory(userId: number, themeId: number) {
   return useQuery({
     queryKey: quizKeys.quizResultsHistory(userId, themeId),
     queryFn: () => quizService.getQuizResultsHistory(userId, themeId),
-    enabled: !!userId && !!themeId, // Only run if both userId and themeId are provided
+    enabled: !!userId && !!themeId,
     staleTime: 60 * 1000,
   });
 }
