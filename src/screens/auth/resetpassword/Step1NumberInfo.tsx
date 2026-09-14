@@ -58,6 +58,7 @@ const Step1NumberInfo: React.FC = () => {
         const message = axios.isAxiosError(error)
           ? error.response?.data?.message
           : undefined;
+        nextStep();
         Alert.alert(
           "SMS yuborilgan",
           message || "Tasdiqlash kodi avval yuborilgan",
