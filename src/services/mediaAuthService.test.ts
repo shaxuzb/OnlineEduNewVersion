@@ -23,6 +23,7 @@ describe("protected media auth", () => {
 
   it("recognizes native media auth failures", () => {
     expect(isMediaAuthError({ errorCode: 401 })).toBe(true);
+    expect(isMediaAuthError({ error: { errorCode: 401 } })).toBe(true);
     expect(isMediaAuthError({ response: { status: 403 } })).toBe(true);
     expect(isMediaAuthError({ message: "HTTP 401 Unauthorized" })).toBe(true);
     expect(isMediaAuthError({ errorCode: 500 })).toBe(false);
