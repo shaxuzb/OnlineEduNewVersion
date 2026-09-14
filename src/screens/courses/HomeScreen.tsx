@@ -6,9 +6,15 @@ import Logo from "@/src/assets/icons/logo/logo.svg";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useCurrentUserId } from "@/src/hooks/useQuiz";
 import { useStatistics } from "@/src/hooks/useStatistics";
+import { CoursesStackParamList } from "@/src/navigation/coursesTypes";
+import { RootStackParamList } from "@/src/navigation/rootTypes";
 import { SubjectStatistic, Theme } from "@/src/types";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import {
+  CompositeNavigationProp,
+  useNavigation,
+} from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useCallback, useEffect, useMemo } from "react";
 import { moderateScale, ScaledSheet } from "react-native-size-matters";
 import {
@@ -23,8 +29,14 @@ import {
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+type HomeNavigation = CompositeNavigationProp<
+  NativeStackNavigationProp<CoursesStackParamList, "CoursesList">,
+  NativeStackNavigationProp<RootStackParamList>
+>;
+
 const HomeScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<HomeNavigation>();
   const { theme, themeMode } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const userId = useCurrentUserId();
@@ -35,12 +47,7 @@ const HomeScreen: React.FC = () => {
     isError,
     refetch,
   } = useStatistics(Number(userId));
-  // const { data: subjects, isLoading, error, refetch } = useSubjects();
 
-  // ✅ Fetch user session once
-
-  // ✅ Trigger refetch after UI idle
-  // ✅ Show error only once
   useEffect(() => {
     if (isError) {
       Alert.alert("Xatolik", "Ma'lumotlarni yuklashda xatolik yuz berdi.");
@@ -57,20 +64,15 @@ const HomeScreen: React.FC = () => {
     );
     return Math.round(totalPercent / subjects.length);
   }, [subjects]);
+
   const handleSubjectPress = useCallback(
     (subject: SubjectStatistic) => {
-      (navigation as any).navigate("SubjectScreen", {
+      navigation.navigate("SubjectScreen", {
         subjectId: subject.subjectId,
         percent: subject.percent,
         subjectName: subject.subjectName,
         subjectCode: subject.subjectCode,
       });
-      // (navigation as any).navigate("QuizSolutionSertificate", {
-      //   userId,
-      //   testId: 129,
-      //   themeId: 141,
-      //   mavzu: "sa",
-      // });
     },
     [navigation],
   );
@@ -147,6 +149,7 @@ const HomeScreen: React.FC = () => {
     },
     [styles.subjectIconImage],
   );
+
   return (
     <LinearGradient
       colors={["#3a5dde", theme.colors.background]}
@@ -187,7 +190,7 @@ const HomeScreen: React.FC = () => {
                   justifyContent: "center",
                   marginRight: 10,
                 }}
-                onPress={() => (navigation as any).navigate("Profile")}
+                onPress={() => navigation.navigate("Profile")}
               >
                 <FontAwesome
                   name="user-circle"
@@ -210,7 +213,7 @@ const HomeScreen: React.FC = () => {
                   justifyContent: "center",
                   marginRight: 10,
                 }}
-                onPress={() => (navigation as any).navigate("News")}
+                onPress={() => navigation.navigate("News")}
               >
                 <Ionicons
                   name="notifications-outline"
@@ -386,7 +389,6 @@ const HomeScreen: React.FC = () => {
                             backgroundColor: "#3a5dde",
                             borderRadius: moderateScale(150),
                             aspectRatio: 1 / 1,
-
                             justifyContent: "center",
                             alignItems: "center",
                           }}
@@ -419,20 +421,7 @@ const HomeScreen: React.FC = () => {
               }}
             >
               <View style={styles.greetingSection}>
-                <Text
-                  style={styles.greeting}
-                  // onPress={() => {
-                  //   (navigation as any).navigate("QuizSolution", {
-                  //     userId: 19,
-                  //     testId: 36,
-                  //     themeId: 23,
-                  //     mavzu: "test",
-                  //   });
-                  // }}
-                >
-                  {/* Salom, {userData?.user?.fullName || "mehmon"}! */}
-                  Kurslar
-                </Text>
+                <Text style={styles.greeting}>Kurslar</Text>
               </View>
 
               <View style={styles.section}>
@@ -523,6 +512,7 @@ const HomeScreen: React.FC = () => {
 };
 
 export default React.memo(HomeScreen);
+
 const createStyles = (theme: Theme) =>
   ScaledSheet.create({
     container: { flex: 1, backgroundColor: "transparent" },
