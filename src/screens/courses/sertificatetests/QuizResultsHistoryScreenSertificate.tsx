@@ -3,8 +3,10 @@ import EmptyData from "@/src/components/exceptions/EmptyData";
 import LoadingData from "@/src/components/exceptions/LoadingData";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useQuizResultsHistory } from "@/src/hooks/useQuiz";
+import { RootStackParamList } from "@/src/navigation/rootTypes";
 import { QuizResultHistoryItem, Theme } from "@/src/types";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { memo, useCallback, useMemo } from "react";
 import {
   FlatList,
@@ -23,6 +25,10 @@ const BRAND_GRADIENT = ["#3a5dde", "#5e84e6"] as const;
 
 type Styles = ReturnType<typeof createStyles>;
 type ResultStatus = "fail" | "pass" | "best";
+type Props = NativeStackScreenProps<
+  RootStackParamList,
+  "QuizResultsHistorySertificate"
+>;
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const formatDate = (iso: string) => {
@@ -123,17 +129,14 @@ const HeroStat = memo(function HeroStat({
 export default function QuizResultsHistoryScreenSertificate({
   navigation,
   route,
-}: {
-  navigation: any;
-  route: any;
-}) {
+}: Props) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { userId, themeId } = route.params;
+  const { userId, themeId, themeName } = route.params;
 
   const { data, isLoading, error, refetch } = useQuizResultsHistory(
-    Number(userId),
-    Number(themeId),
+    userId,
+    themeId,
   );
 
   // Newest first
@@ -161,14 +164,14 @@ export default function QuizResultsHistoryScreenSertificate({
     const scores = items.map((i) => i.score);
     const sum = percents.reduce((a, b) => a + b, 0);
     return {
-      title: route.params?.themeName ?? items[0].testName ?? "Test natijalari",
+      title: themeName ?? items[0].testName ?? "Test natijalari",
       count: items.length,
       highest: Math.round(Math.max(...percents)),
       average: Math.round(sum / items.length),
       lastScore: items[0].score, // most recent attempt
       best: Math.max(...scores), // personal-best score (drives the amber icon)
     };
-  }, [items, route.params?.themeName]);
+  }, [items, themeName]);
 
   const getStatus = useCallback(
     (score: number): ResultStatus => {
