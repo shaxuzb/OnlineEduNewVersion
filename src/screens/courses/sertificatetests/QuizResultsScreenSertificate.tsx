@@ -2,9 +2,11 @@ import { modalService } from "@/src/components/modals/modalService";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useQuizResults } from "@/src/hooks/useQuiz";
-import { QuizResultsResponse, Theme } from "@/src/types";
+import { RootStackParamList } from "@/src/navigation/rootTypes";
+import { QuizResultAnswer, Theme } from "@/src/types";
 import { BORDER_RADIUS, COLORS, FONT_SIZES, SPACING } from "@/src/utils";
 import { FontAwesome6, Ionicons } from "@expo/vector-icons";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
@@ -17,17 +19,17 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { moderateScale } from "react-native-size-matters";
-import {
-  shouldShowBlockingQueryLoader,
-} from "@/src/utils/queryStateUtils";
+import { shouldShowBlockingQueryLoader } from "@/src/utils/queryStateUtils";
+
+type Props = NativeStackScreenProps<
+  RootStackParamList,
+  "QuizResultsSertificate"
+>;
 
 export default function QuizResultsScreenSertificate({
   navigation,
   route,
-}: {
-  navigation: any;
-  route: any;
-}) {
+}: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const { plan } = useAuth();
@@ -38,25 +40,26 @@ export default function QuizResultsScreenSertificate({
     isPending: resultsPending,
     isFetching: resultsFetching,
     isFetched: resultsFetched,
-  } = useQuizResults(Number(userId), Number(themeId));
+  } = useQuizResults(userId, themeId);
   const result = quizResults?.[0];
   const hasResults = Boolean(result);
-  const hasValidResultParams = Boolean(Number(userId) && Number(themeId));
-  const showResultsLoading = shouldShowBlockingQueryLoader({
-    isPending: resultsPending,
-    isFetching: resultsFetching,
-    isFetched: resultsFetched && hasValidResultParams,
-    hasData: hasResults,
-  }) && hasValidResultParams;
+  const hasValidResultParams = Boolean(userId && themeId);
+  const showResultsLoading =
+    shouldShowBlockingQueryLoader({
+      isPending: resultsPending,
+      isFetching: resultsFetching,
+      isFetched: resultsFetched && hasValidResultParams,
+      hasData: hasResults,
+    }) && hasValidResultParams;
 
   const groupedTestData = useMemo(() => {
     const firstResult = quizResults?.[0];
-    if (!firstResult) return [];
+    if (!firstResult) return [] as [string, QuizResultAnswer[]][];
 
     return Object.entries(
       firstResult.answers
         .filter((item) => !item.isCorrect)
-        .reduce((acc: any, key: any) => {
+        .reduce<Record<number, QuizResultAnswer[]>>((acc, key) => {
           const group = acc[key.subTestNo] || [];
           group.push(key);
           acc[key.subTestNo] = group;
@@ -69,6 +72,7 @@ export default function QuizResultsScreenSertificate({
     navigation.navigate("QuizResultsHistorySertificate", {
       userId,
       themeId,
+      themeName: mavzu,
     });
   };
 
@@ -78,15 +82,11 @@ export default function QuizResultsScreenSertificate({
       routes: [
         {
           name: "MainTabs",
-          state: {
-            routes: [
-              {
-                name: "Courses",
-                state: {
-                  routes: [{ name: "CoursesList" }],
-                },
-              },
-            ],
+          params: {
+            screen: "Courses",
+            params: {
+              screen: "CoursesList",
+            },
           },
         },
       ],
@@ -121,7 +121,7 @@ export default function QuizResultsScreenSertificate({
       ),
       freezeOnBlur: true,
     });
-  }, [navigation]);
+  }, [mavzu, navigation, styles.headerTitle]);
 
   if (showResultsLoading)
     return (
@@ -192,37 +192,33 @@ export default function QuizResultsScreenSertificate({
               Xato ishlangan yoki ishlanmagan misol nomerlari:
             </Text>
             <View style={styles.wrongNumbers}>
-              {groupedTestData.map(([subTestNo, questions]) => {
-                return (
-                  <View key={subTestNo}>
-                    {groupedTestData.length > 1 && (
-                      <Text
-                        style={{
-                          fontSize: moderateScale(16),
-                          marginBottom: moderateScale(8),
-                          color: theme.colors.text,
-                        }}
-                      >
-                        Test {subTestNo}
-                      </Text>
-                    )}
-                    <View
-                      style={{ flexDirection: "row", gap: 5, flexWrap: "wrap" }}
+              {groupedTestData.map(([subTestNo, questions]) => (
+                <View key={subTestNo}>
+                  {groupedTestData.length > 1 && (
+                    <Text
+                      style={{
+                        fontSize: moderateScale(16),
+                        marginBottom: moderateScale(8),
+                        color: theme.colors.text,
+                      }}
                     >
-                      {(questions as QuizResultsResponse[0]["answers"]).map(
-                        (num, index) => (
-                          <View key={index} style={styles.badge}>
-                            <Text style={styles.badgeText}>
-                              {num?.partLabel}
-                              {num.questionNumber}
-                            </Text>
-                          </View>
-                        ),
-                      )}
-                    </View>
+                      Test {subTestNo}
+                    </Text>
+                  )}
+                  <View
+                    style={{ flexDirection: "row", gap: 5, flexWrap: "wrap" }}
+                  >
+                    {questions.map((num, index) => (
+                      <View key={index} style={styles.badge}>
+                        <Text style={styles.badgeText}>
+                          {num.partLabel}
+                          {num.questionNumber}
+                        </Text>
+                      </View>
+                    ))}
                   </View>
-                );
-              })}
+                </View>
+              ))}
             </View>
             <Text style={styles.encouragement}>
               Ushbu misollarni qayta yechishni tavsiya qilamiz!
@@ -252,7 +248,8 @@ export default function QuizResultsScreenSertificate({
                 userId,
                 testId,
                 themeId,
-                mavzu,
+                mavzu: mavzu || "IDS mavzulashtirilgan testlar to'plami",
+                percent: result.percent,
               });
             } else {
               modalService.open();
@@ -328,7 +325,6 @@ const createStyles = (theme: Theme) =>
       alignItems: "center",
       backgroundColor: theme.colors.background,
     },
-
     headerTitle: {
       fontSize: moderateScale(FONT_SIZES.lg),
       color: COLORS.white,
