@@ -6,7 +6,7 @@ import {
 } from "./chatNotificationUtils";
 
 describe("chat notification content", () => {
-  it("creates a concise notification with the chat thread metadata", () => {
+  it("keeps routing metadata without exposing message text", () => {
     expect(
       getChatNotificationContent({
         threadId: 42,
@@ -21,7 +21,7 @@ describe("chat notification content", () => {
       }),
     ).toEqual({
       title: "Sizda yangi xabar bor",
-      body: "Assalomu alaykum",
+      body: "Yangi xabarni ko‘rish uchun ilovani oching",
       data: { type: "chat-message", threadId: "42" },
     });
   });
