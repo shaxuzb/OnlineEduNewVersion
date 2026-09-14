@@ -3,6 +3,7 @@ import { lightColors } from "@/src/constants/theme";
 import { useBookmark } from "@/src/context/BookmarkContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useThemeDetails } from "@/src/hooks/useThemeDetails";
+import { RootStackParamList } from "@/src/navigation/rootTypes";
 import { BookmarkedLesson, Theme } from "@/src/types";
 import { BORDER_RADIUS, FONT_SIZES, SPACING } from "@/src/utils";
 import Test from "@/src/assets/icons/themes/test.svg";
@@ -24,16 +25,13 @@ import EmptyModal from "@/src/components/exceptions/EmptyModal";
 import Toast from "react-native-toast-message";
 import { moderateScale } from "react-native-size-matters";
 import { modalService } from "@/src/components/modals/modalService";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 const { width } = Dimensions.get("window");
 
-export default function LessonDetailScreen({
-  navigation,
-  route,
-}: {
-  navigation: any;
-  route: any;
-}) {
+type Props = NativeStackScreenProps<RootStackParamList, "LessonDetail">;
+
+export default function LessonDetailScreen({ navigation, route }: Props) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { themeId, themeName, themeOrdinalNumber, percent } = route.params;
@@ -51,10 +49,7 @@ export default function LessonDetailScreen({
     title: "",
     description: "",
   });
-  // Get lesson data from route params
-  const { data, isLoading, isError, refetch } = useThemeDetails(
-    Number(themeId),
-  );
+  const { data, isLoading, isError, refetch } = useThemeDetails(themeId);
   const featureCodes = useMemo(
     () => new Set((data?.features ?? []).map((item) => item.code)),
     [data?.features],
@@ -63,7 +58,6 @@ export default function LessonDetailScreen({
   const hasAbstractFeature = featureCodes.has("ABSTRACT");
   const hasTestFeature = featureCodes.has("TEST");
 
-  // Check if current lesson is bookmarked
   const isBookmarked = isLessonBookmarked(data?.id ?? 0, "algebra");
   const handleBookmark = useCallback(async () => {
     try {
@@ -73,31 +67,25 @@ export default function LessonDetailScreen({
           type: "success",
           text1: "Dars saqlashdan olib tashlandi!",
         });
-      } else {
-        if (data) {
-          const bookmarkData: BookmarkedLesson = {
-            id: data.id,
-            title: data.name,
-            mavzu: `${data.ordinalNumber}-mavzu`,
-            courseType: "algebra" as
-              | "algebra"
-              | "geometriya"
-              | "milliy-sertifikat"
-              | "olimpiadaga-kirish",
-            courseName: data.subject,
-            sectionTitle: `${data.ordinalNumber}-mavzu`,
-            duration: "15:30",
-            bookmarkedAt: new Date().toISOString(),
-          };
+      } else if (data) {
+        const bookmarkData: BookmarkedLesson = {
+          id: data.id,
+          title: data.name,
+          mavzu: `${data.ordinalNumber}-mavzu`,
+          courseType: "algebra",
+          courseName: data.subject,
+          sectionTitle: `${data.ordinalNumber}-mavzu`,
+          duration: "15:30",
+          bookmarkedAt: new Date().toISOString(),
+        };
 
-          await addBookmark(bookmarkData);
-          Toast.show({
-            type: "success",
-            text1: "Dars muvaffaqiyatli saqlandi!",
-          });
-        }
+        await addBookmark(bookmarkData);
+        Toast.show({
+          type: "success",
+          text1: "Dars muvaffaqiyatli saqlandi!",
+        });
       }
-    } catch (error) {
+    } catch {
       Toast.show({
         type: "error",
         text1: "Darsni saqlashda xatolik yuz berdi!",
@@ -106,62 +94,70 @@ export default function LessonDetailScreen({
   }, [addBookmark, data, isBookmarked, removeBookmark]);
 
   const handlePlayVideo = useCallback(() => {
-    if (hasLessonFeature) {
-      if (!data?.video?.fileId) {
-        setEmptyModal({
-          open: true,
-          title: "Video dars mavjud emas",
-          description: "Ushbu mavzu uchun video dars hali yuklanmagan.",
-        });
-      } else {
-        navigation.navigate("VideoPlayer", {
-          lessonTitle: data?.name,
-          videoFileId: data?.video.fileId,
-          mavzu: `${data?.ordinalNumber}-mavzu`,
-        });
-      }
-    } else {
+    if (!hasLessonFeature) {
       modalService.open();
+      return;
     }
-  }, [
-    data?.name,
-    data?.ordinalNumber,
-    data?.video?.fileId,
-    hasLessonFeature,
-    navigation,
-  ]);
+
+    if (!data?.video?.fileId) {
+      setEmptyModal({
+        open: true,
+        title: "Video dars mavjud emas",
+        description: "Ushbu mavzu uchun video dars hali yuklanmagan.",
+      });
+      return;
+    }
+
+    navigation.navigate("VideoPlayer", {
+      lessonTitle: data.name,
+      videoFileId: data.video.fileId,
+      mavzu: `${data.ordinalNumber}-mavzu`,
+    });
+  }, [data, hasLessonFeature, navigation]);
 
   const handleThemeAbstract = useCallback(() => {
-    if (hasAbstractFeature) {
-      navigation.navigate("ThemeAbstract", {
-        themeId: data?.id,
-        mavzu: `${data?.ordinalNumber}-mavzu`,
-      });
-    } else {
+    if (!hasAbstractFeature) {
       modalService.open();
+      return;
     }
-  }, [data?.id, data?.ordinalNumber, hasAbstractFeature, navigation]);
+
+    if (!data) {
+      setEmptyModal({
+        open: true,
+        title: "Konspekt mavjud emas",
+        description: "Mavzu ma'lumotlari hali yuklanmagan.",
+      });
+      return;
+    }
+
+    navigation.navigate("ThemeAbstract", {
+      themeId: data.id,
+      mavzu: `${data.ordinalNumber}-mavzu`,
+    });
+  }, [data, hasAbstractFeature, navigation]);
 
   const handleMashqlar = useCallback(() => {
-    if (hasTestFeature) {
-      if (data?.testId) {
-        navigation.navigate("QuizScreen", {
-          testId: data?.testId,
-          percent: percent,
-          title: "Mashqlar",
-          mavzu: `${data?.ordinalNumber}-mavzu`,
-        });
-      } else {
-        setEmptyModal({
-          open: true,
-          title: "Testlar hali mavjud emas",
-          description: "Bu mavzu bo‘yicha testlar hali joylanmagan.",
-        });
-      }
-    } else {
+    if (!hasTestFeature) {
       modalService.open();
+      return;
     }
-  }, [data?.ordinalNumber, data?.testId, hasTestFeature, navigation, percent]);
+
+    if (!data?.testId) {
+      setEmptyModal({
+        open: true,
+        title: "Testlar hali mavjud emas",
+        description: "Bu mavzu bo‘yicha testlar hali joylanmagan.",
+      });
+      return;
+    }
+
+    navigation.navigate("QuizScreen", {
+      testId: data.testId,
+      percent,
+      title: "Mashqlar",
+      mavzu: `${data.ordinalNumber}-mavzu`,
+    });
+  }, [data, hasTestFeature, navigation, percent]);
 
   const handleRetry = useCallback(() => {
     void refetch();
@@ -170,17 +166,19 @@ export default function LessonDetailScreen({
   const closeEmptyModal = useCallback(() => {
     setEmptyModal({ open: false, title: "", description: "" });
   }, []);
+
   useEffect(() => {
     navigation.setOptions({
-      title: themeOrdinalNumber + "-mavzu",
+      title: `${themeOrdinalNumber}-mavzu`,
       freezeOnBlur: true,
-      headerRight: (props: any) => (
+      headerRight: (props) => (
         <Text style={[styles.headerPercent, { color: props.tintColor }]}>
           {percent}%
         </Text>
       ),
     });
   }, [navigation, percent, styles.headerPercent, themeOrdinalNumber]);
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -206,6 +204,7 @@ export default function LessonDetailScreen({
       </SafeAreaView>
     );
   }
+
   return (
     <SafeAreaView style={styles.container} edges={[]}>
       <PageCard>
@@ -235,7 +234,7 @@ export default function LessonDetailScreen({
                 foreground: true,
                 color: lightColors.ripple,
               }}
-              style={[styles.videoPlayer]}
+              style={styles.videoPlayer}
               onPress={handlePlayVideo}
             >
               {!hasLessonFeature && (
@@ -259,7 +258,6 @@ export default function LessonDetailScreen({
             </Pressable>
           </View>
 
-          {/* Action Buttons */}
           <View style={styles.actionButtons}>
             <Pressable
               android_ripple={{
@@ -380,7 +378,7 @@ const createStyles = (theme: Theme) =>
     },
     videoPlayer: {
       width: "100%",
-      height: width * 0.56, // 16:9 aspect ratio
+      height: width * 0.56,
       backgroundColor: "#000",
       overflow: "hidden",
       borderRadius: BORDER_RADIUS.base,
