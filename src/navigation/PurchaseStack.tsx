@@ -6,9 +6,10 @@ import CheckoutScreen from "../screens/purchases/CheckoutScreen";
 import CreditCardScreen from "../screens/purchases/CreditCardScreen";
 import OTPCardVerification from "../screens/purchases/OTPCardVerification";
 import PurchasePriceScreen from "../screens/purchases/PurchasePriceScreen";
-import LinearGradient from "react-native-linear-gradient";
+import { PurchaseStackParamList } from "./purchaseTypes";
 
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator<PurchaseStackParamList>();
+
 export const PurchaseStack = React.memo(function PurchaseStack() {
   return (
     <Stack.Navigator
