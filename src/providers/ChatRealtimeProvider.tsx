@@ -1,6 +1,7 @@
 import React, { ReactNode, useEffect } from "react";
 import * as SecureStore from "expo-secure-store";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import NetInfo from "@react-native-community/netinfo";
 import { AppState, Platform } from "react-native";
 import { HubConnection, HubConnectionState } from "@microsoft/signalr";
 import { useAuth } from "../context/AuthContext";
@@ -16,6 +17,8 @@ import {
 import { chatService } from "../services/chatService";
 import {
   createChatRealtimeConnection,
+  getChatReconnectDelay,
+  shouldAttemptChatConnection,
   shouldRefreshCurrentPlanOnResume,
   shouldSuspendNotificationsHub,
 } from "../services/chatRealtimeService";
@@ -32,6 +35,7 @@ import {
   normalizePaymentNotification,
   paymentNotificationCountKey,
 } from "../services/paymentNotificationUtils";
+import { isNetworkUsable } from "../services/networkState";
 
 interface ChatRealtimeProviderProps {
   children: ReactNode;
@@ -57,6 +61,7 @@ export const ChatRealtimeProvider: React.FC<ChatRealtimeProviderProps> = ({
   const { user, refetchPlan } = useAuth();
   const queryClient = useQueryClient();
   const userId = user?.id;
+
   useQuery({
     queryKey: chatKeys.unread,
     queryFn: chatService.getUnread,
@@ -67,7 +72,6 @@ export const ChatRealtimeProvider: React.FC<ChatRealtimeProviderProps> = ({
 
   useEffect(() => {
     if (!userId) return;
-
     void configureChatNotifications();
   }, [userId]);
 
@@ -75,11 +79,32 @@ export const ChatRealtimeProvider: React.FC<ChatRealtimeProviderProps> = ({
     if (!userId) return;
 
     let disposed = false;
+    let online = false;
+    let retryAttempt = 0;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
     let connection: HubConnection | null = null;
     let startPromise: Promise<void> | null = null;
     let stopPromise: Promise<void> | null = null;
     const processedPaymentNotificationKeys = new Set<string>();
+
+    const canAttemptConnection = (appState = AppState.currentState) =>
+      shouldAttemptChatConnection({
+        online,
+        platform: Platform.OS,
+        appState,
+      });
+
+    const clearRetryTimer = () => {
+      if (!retryTimer) return;
+      clearTimeout(retryTimer);
+      retryTimer = undefined;
+    };
+
+    const refetchUnread = () =>
+      queryClient.refetchQueries({
+        queryKey: chatKeys.unread,
+        type: "active",
+      });
 
     const handleMessageReceived = (
       payload: unknown,
@@ -125,7 +150,6 @@ export const ChatRealtimeProvider: React.FC<ChatRealtimeProviderProps> = ({
 
     const handlePaymentNotification = (payload: unknown) => {
       console.info("[ChatRealtime] Notification event received", payload);
-
       if (!isSuccessfulPaymentNotification(payload)) return;
 
       const notification = normalizePaymentNotification(payload);
@@ -162,52 +186,42 @@ export const ChatRealtimeProvider: React.FC<ChatRealtimeProviderProps> = ({
         console.warn("[ChatRealtime] Reconnecting", error?.message ?? "");
       });
       nextConnection.onreconnected((connectionId) => {
+        retryAttempt = 0;
         console.info(
           "[ChatRealtime] Reconnected",
           connectionId ? `(${connectionId})` : "",
         );
-        void queryClient.refetchQueries({
-          queryKey: chatKeys.unread,
-          type: "active",
-        });
+        void refetchUnread();
       });
       nextConnection.onclose((error) => {
-        if (disposed) {
-          return;
-        }
-
-        if (shouldSuspendNotificationsHub(Platform.OS, AppState.currentState)) {
-          console.info("[ChatRealtime] Connection closed while app is inactive");
-          return;
-        }
-
+        if (disposed || !canAttemptConnection()) return;
         console.warn("[ChatRealtime] Connection closed", error?.message ?? "");
         void startConnection();
       });
     };
 
+    const scheduleRetry = () => {
+      if (disposed || !canAttemptConnection() || retryTimer) return;
+      const delay = getChatReconnectDelay(retryAttempt);
+      retryAttempt += 1;
+      retryTimer = setTimeout(() => {
+        retryTimer = undefined;
+        void startConnection();
+      }, delay);
+    };
+
     const startConnection = async () => {
-      if (
-        disposed ||
-        shouldSuspendNotificationsHub(Platform.OS, AppState.currentState) ||
-        startPromise
-      ) {
+      if (disposed || !canAttemptConnection() || startPromise) {
         return startPromise ?? undefined;
       }
 
-      if (retryTimer) {
-        clearTimeout(retryTimer);
-        retryTimer = undefined;
-      }
-
+      clearRetryTimer();
       startPromise = (async () => {
         try {
           const accessToken = await getAccessToken();
           if (!accessToken) throw new Error("Missing session token");
           if (stopPromise) await stopPromise;
-          if (shouldSuspendNotificationsHub(Platform.OS, AppState.currentState)) {
-            return;
-          }
+          if (!canAttemptConnection()) return;
 
           if (!connection) {
             connection = createChatRealtimeConnection(
@@ -226,20 +240,14 @@ export const ChatRealtimeProvider: React.FC<ChatRealtimeProviderProps> = ({
           }
 
           await nextConnection.start();
+          retryAttempt = 0;
           console.info("[ChatRealtime] Connected");
         } catch (error) {
           console.warn(
             "[ChatRealtime] Connection failed",
             error instanceof Error ? error.message : String(error),
           );
-          if (
-            !disposed &&
-            !shouldSuspendNotificationsHub(Platform.OS, AppState.currentState)
-          ) {
-            retryTimer = setTimeout(() => {
-              void startConnection();
-            }, 5000);
-          }
+          scheduleRetry();
         } finally {
           startPromise = null;
         }
@@ -249,11 +257,7 @@ export const ChatRealtimeProvider: React.FC<ChatRealtimeProviderProps> = ({
     };
 
     const stopConnection = async () => {
-      if (retryTimer) {
-        clearTimeout(retryTimer);
-        retryTimer = undefined;
-      }
-
+      clearRetryTimer();
       const nextConnection = connection;
       if (
         !nextConnection ||
@@ -264,7 +268,7 @@ export const ChatRealtimeProvider: React.FC<ChatRealtimeProviderProps> = ({
 
       try {
         await nextConnection.stop();
-        console.info("[ChatRealtime] Connection paused for iOS background");
+        console.info("[ChatRealtime] Connection paused");
       } catch (error) {
         console.warn(
           "[ChatRealtime] Failed to pause connection",
@@ -292,22 +296,51 @@ export const ChatRealtimeProvider: React.FC<ChatRealtimeProviderProps> = ({
 
         if (!shouldRefreshCurrentPlanOnResume(nextAppState)) return;
 
-        void startConnection();
-        void queryClient.refetchQueries({
-          queryKey: chatKeys.unread,
-          type: "active",
-        });
+        if (canAttemptConnection(nextAppState)) {
+          retryAttempt = 0;
+          void startConnection();
+          void refetchUnread();
+        }
         refetchPlan();
         console.info("[ChatRealtime] Current plan refreshed after resume");
       },
     );
 
-    void startConnection();
+    const netInfoSubscription = NetInfo.addEventListener((state) => {
+      const nextOnline = isNetworkUsable({
+        isConnected: state.isConnected,
+        isInternetReachable: state.isInternetReachable,
+      });
+      const recovered = !online && nextOnline;
+      online = nextOnline;
+
+      if (!online) {
+        clearRetryTimer();
+        void pauseConnection();
+        return;
+      }
+
+      if (recovered) {
+        retryAttempt = 0;
+        void startConnection();
+        void refetchUnread();
+      }
+    });
+
+    void NetInfo.fetch().then((state) => {
+      if (disposed) return;
+      online = isNetworkUsable({
+        isConnected: state.isConnected,
+        isInternetReachable: state.isInternetReachable,
+      });
+      if (online) void startConnection();
+    });
 
     return () => {
       disposed = true;
       appStateSubscription.remove();
-      if (retryTimer) clearTimeout(retryTimer);
+      netInfoSubscription();
+      clearRetryTimer();
       if (connection) {
         connection.off("chatMessageReceived", handleMessageReceived);
         connection.off("chatUnreadUpdated", handleUnreadUpdated);
