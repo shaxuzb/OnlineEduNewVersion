@@ -30,8 +30,12 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const submitPurchase = useCallback(
     async ({ values }: SubmitPurchaseProps): Promise<PurchaseOrderResponse> => {
+      if (!selectedItem) {
+        throw new Error("Purchase plan is not selected");
+      }
+
       const body: CreatePurchaseOrderRequest = {
-        scopeIds: selectedItem?.id,
+        scopeIds: selectedItem.id,
         ...values,
       };
 
