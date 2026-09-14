@@ -19,12 +19,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { moderateScale, ScaledSheet } from "react-native-size-matters";
 import ScreenGuardModule from "react-native-screenguard";
 import { useFocusEffect } from "@react-navigation/native";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { CustomStyledCard } from "@/src/components/ui/cards/CustomStyledCard";
 import ProtectedPdfViewer from "@/src/components/courses/ProtectedPdfViewer";
 import { modalService } from "@/src/components/modals/modalService";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useThemeTest } from "@/src/hooks/useQuiz";
+import { RootStackParamList } from "@/src/navigation/rootTypes";
 import { Theme } from "@/src/types";
 import { BORDER_RADIUS, COLORS, FONT_SIZES, SPACING } from "@/src/utils";
 import {
@@ -66,13 +68,9 @@ const ErrorState = React.memo(({ onRetry }: { onRetry: () => void }) => (
   </SafeAreaView>
 ));
 
-export default function QuizScreen({
-  navigation,
-  route,
-}: {
-  navigation: any;
-  route: any;
-}) {
+type Props = NativeStackScreenProps<RootStackParamList, "QuizScreen">;
+
+export default function QuizScreen({ navigation, route }: Props) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { plan } = useAuth();
