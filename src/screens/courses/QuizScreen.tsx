@@ -1,7 +1,5 @@
 import { FontAwesome6, Ionicons } from "@expo/vector-icons";
-import Constants from "expo-constants";
 import * as ScreenCapture from "expo-screen-capture";
-import * as SecureStore from "expo-secure-store";
 import React, {
   useCallback,
   useEffect,
@@ -11,22 +9,18 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
-  Alert,
-  Dimensions,
   InteractionManager,
   Platform,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import Pdf from "react-native-pdf";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { moderateScale, ScaledSheet } from "react-native-size-matters";
 import ScreenGuardModule from "react-native-screenguard";
 import { useFocusEffect } from "@react-navigation/native";
 import { CustomStyledCard } from "@/src/components/ui/cards/CustomStyledCard";
-import PdfLoadingState from "@/src/components/courses/PdfLoadingState";
+import ProtectedPdfViewer from "@/src/components/courses/ProtectedPdfViewer";
 import { modalService } from "@/src/components/modals/modalService";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -38,9 +32,6 @@ import {
   getQuizPdfToggleLabel,
   QuizPdfMode,
 } from "./quizPdfModeUtils";
-import { shouldShowPdfLoading } from "./pdfLoadingUtils";
-
-const { width } = Dimensions.get("window");
 
 const HeaderTitle = React.memo(({ title }: { title: string }) => (
   <View style={headerTitleStyles.container}>
@@ -75,82 +66,6 @@ const ErrorState = React.memo(({ onRetry }: { onRetry: () => void }) => (
   </SafeAreaView>
 ));
 
-const PdfViewer = React.memo(
-  ({
-    pdfPath,
-    authToken,
-    isAuthLoading,
-  }: {
-    pdfPath: string;
-    authToken: string | null;
-    isAuthLoading: boolean;
-  }) => {
-    const { theme } = useTheme();
-    const styles = useMemo(() => createStyles(theme), [theme]);
-    const [isPdfLoading, setIsPdfLoading] = useState(true);
-
-    useEffect(() => {
-      setIsPdfLoading(true);
-    }, [authToken, pdfPath]);
-
-    if (isAuthLoading) {
-      return (
-        <PdfLoadingState
-          color={theme.colors.primary}
-          backgroundColor={theme.colors.background}
-        />
-      );
-    }
-
-    if (!authToken) {
-      return (
-        <View style={styles.errorContainer}>
-          <Ionicons name="document-outline" size={64} color={COLORS.gray} />
-          <Text style={styles.errorTitle}>Autentifikatsiya xatosi</Text>
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.pdfViewer}>
-        <Pdf
-          source={{
-            uri: `${Constants.expoConfig?.extra?.API_URL}${pdfPath}`,
-            headers: { Authorization: `Bearer ${authToken}` },
-            cache: false,
-            method: "get",
-          }}
-          onLoadComplete={() => setIsPdfLoading(false)}
-          onError={(error) => {
-            setIsPdfLoading(false);
-            console.error("Quiz PDF error:", error);
-            Alert.alert("Xatolik", "PDF faylni ochishda xatolik yuz berdi.");
-          }}
-          style={styles.pdf}
-          trustAllCerts={false}
-          enablePaging={false}
-          horizontal={false}
-          spacing={0}
-          password=""
-          scale={1}
-          enableDoubleTapZoom
-          minScale={1}
-          maxScale={5}
-          renderActivityIndicator={() => (
-            <ActivityIndicator size="large" color={COLORS.primary} />
-          )}
-        />
-        {shouldShowPdfLoading(authToken, isPdfLoading) && (
-          <PdfLoadingState
-            color={theme.colors.primary}
-            backgroundColor={theme.colors.background}
-          />
-        )}
-      </View>
-    );
-  },
-);
-
 export default function QuizScreen({
   navigation,
   route,
@@ -164,8 +79,6 @@ export default function QuizScreen({
   const { testId, mavzu } = route.params;
   const numericTestId = Number(testId);
   const { data: testData, isLoading, error } = useThemeTest(numericTestId);
-  const [authToken, setAuthToken] = useState<string | null>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [pdfMode, setPdfMode] = useState<QuizPdfMode>("questions");
   const screenGuardEnabledRef = useRef(false);
   const guardRequestIdRef = useRef(0);
@@ -178,15 +91,6 @@ export default function QuizScreen({
     [numericTestId, pdfMode],
   );
   const toggleLabel = getQuizPdfToggleLabel(pdfMode);
-
-  useEffect(() => {
-    void SecureStore.getItemAsync("session")
-      .then((sessionData) => {
-        if (sessionData) setAuthToken(JSON.parse(sessionData).token ?? null);
-      })
-      .catch((loadError) => console.error("Quiz token error:", loadError))
-      .finally(() => setIsAuthLoading(false));
-  }, []);
 
   const handleGoBack = useCallback(() => {
     navigation.goBack();
@@ -287,11 +191,7 @@ export default function QuizScreen({
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       <View style={styles.pdfContainer}>
-        <PdfViewer
-          pdfPath={pdfPath}
-          authToken={authToken}
-          isAuthLoading={isAuthLoading}
-        />
+        <ProtectedPdfViewer path={pdfPath} />
       </View>
       <View style={styles.quizControls}>
         <View style={styles.pdfToggleWrapper}>
@@ -387,21 +287,6 @@ const createStyles = (theme: Theme) =>
   ScaledSheet.create({
     container: { flex: 1, backgroundColor: theme.colors.background },
     pdfContainer: { flex: 1, backgroundColor: theme.colors.background },
-    pdfViewer: { flex: 1, position: "relative" },
-    pdf: { flex: 1, width },
-    errorContainer: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      paddingHorizontal: SPACING.xl,
-    },
-    errorTitle: {
-      fontSize: FONT_SIZES.xl,
-      fontWeight: "bold",
-      color: COLORS.text,
-      marginTop: SPACING.base,
-      textAlign: "center",
-    },
     quizControls: {
       backgroundColor: theme.colors.card,
       paddingTop: SPACING.base,
