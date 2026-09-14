@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - "refactor/**"
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.4
+          cache: yarn
+      - run: npm install --global yarn@1.22.22
+      - run: yarn install --frozen-lockfile
+      - run: yarn typecheck
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.4
+          cache: yarn
+      - run: npm install --global yarn@1.22.22
+      - run: yarn install --frozen-lockfile
+      - run: yarn test:ci
