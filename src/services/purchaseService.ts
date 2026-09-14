@@ -1,10 +1,13 @@
 import { $axiosPrivate } from "./AxiosService";
 import { getRecoverableCardSmsResponse } from "./cardSmsRecovery";
+import { createSingleFlight } from "./singleFlight";
 import {
   CardSmsResponse,
   CreatePurchaseOrderRequest,
   PurchaseOrderResponse,
 } from "./purchaseTypes";
+
+const verifyCardPaymentSingleFlight = createSingleFlight<void>();
 
 export const purchaseService = {
   getAll: async () => {
@@ -48,10 +51,11 @@ export const purchaseService = {
     });
   },
 
-  verifyCardPayment: async (orderId: number, code: string): Promise<void> => {
-    await $axiosPrivate.post("transactions/subscribe/card/pay", {
-      orderId,
-      code,
-    });
-  },
+  verifyCardPayment: (orderId: number, code: string): Promise<void> =>
+    verifyCardPaymentSingleFlight(`${orderId}:${code}`, async () => {
+      await $axiosPrivate.post("transactions/subscribe/card/pay", {
+        orderId,
+        code,
+      });
+    }),
 };
