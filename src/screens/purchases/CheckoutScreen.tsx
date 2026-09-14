@@ -11,11 +11,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import LinearGradient from "react-native-linear-gradient";
 import { Ionicons, MaterialIcons, FontAwesome } from "@expo/vector-icons";
 import Payme from "@/src/assets/icons/payments/payme.svg";
+import {
+  NativeStackNavigationProp,
+  NativeStackScreenProps,
+} from "@react-navigation/native-stack";
 
 import { useTheme } from "@/src/context/ThemeContext";
-import { Theme } from "@/src/types";
-import getQueryClient from "@/src/utils/helpers/queryClient";
 import { usePurchase } from "@/src/context/PurchaseContext";
+import { PurchaseStackParamList } from "@/src/navigation/purchaseTypes";
+import { RootStackParamList } from "@/src/navigation/rootTypes";
+import { Theme } from "@/src/types";
 import Toast from "react-native-toast-message";
 
 interface PaymentItem {
@@ -25,12 +30,12 @@ interface PaymentItem {
   paymentCode: string;
 }
 
-export default function CheckoutScreen({ navigation }: { navigation: any }) {
+type Props = NativeStackScreenProps<PurchaseStackParamList, "Checkout">;
+
+export default function CheckoutScreen({ navigation }: Props) {
   const { theme, isDark } = useTheme();
   const styles = createStyles(theme, isDark);
   const { selectedItem, submitPurchase } = usePurchase();
-
-  const queries = getQueryClient();
   const [selectedPayment, setSelectedPayment] = useState<number>(1);
 
   const paymentItems: PaymentItem[] = [
@@ -52,49 +57,72 @@ export default function CheckoutScreen({ navigation }: { navigation: any }) {
     return price.toLocaleString("uz-UZ") + " сум";
   };
 
+  const resetToCourses = () => {
+    const rootNavigation =
+      navigation.getParent<NativeStackNavigationProp<RootStackParamList>>();
+
+    if (!rootNavigation) {
+      console.warn("[Checkout] Root navigation is unavailable");
+      return;
+    }
+
+    rootNavigation.reset({
+      index: 0,
+      routes: [
+        {
+          name: "MainTabs",
+          params: {
+            screen: "Courses",
+            params: { screen: "CoursesList" },
+          },
+        },
+      ],
+    });
+  };
+
   const handlePaymentSelect = async (paymentCode: string) => {
+    if (!selectedItem) {
+      Toast.show({
+        type: "error",
+        text1: "Obuna rejasi tanlanmagan",
+        text2: "Qaytadan obuna rejasini tanlang",
+      });
+      return;
+    }
+
     if (paymentCode === "PAYME_SUBSCRIBE") {
       navigation.navigate("CreditCardScreen", {
-        totalPrice: 1,
         paymentType: paymentCode,
       });
-    } else {
-      try {
-        const data = await submitPurchase({
-          values: {
-            planId: Number(selectedItem?.id),
-            paymentType: paymentCode,
-          },
-        });
-        queries.clear();
-        await queries.refetchQueries({ queryKey: ["themes"] });
-        await Linking.openURL((data as any).paymentUrl);
-        navigation.reset({
-          index: 0,
-          routes: [
-            {
-              name: "MainTabs",
-              state: {
-                routes: [
-                  {
-                    name: "Courses",
-                    state: {
-                      routes: [{ name: "CoursesList" }],
-                    },
-                  },
-                ],
-              },
-            },
-          ],
-        });
-      } catch (error) {
-        Toast.show({
-          type: "error",
-          text1: "Sotib olishda xatolik yuz berdi!",
-        });
+      return;
+    }
+
+    try {
+      const data = await submitPurchase({
+        values: {
+          planId: selectedItem.id,
+          paymentType: paymentCode,
+        },
+      });
+
+      if (!data.paymentUrl?.trim()) {
+        throw new Error("Missing merchant payment URL");
       }
+
+      await Linking.openURL(data.paymentUrl);
+      resetToCourses();
+    } catch (error) {
+      console.warn(
+        "[Checkout] Purchase failed",
+        error instanceof Error ? error.message : String(error),
+      );
+      Toast.show({
+        type: "error",
+        text1: "Sotib olishda xatolik yuz berdi!",
+      });
     }
   };
+
   useEffect(() => {
     navigation.setOptions({
       headerShown: true,
@@ -107,36 +135,14 @@ export default function CheckoutScreen({ navigation }: { navigation: any }) {
       headerTintColor: theme.colors.text,
       statusBarStyle: !isDark ? "dark" : "light",
     });
-  }, [navigation]);
+  }, [isDark, navigation, theme.colors.text]);
+
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Order Summary - Compact */}
-        {/* <View style={styles.summaryCompact}>
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryLabelContainer}>
-              <MaterialIcons name="calendar-today" size={18} color={isDark ? '#94A3B8' : '#6B7280'} />
-              <Text style={styles.summaryLabel}>Davomiylik:</Text>
-            </View>
-            <Text style={styles.summaryValue}>1 yil • Premium+</Text>
-          </View>
-          
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryLabelContainer}>
-              <MaterialIcons name="payments" size={18} color={isDark ? '#94A3B8' : '#6B7280'} />
-              <Text style={styles.summaryLabel}>Narx:</Text>
-            </View>
-            <View style={styles.priceContainer}>
-              <Text style={styles.originalPrice}>{formatPrice(totalPrice)}</Text>
-              <Text style={styles.finalPriceCompact}>{formatPrice(finalPrice)}</Text>
-            </View>
-          </View>
-        </View> */}
-
-        {/* Payment Methods */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <MaterialIcons
@@ -157,7 +163,7 @@ export default function CheckoutScreen({ navigation }: { navigation: any }) {
                 ]}
                 onPress={() => {
                   setSelectedPayment(item.id);
-                  handlePaymentSelect(item.paymentCode);
+                  void handlePaymentSelect(item.paymentCode);
                 }}
                 activeOpacity={0.8}
               >
@@ -184,7 +190,6 @@ export default function CheckoutScreen({ navigation }: { navigation: any }) {
           </View>
         </View>
 
-        {/* Detailed Price Breakdown */}
         <View style={styles.breakdownCard}>
           <View style={styles.breakdownHeader}>
             <MaterialIcons
@@ -206,7 +211,7 @@ export default function CheckoutScreen({ navigation }: { navigation: any }) {
               <Text style={styles.breakdownLabel}>Chegirma</Text>
               <View style={styles.discountBadge}>
                 <Text style={styles.discountLabel}>
-                  {(selectedItem as any)?.annualDiscountPercent}%
+                  {selectedItem.annualDiscountPercent}%
                 </Text>
               </View>
             </View>
@@ -226,7 +231,6 @@ export default function CheckoutScreen({ navigation }: { navigation: any }) {
           </View>
         </View>
 
-        {/* Security Info */}
         <View style={styles.securityCard}>
           <View style={styles.securityIcon}>
             <Ionicons name="shield-checkmark" size={20} color="#10B981" />
@@ -240,7 +244,6 @@ export default function CheckoutScreen({ navigation }: { navigation: any }) {
           </View>
         </View>
 
-        {/* Terms & Conditions */}
         <View style={styles.termsCard}>
           <View style={styles.termsIcon}>
             <MaterialIcons name="info" size={18} color="#94A3B8" />
@@ -253,7 +256,6 @@ export default function CheckoutScreen({ navigation }: { navigation: any }) {
         </View>
       </ScrollView>
 
-      {/* Continue Button */}
       <View style={styles.footer}>
         <LinearGradient
           colors={["#3a5dde", "#5e84e6"]}
@@ -264,9 +266,9 @@ export default function CheckoutScreen({ navigation }: { navigation: any }) {
           <TouchableOpacity
             style={styles.continueButton}
             onPress={() =>
-              handlePaymentSelect(
+              void handlePaymentSelect(
                 paymentItems.find((p) => p.id === selectedPayment)
-                  ?.paymentCode || "",
+                  ?.paymentCode ?? "",
               )
             }
             activeOpacity={0.9}
@@ -282,85 +284,15 @@ export default function CheckoutScreen({ navigation }: { navigation: any }) {
   );
 }
 
-/* ================= STYLES ================= */
-
 const createStyles = (theme: Theme, isDark: boolean) =>
   StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: isDark ? "#0F172A" : "#F9FAFB",
     },
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: 20,
-      paddingTop: 16,
-      paddingBottom: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: isDark ? "#1E293B" : "#E5E7EB",
-    },
-    backButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: isDark
-        ? "rgba(255, 255, 255, 0.1)"
-        : "rgba(0, 0, 0, 0.05)",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    headerTitle: {
-      fontSize: 20,
-      fontWeight: "700",
-      color: isDark ? "#FFFFFF" : "#1F2937",
-    },
     scrollContent: {
       paddingHorizontal: 20,
       paddingTop: 16,
-    },
-    summaryCompact: {
-      backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-      borderRadius: 16,
-      padding: 16,
-      marginBottom: 24,
-      borderWidth: 1,
-      borderColor: isDark ? "#334155" : "#E5E7EB",
-    },
-    summaryRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 12,
-    },
-    summaryLabelContainer: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-    },
-    summaryLabel: {
-      fontSize: 15,
-      color: isDark ? "#94A3B8" : "#6B7280",
-      fontWeight: "500",
-    },
-    summaryValue: {
-      fontSize: 15,
-      fontWeight: "600",
-      color: isDark ? "#FFFFFF" : "#1F2937",
-    },
-    priceContainer: {
-      alignItems: "flex-end",
-      gap: 2,
-    },
-    originalPrice: {
-      fontSize: 13,
-      color: isDark ? "#94A3B8" : "#9CA3AF",
-      textDecorationLine: "line-through",
-    },
-    finalPriceCompact: {
-      fontSize: 18,
-      fontWeight: "700",
-      color: "#8B5CF6",
     },
     section: {
       marginBottom: 24,
@@ -461,9 +393,6 @@ const createStyles = (theme: Theme, isDark: boolean) =>
     discountLabel: {
       fontSize: 13,
       fontWeight: "600",
-      color: "#10B981",
-    },
-    discountValue: {
       color: "#10B981",
     },
     breakdownDivider: {
