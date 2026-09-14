@@ -12,6 +12,7 @@ export interface CreatePurchaseOrderRequest {
 
 export interface PurchaseOrderResponse {
   id: number;
+  paymentUrl?: string;
   [key: string]: unknown;
 }
 
