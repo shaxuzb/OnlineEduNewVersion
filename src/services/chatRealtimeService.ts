@@ -11,6 +11,8 @@ const apiUrl = String(Constants.expoConfig?.extra?.API_URL ?? "").replace(
   "",
 );
 
+const INITIAL_RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000] as const;
+
 export const notificationsHubUrl = `${apiUrl}/hubs/notifications`;
 
 export const buildNotificationsHubUrl = (accessToken?: string) =>
@@ -26,6 +28,23 @@ export const shouldSuspendNotificationsHub = (
 export const shouldRefreshCurrentPlanOnResume = (
   nextAppState: string,
 ) => nextAppState === "active";
+
+export const getChatReconnectDelay = (attempt: number): number => {
+  const safeAttempt = Math.max(0, Math.floor(attempt));
+  return INITIAL_RECONNECT_DELAYS[
+    Math.min(safeAttempt, INITIAL_RECONNECT_DELAYS.length - 1)
+  ];
+};
+
+export const shouldAttemptChatConnection = ({
+  online,
+  platform,
+  appState,
+}: {
+  online: boolean;
+  platform: string;
+  appState: string;
+}): boolean => online && !shouldSuspendNotificationsHub(platform, appState);
 
 export const createChatRealtimeConnection = (
   accessTokenFactory: () => Promise<string>,
