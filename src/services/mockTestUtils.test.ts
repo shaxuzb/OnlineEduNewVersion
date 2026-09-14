@@ -43,7 +43,7 @@ describe("mock test payload normalization", () => {
     ).toBe(false);
   });
 
-  it("normalizes mock answer keys with array options", () => {
+  it("normalizes mock answer keys with array options without exposing correctAnswer", () => {
     const result = normalizeMockTest({
       id: 1,
       subjectId: 1,
@@ -60,6 +60,7 @@ describe("mock test payload normalization", () => {
           subTestNo: 1,
           partIndex: 0,
           answerType: 1,
+          correctAnswer: "B",
           options: ["A", "B", "C", "D"],
           points: 1,
         },
@@ -69,6 +70,7 @@ describe("mock test payload normalization", () => {
     expect(result.answerKeys[0].options).toBe(
       JSON.stringify(["A", "B", "C", "D"]),
     );
+    expect(result.answerKeys[0]).not.toHaveProperty("correctAnswer");
     expect(result.answerKeys[0].partLabel).toBeNull();
     expect(result.hasAnswerPdf).toBe(false);
   });
