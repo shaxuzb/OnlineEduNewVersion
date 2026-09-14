@@ -1,8 +1,8 @@
+import { MockTestChapter } from "../types";
 import {
-  AnswerKey,
-  MockTest,
-  MockTestChapter,
-} from "../types";
+  normalizeQuizAttemptQuestion,
+  SafeMockTest,
+} from "./quizAttemptUtils";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -19,21 +19,6 @@ const toNumber = (value: unknown, fallback: number) => {
 const toStringOrNull = (value: unknown) =>
   typeof value === "string" && value.trim() ? value : null;
 
-const normalizeOptions = (value: unknown): string | null => {
-  if (Array.isArray(value)) return JSON.stringify(value);
-  return typeof value === "string" ? value : null;
-};
-
-const normalizePhotos = (value: unknown) => {
-  if (!Array.isArray(value)) return [];
-
-  return value.filter(isRecord).flatMap((photo) => {
-    const fileId = toStringOrNull(photo.fileId);
-    const relativePath = toStringOrNull(photo.relativePath);
-    return fileId && relativePath ? [{ fileId, relativePath }] : [];
-  });
-};
-
 export const isMockTestChapter = (
   value: unknown,
 ): value is MockTestChapter => {
@@ -41,30 +26,7 @@ export const isMockTestChapter = (
   return value.itemType === "MOCK_TEST" || value.isMockTest === true;
 };
 
-export const normalizeMockAnswerKey = (value: unknown): AnswerKey => {
-  const raw = isRecord(value) ? value : {};
-  const questionNumber = toNumber(raw.questionNumber, 0);
-
-  return {
-    id: toNumber(raw.id, questionNumber),
-    questionNumber,
-    dbQuestionNumber: toNumber(
-      raw.dbQuestionNumber ?? raw.questionNumber,
-      questionNumber,
-    ),
-    partIndex: toNumber(raw.partIndex, 0),
-    subTestNo: toNumber(raw.subTestNo, 1),
-    partLabel: toStringOrNull(raw.partLabel),
-    correctAnswer: toStringOrNull(raw.correctAnswer) ?? "",
-    testPhotos: normalizePhotos(raw.testPhotos ?? raw.photos),
-    answerType: toNumber(raw.answerType, 1),
-    options: normalizeOptions(raw.options),
-    points: toNumber(raw.points, 1),
-    videoFileId: toStringOrNull(raw.videoFileId),
-  };
-};
-
-export const normalizeMockTest = (value: unknown): MockTest => {
+export const normalizeMockTest = (value: unknown): SafeMockTest => {
   const raw = isRecord(value) ? value : {};
   const rawChapters = Array.isArray(raw.chapters) ? raw.chapters : [];
 
@@ -87,7 +49,7 @@ export const normalizeMockTest = (value: unknown): MockTest => {
       name: toStringOrNull(chapter.name) ?? "",
     })),
     answerKeys: Array.isArray(raw.answerKeys)
-      ? raw.answerKeys.map(normalizeMockAnswerKey)
+      ? raw.answerKeys.map(normalizeQuizAttemptQuestion)
       : [],
     hasAccess: raw.hasAccess !== false,
     hasTestPdf: raw.hasTestPdf === true,
