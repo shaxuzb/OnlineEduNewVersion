@@ -58,11 +58,17 @@ const refreshManager = createAuthRefreshManager({
   onInvalidated: () => authInvalidationHandler?.(),
 });
 
+export const getStoredAccessToken = async (): Promise<string | null> =>
+  (await loadSession())?.token ?? null;
+
+export const refreshAccessToken = (): Promise<string> =>
+  refreshManager.getAccessToken();
+
 const addToken = async (config: InternalAxiosRequestConfig) => {
   try {
-    const session = await loadSession();
-    if (session?.token) {
-      config.headers.Authorization = `Bearer ${session.token}`;
+    const token = await getStoredAccessToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
   } catch (error) {
     console.error("Token parsing error:", error);
@@ -86,7 +92,7 @@ const handleResponseError = async (error: AxiosError) => {
   originalRequest._retry = true;
 
   try {
-    const accessToken = await refreshManager.getAccessToken();
+    const accessToken = await refreshAccessToken();
     originalRequest.headers.Authorization = `Bearer ${accessToken}`;
     return $axiosPrivate(originalRequest);
   } catch (refreshError) {
