@@ -17,13 +17,13 @@ import { useTheme } from "../../../context/ThemeContext";
 import { Theme } from "../../../types";
 import { Ionicons } from "@expo/vector-icons";
 import { registrationService } from "@/src/services/registrationService";
-import { getApiStatus } from "@/src/services/apiError";
 import Toast from "react-native-toast-message";
 import {
   formatUzbekPhone,
   isCompleteUzbekPhone,
   normalizeUzbekPhone,
 } from "../../../utils/phone";
+import { shouldContinueRegistrationAfterSmsError } from "./registrationSmsPolicy";
 
 const Step2Schema = Yup.object().shape({
   phoneNumber: Yup.string()
@@ -65,15 +65,17 @@ const Step2ContactInfo: React.FC = () => {
         text2: `${formatUzbekPhone(phoneNumber)} raqamiga tasdiqlash kodi yuborildi`,
       });
     } catch (error: unknown) {
-      if (getApiStatus(error) === 400) {
+      if (shouldContinueRegistrationAfterSmsError(error)) {
         const message = axios.isAxiosError(error)
           ? error.response?.data?.message
           : undefined;
-        return Toast.show({
+        nextStep();
+        Toast.show({
           type: "error",
           text1: "SMS yuborilgan",
           text2: message || "Tasdiqlash kodi avval yuborilgan",
         });
+        return;
       }
 
       Toast.show({
