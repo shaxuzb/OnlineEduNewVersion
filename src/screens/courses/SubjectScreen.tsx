@@ -3,6 +3,8 @@ import ErrorData from "@/src/components/exceptions/ErrorData";
 import LoadingData from "@/src/components/exceptions/LoadingData";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useThemes } from "@/src/hooks/useThemes";
+import { CoursesStackParamList } from "@/src/navigation/coursesTypes";
+import { RootStackParamList } from "@/src/navigation/rootTypes";
 import { isMockTestChapter } from "@/src/services/mockTestUtils";
 import {
   ChapterTheme,
@@ -11,6 +13,8 @@ import {
   Theme,
 } from "@/src/types";
 import { FontAwesome6, Ionicons } from "@expo/vector-icons";
+import { CompositeScreenProps } from "@react-navigation/native";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useCallback, useEffect, useMemo } from "react";
 import {
   Platform,
@@ -33,19 +37,17 @@ type SubjectSection = {
   data: SubjectListItem[];
   isMockTest: boolean;
 };
+type Props = CompositeScreenProps<
+  NativeStackScreenProps<CoursesStackParamList, "SubjectScreen">,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
-export default function SubjectScreen({
-  navigation,
-  route,
-}: {
-  navigation: any;
-  route: any;
-}) {
+export default function SubjectScreen({ navigation, route }: Props) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { subjectId, subjectName, percent, subjectCode } = route.params;
 
-  const { data, isLoading, isError, refetch } = useThemes(Number(subjectId));
+  const { data, isLoading, isError, refetch } = useThemes(subjectId);
 
   const sections = useMemo<SubjectSection[]>(
     () =>
@@ -56,64 +58,59 @@ export default function SubjectScreen({
       })) ?? [],
     [data?.results],
   );
+
   const handleThemePress = useCallback(
     (chapterTheme: ChapterTheme) => {
-      if (chapterTheme.hasAccess) {
-        if (subjectCode === "NATIONAL_CERTIFICATE") {
-          if (chapterTheme?.testId) {
-            alertService.open({
-              type: "default",
-              iconName: "time-outline",
-              title: "Imtihon rejimini tanlang",
-              description: "Testni qanday ishlamoqchisiz?",
-              cancelText: "Bekor qilish",
-              secondaryText: "Vaqtga qo'ymasdan",
-              okText: "Vaqtga qo'yib",
-              onSecondary: () => {
-                navigation.navigate("QuizScreenSertificate", {
-                  testId: chapterTheme.testId,
-                  percent: 2,
-                  title: "Mashqlar",
-                  mavzu: `${chapterTheme.ordinalNumber}-MS imtihoni`,
-                  testMode: "untimed",
-                });
-              },
-              onOk: () => {
-                navigation.navigate("QuizScreenSertificate", {
-                  testId: chapterTheme.testId,
-                  percent: 2,
-                  title: "Mashqlar",
-                  mavzu: `${chapterTheme.ordinalNumber}-MS imtihoni`,
-                  testMode: "timed",
-                });
-              },
-            });
-          } else {
-            alertService.open({
-              type: "warning",
-              title: "Test tayyor emas",
-              description:
-                "Test hali yuklanmagan. Tayyor bo‘lgach, siz uni boshlashingiz mumkin.",
-              showCancel: false,
-              okText: "Yopish",
-            });
-            // setEmptyModal({
-            //   open: true,
-            //   title: "Testlar hali mavjud emas",
-            //   description: "Bu mavzu bo‘yicha testlar hali joylanmagan.",
-            // });
-          }
-        } else {
-          navigation.navigate("LessonDetail", {
-            themeId: chapterTheme.id,
-            percent: chapterTheme.percent,
-            themeOrdinalNumber: chapterTheme.ordinalNumber,
-            themeName: chapterTheme.name,
-          });
-        }
-      } else {
+      if (!chapterTheme.hasAccess) {
         modalService.open();
+        return;
       }
+
+      if (subjectCode === "NATIONAL_CERTIFICATE") {
+        if (!chapterTheme.testId) {
+          alertService.open({
+            type: "warning",
+            title: "Test tayyor emas",
+            description:
+              "Test hali yuklanmagan. Tayyor bo‘lgach, siz uni boshlashingiz mumkin.",
+            showCancel: false,
+            okText: "Yopish",
+          });
+          return;
+        }
+
+        alertService.open({
+          type: "default",
+          iconName: "time-outline",
+          title: "Imtihon rejimini tanlang",
+          description: "Testni qanday ishlamoqchisiz?",
+          cancelText: "Bekor qilish",
+          secondaryText: "Vaqtga qo'ymasdan",
+          okText: "Vaqtga qo'yib",
+          onSecondary: () => {
+            navigation.navigate("QuizScreenSertificate", {
+              testId: chapterTheme.testId,
+              mavzu: `${chapterTheme.ordinalNumber}-MS imtihoni`,
+              testMode: "untimed",
+            });
+          },
+          onOk: () => {
+            navigation.navigate("QuizScreenSertificate", {
+              testId: chapterTheme.testId,
+              mavzu: `${chapterTheme.ordinalNumber}-MS imtihoni`,
+              testMode: "timed",
+            });
+          },
+        });
+        return;
+      }
+
+      navigation.navigate("LessonDetail", {
+        themeId: chapterTheme.id,
+        percent: chapterTheme.percent,
+        themeOrdinalNumber: chapterTheme.ordinalNumber,
+        themeName: chapterTheme.name,
+      });
     },
     [navigation, subjectCode],
   );
@@ -232,10 +229,9 @@ export default function SubjectScreen({
   useEffect(() => {
     navigation.setOptions({
       headerShown: true,
-      title: subjectName.toString(),
+      title: subjectName,
       freezeOnBlur: true,
-
-      headerRight: (props: any) => (
+      headerRight: (props: { tintColor?: string }) => (
         <Text style={[styles.headerPercent, { color: props.tintColor }]}>
           {percent}%
         </Text>
@@ -253,7 +249,7 @@ export default function SubjectScreen({
         ) : data && data.results.length > 0 ? (
           <SectionList
             sections={sections}
-            stickyHeaderHiddenOnScroll={true}
+            stickyHeaderHiddenOnScroll
             keyExtractor={keyExtractor}
             renderSectionHeader={renderSectionHeader}
             renderItem={renderItem}
