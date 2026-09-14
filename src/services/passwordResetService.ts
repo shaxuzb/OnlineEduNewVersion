@@ -1,13 +1,14 @@
-import { $axiosBase, $axiosPrivate } from "./AxiosService";
+import { $axiosBase } from "./AxiosService";
+
+const requestResetCode = async (phone: string) => {
+  await $axiosBase.post("account/password-reset/request", { phone });
+};
 
 export const passwordResetService = {
-  request: async (phone: string) => {
-    await $axiosPrivate.post("account/password-reset/request", { phone });
-  },
+  request: requestResetCode,
 
-  requestPublic: async (phone: string) => {
-    await $axiosBase.post("account/password-reset/request", { phone });
-  },
+  // Compatibility alias for the existing resend screen; both flows are public.
+  requestPublic: requestResetCode,
 
   confirm: async (payload: {
     phone: string;
