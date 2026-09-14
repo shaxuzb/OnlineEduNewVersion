@@ -7,10 +7,9 @@ export const shouldShowChatNotification = (
 
 export const getChatNotificationContent = ({
   threadId,
-  message,
 }: IncomingChatMessage) => ({
   title: "Sizda yangi xabar bor",
-  body: message.text.trim() || "Sizda yangi xabar bor",
+  body: "Yangi xabarni ko‘rish uchun ilovani oching",
   data: {
     type: "chat-message",
     threadId: String(threadId),
