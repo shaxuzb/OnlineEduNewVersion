@@ -46,7 +46,29 @@ Registration SMS and password-reset request/confirm endpoints are unauthenticate
 
 The mobile app now calls these flows through the public Axios instance and does not trigger access-token refresh for them.
 
-## 5. Verification checklist for backend release
+## 5. Protected media should use short-lived server-issued access
+
+The mobile app currently supports authenticated native video/PDF requests and can recover by refreshing the normal access token after an authorization failure. This is an interoperability fallback, not the preferred long-term media contract.
+
+For protected lesson videos, test PDFs, answer PDFs, and similar content, the backend should preferably issue short-lived media URLs or media-specific tokens that:
+
+- expire quickly,
+- are scoped to one user/resource,
+- cannot be reused for unrelated API access,
+- are validated server-side for the current subscription/access rights,
+- can be renewed by an authenticated API request.
+
+Do not place refresh tokens in media URLs, query parameters, or native media component state.
+
+## 6. Reliable notifications require server push delivery
+
+SignalR is useful while the app process is alive, but it is not a reliable delivery mechanism after the app has been terminated or suspended by the operating system.
+
+The backend should register and manage device push tokens and send important chat/payment events through APNs/FCM (or Expo Push when intentionally used as the delivery layer). Push payloads should avoid sensitive message/payment details on the lock screen; the mobile client can fetch the full data after the user opens the app.
+
+The current local notifications created from SignalR should be treated as best-effort foreground/background convenience only.
+
+## 7. Verification checklist for backend release
 
 - Inspect raw `GET /theme-test/{id}` response: no `correctAnswer` field exists.
 - Inspect raw `GET /mock-tests/{id}` response: no `correctAnswer` field exists.
@@ -54,3 +76,6 @@ The mobile app now calls these flows through the public Axios instance and does 
 - Submit a forged `userId`: it is ignored or rejected; it cannot alter the target account.
 - Request another user's results/statistics as a normal user: server returns an authorization error.
 - Confirm OTP endpoints apply rate limits and expiry server-side.
+- Confirm protected media URLs/tokens expire and cannot authorize unrelated resources.
+- Confirm chat/payment push reaches a device after the app process has been terminated.
+- Confirm lock-screen notification payloads do not contain sensitive chat/payment details.
