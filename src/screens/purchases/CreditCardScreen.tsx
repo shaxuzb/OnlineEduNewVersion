@@ -96,12 +96,21 @@ export default function CreditCardScreen({ navigation, route }: Props) {
   };
 
   const handleSubmit = async (values: { number: string; expire: string }) => {
+    if (!selectedItem) {
+      Toast.show({
+        type: "error",
+        text1: "Obuna rejasi tanlanmagan",
+        text2: "Qaytadan obuna rejasini tanlang",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
       const data = await submitPurchase({
         values: {
-          planId: Number(selectedItem?.id),
+          planId: selectedItem.id,
           paymentType: paymentType.toString(),
           card: {
             expire: values.expire.replace(/\D/g, ""),
@@ -194,7 +203,7 @@ export default function CreditCardScreen({ navigation, route }: Props) {
                     <View style={styles.breakdownRow}>
                       <Text style={styles.breakdownLabel}>To'lov summasi</Text>
                       <Text style={styles.breakdownValue}>
-                        {formatPrice(selectedItem?.price || 0)}
+                        {formatPrice(selectedItem?.price ?? 0)}
                       </Text>
                     </View>
                     <View style={styles.breakdownRow}>
@@ -205,7 +214,7 @@ export default function CreditCardScreen({ navigation, route }: Props) {
                     <View style={styles.totalRow}>
                       <Text style={styles.totalLabel}>Jami to'lov</Text>
                       <Text style={styles.totalValue}>
-                        {formatPrice(selectedItem?.price || 0)}
+                        {formatPrice(selectedItem?.price ?? 0)}
                       </Text>
                     </View>
                   </View>
@@ -228,7 +237,7 @@ export default function CreditCardScreen({ navigation, route }: Props) {
                         <>
                           <MaterialIcons name="lock" size={20} color="#fff" />
                           <Text style={styles.payButtonText}>
-                            To'lash • {formatPrice(selectedItem?.price || 0)}
+                            To'lash • {formatPrice(selectedItem?.price ?? 0)}
                           </Text>
                         </>
                       )}
