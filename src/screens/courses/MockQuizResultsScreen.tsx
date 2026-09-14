@@ -2,9 +2,11 @@ import { modalService } from "@/src/components/modals/modalService";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useMockQuizResults } from "@/src/hooks/useQuiz";
-import { QuizResultsResponse, Theme } from "@/src/types";
+import { RootStackParamList } from "@/src/navigation/rootTypes";
+import { QuizResultAnswer, QuizResultsResponse, Theme } from "@/src/types";
 import { BORDER_RADIUS, COLORS, FONT_SIZES, SPACING } from "@/src/utils";
 import { FontAwesome6, Ionicons } from "@expo/vector-icons";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
@@ -17,17 +19,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { moderateScale } from "react-native-size-matters";
-import {
-  shouldShowBlockingQueryLoader,
-} from "@/src/utils/queryStateUtils";
+import { shouldShowBlockingQueryLoader } from "@/src/utils/queryStateUtils";
 
-export default function MockQuizResultsScreen({
-  navigation,
-  route,
-}: {
-  navigation: any;
-  route: any;
-}) {
+type Props = NativeStackScreenProps<RootStackParamList, "MockQuizResults">;
+type GroupedAnswers = Record<number, QuizResultAnswer[]>;
+
+export default function MockQuizResultsScreen({ navigation, route }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const { plan } = useAuth();
@@ -37,31 +34,32 @@ export default function MockQuizResultsScreen({
     isPending: resultsPending,
     isFetching: resultsFetching,
     isFetched: resultsFetched,
-  } = useMockQuizResults(Number(userId), Number(mockTestId));
+  } = useMockQuizResults(userId, mockTestId);
   const result = quizResults?.[0];
   const hasResults = Boolean(result);
-  const hasValidResultParams = Boolean(Number(userId) && Number(mockTestId));
-  const showResultsLoading = shouldShowBlockingQueryLoader({
-    isPending: resultsPending,
-    isFetching: resultsFetching,
-    isFetched: resultsFetched && hasValidResultParams,
-    hasData: hasResults,
-  }) && hasValidResultParams;
+  const hasValidResultParams = Boolean(userId && mockTestId);
+  const showResultsLoading =
+    shouldShowBlockingQueryLoader({
+      isPending: resultsPending,
+      isFetching: resultsFetching,
+      isFetched: resultsFetched && hasValidResultParams,
+      hasData: hasResults,
+    }) && hasValidResultParams;
 
   const groupedTestData = useMemo(() => {
     const firstResult = quizResults?.[0];
     if (!firstResult) return [];
 
-    return Object.entries(
-      firstResult.answers
-        .filter((item) => !item.isCorrect)
-        .reduce((acc: any, key: any) => {
-          const group = acc[key.subTestNo] || [];
-          group.push(key);
-          acc[key.subTestNo] = group;
-          return acc;
-        }, {}),
-    );
+    const grouped = firstResult.answers
+      .filter((item) => !item.isCorrect)
+      .reduce<GroupedAnswers>((acc, answer) => {
+        const group = acc[answer.subTestNo] ?? [];
+        group.push(answer);
+        acc[answer.subTestNo] = group;
+        return acc;
+      }, {});
+
+    return Object.entries(grouped);
   }, [quizResults]);
 
   const handleFinish = () => {
@@ -84,12 +82,15 @@ export default function MockQuizResultsScreen({
       ],
     });
   };
+
   const handleOpenHistory = () => {
     navigation.navigate("MockQuizResultsHistory", {
       userId,
       mockTestId,
+      mockTestName,
     });
   };
+
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
       "hardwareBackPress",
@@ -97,6 +98,7 @@ export default function MockQuizResultsScreen({
     );
     return () => backHandler.remove();
   }, []);
+
   useEffect(() => {
     navigation.setOptions({
       headerShown: true,
@@ -117,7 +119,8 @@ export default function MockQuizResultsScreen({
       ),
       freezeOnBlur: true,
     });
-  }, [navigation]);
+  }, [mockTestName, navigation, styles.headerTitle]);
+
   if (showResultsLoading)
     return (
       <SafeAreaView style={styles.centerContainer}>
@@ -145,7 +148,6 @@ export default function MockQuizResultsScreen({
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
-          {/* Circle */}
           <View style={styles.percentageCircle}>
             <Text
               style={styles.percentageText}
@@ -156,7 +158,6 @@ export default function MockQuizResultsScreen({
             </Text>
           </View>
 
-          {/* Stats */}
           <View style={styles.statsBox}>
             <View style={styles.statsRow}>
               <Text style={styles.statsLabel}>To'g'ri:</Text>
@@ -170,55 +171,52 @@ export default function MockQuizResultsScreen({
             </View>
           </View>
 
-          {/* Wrong list */}
           <View style={styles.wrongBox}>
             <Text style={styles.wrongTitle}>
               Xato yoki ishlanmagan misollar:
             </Text>
             <View style={styles.wrongNumbers}>
-              {groupedTestData.map(([subTestNo, questions]) => {
-                return (
-                  <View key={subTestNo}>
-                    <Text
-                      style={{
-                        fontSize: moderateScale(16),
-                        marginBottom: moderateScale(8),
-                        color: theme.colors.text,
-                      }}
-                    >
-                      Test {subTestNo}
-                    </Text>
-                    <View
-                      style={{ flexDirection: "row", gap: 5, flexWrap: "wrap" }}
-                    >
-                      {(questions as QuizResultsResponse[0]["answers"]).map(
-                        (num, index) => (
-                          <View key={index} style={styles.badge}>
-                            <Text style={styles.badgeText}>
-                              {num.questionNumber}
-                            </Text>
-                          </View>
-                        ),
-                      )}
-                    </View>
+              {groupedTestData.map(([subTestNo, questions]) => (
+                <View key={subTestNo}>
+                  <Text
+                    style={{
+                      fontSize: moderateScale(16),
+                      marginBottom: moderateScale(8),
+                      color: theme.colors.text,
+                    }}
+                  >
+                    Test {subTestNo}
+                  </Text>
+                  <View
+                    style={{ flexDirection: "row", gap: 5, flexWrap: "wrap" }}
+                  >
+                    {(questions as QuizResultsResponse[0]["answers"]).map(
+                      (num, index) => (
+                        <View key={index} style={styles.badge}>
+                          <Text style={styles.badgeText}>
+                            {num.questionNumber}
+                          </Text>
+                        </View>
+                      ),
+                    )}
                   </View>
-                );
-              })}
+                </View>
+              ))}
             </View>
             <Text style={styles.encouragement}>
               Ushbu misollarni qayta yechishni tavsiya qilamiz!
             </Text>
           </View>
-
-          {/* Buttons */}
         </View>
       </ScrollView>
+
       <TouchableOpacity
         style={styles.historyButton}
         onPress={handleOpenHistory}
       >
         <Text style={styles.historyButtonText}>Tarixni ko'rish</Text>
       </TouchableOpacity>
+
       <View style={styles.actions}>
         <TouchableOpacity
           style={[styles.button, styles.outlineButton]}
@@ -237,15 +235,6 @@ export default function MockQuizResultsScreen({
             } else {
               modalService.open();
             }
-            // router.navigate({
-            //   pathname: "/(root)/lesson/lessondetail/quiz/solution",
-            //   params: {
-            //     userId,
-            //     testId,
-            //     themeId,
-            //     mavzu,
-            //   },
-            // });
           }}
         >
           {!(
@@ -291,6 +280,7 @@ export default function MockQuizResultsScreen({
     </SafeAreaView>
   );
 }
+
 const headerRightStyles = StyleSheet.create({
   container: {
     borderRadius: moderateScale(BORDER_RADIUS.sm),
@@ -303,6 +293,7 @@ const headerRightStyles = StyleSheet.create({
     fontWeight: "500",
   },
 });
+
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
@@ -315,7 +306,6 @@ const createStyles = (theme: Theme) =>
       alignItems: "center",
       backgroundColor: theme.colors.background,
     },
-
     headerTitle: {
       fontSize: moderateScale(FONT_SIZES.lg),
       color: COLORS.white,
