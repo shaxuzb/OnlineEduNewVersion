@@ -1,30 +1,32 @@
 import { $axiosPrivate } from "./AxiosService";
 import {
-  MockTest,
-  ThemeTest,
-  QuizSubmissionRequest,
   QuizResult,
   QuizResultsResponse,
   QuizResultHistoryResponse,
 } from "../types";
 import { normalizeMockTest } from "./mockTestUtils";
+import {
+  normalizeThemeTest,
+  QuizAttemptSubmission,
+  SafeMockTest,
+  SafeThemeTest,
+  toLegacyQuizSubmission,
+} from "./quizAttemptUtils";
 
 export const quizService = {
-  // Get theme test data with answer keys
-  getThemeTest: async (testId: number): Promise<ThemeTest> => {
+  getThemeTest: async (testId: number): Promise<SafeThemeTest> => {
     const response = await $axiosPrivate.get(`/theme-test/${testId}`);
-    return response.data;
+    return normalizeThemeTest(response.data);
   },
 
-  // Get PDF file for the test
   getTestPdf: async (testId: number): Promise<Blob> => {
     const response = await $axiosPrivate.get(`/theme-test/${testId}/pdf`, {
-      responseType: "blob", // Important for file download
+      responseType: "blob",
     });
     return response.data;
   },
 
-  getMockTest: async (mockTestId: number): Promise<MockTest> => {
+  getMockTest: async (mockTestId: number): Promise<SafeMockTest> => {
     const response = await $axiosPrivate.get(`/mock-tests/${mockTestId}`);
     return normalizeMockTest(response.data);
   },
@@ -44,28 +46,30 @@ export const quizService = {
     return response.data;
   },
 
-  // Submit quiz results
   submitTestResults: async (
-    submissionData: QuizSubmissionRequest,
+    submissionData: QuizAttemptSubmission,
+    userId: number,
   ): Promise<QuizResult> => {
+    // Temporary backend compatibility: the server should derive userId from JWT claims.
     const response = await $axiosPrivate.post(
       "/theme-test-results",
-      submissionData,
+      toLegacyQuizSubmission(submissionData, userId),
     );
     return response.data;
   },
 
   submitMockTestResults: async (
-    submissionData: QuizSubmissionRequest,
+    submissionData: QuizAttemptSubmission,
+    userId: number,
   ): Promise<QuizResult> => {
+    // Temporary backend compatibility: the server should derive userId from JWT claims.
     const response = await $axiosPrivate.post(
       "/mock-test-results",
-      submissionData,
+      toLegacyQuizSubmission(submissionData, userId),
     );
     return response.data;
   },
 
-  // Get quiz results for user and theme
   getQuizResults: async (
     userId: number,
     themeId: number,
@@ -76,7 +80,6 @@ export const quizService = {
     return response.data;
   },
 
-  // Get quiz results history for user and theme
   getQuizResultsHistory: async (
     userId: number,
     themeId: number,
