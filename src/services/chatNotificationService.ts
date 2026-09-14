@@ -2,9 +2,7 @@ import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { IncomingChatMessage } from "./chatRealtimeUtils";
 import { getChatNotificationContent } from "./chatNotificationUtils";
-import {
-  getPaymentNotificationContent,
-} from "./paymentNotificationUtils";
+import { getPaymentNotificationContent } from "./paymentNotificationUtils";
 import type { PaymentNotification } from "./paymentNotificationUtils";
 
 export const CHAT_NOTIFICATION_CHANNEL_ID = "chat-messages";
@@ -34,7 +32,7 @@ export const configureChatNotifications = async (): Promise<boolean> => {
           vibrationPattern: [0, 250, 150, 250],
           sound: "default",
           lockscreenVisibility:
-          Notifications.AndroidNotificationVisibility.PUBLIC,
+            Notifications.AndroidNotificationVisibility.PRIVATE,
         },
       );
       await Notifications.setNotificationChannelAsync(
@@ -45,7 +43,7 @@ export const configureChatNotifications = async (): Promise<boolean> => {
           vibrationPattern: [0, 250, 150, 250],
           sound: "default",
           lockscreenVisibility:
-            Notifications.AndroidNotificationVisibility.PUBLIC,
+            Notifications.AndroidNotificationVisibility.PRIVATE,
         },
       );
     }
