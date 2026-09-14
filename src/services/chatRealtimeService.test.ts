@@ -10,10 +10,9 @@ import {
 } from "./chatRealtimeService";
 
 describe("chat realtime connection policy", () => {
-  it("adds the encoded access token to the SignalR websocket url", () => {
-    expect(buildNotificationsHubUrl("token+with/slash")).toBe(
-      `${notificationsHubUrl}?access_token=token%2Bwith%2Fslash`,
-    );
+  it("keeps the hub URL stable and lets accessTokenFactory own authentication", () => {
+    expect(buildNotificationsHubUrl("stale-token")).toBe(notificationsHubUrl);
+    expect(buildNotificationsHubUrl()).toBe(notificationsHubUrl);
   });
 
   it("suspends the hub on iOS outside the active app state", () => {
