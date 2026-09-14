@@ -1,4 +1,5 @@
 import { $axiosPrivate } from "./AxiosService";
+import { getRecoverableCardSmsResponse } from "./cardSmsRecovery";
 import {
   CardSmsResponse,
   CreatePurchaseOrderRequest,
@@ -28,11 +29,17 @@ export const purchaseService = {
   },
 
   sendCardSms: async (orderId: number): Promise<CardSmsResponse> => {
-    const { data } = await $axiosPrivate.post(
-      "transactions/subscribe/card/send-sms",
-      { orderId },
-    );
-    return data;
+    try {
+      const { data } = await $axiosPrivate.post(
+        "transactions/subscribe/card/send-sms",
+        { orderId },
+      );
+      return data;
+    } catch (error) {
+      const recovery = getRecoverableCardSmsResponse(error);
+      if (recovery) return recovery;
+      throw error;
+    }
   },
 
   resendCardSms: async (orderId: number): Promise<void> => {
