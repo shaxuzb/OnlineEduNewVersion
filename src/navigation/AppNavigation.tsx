@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { View } from "react-native";
 import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useTheme } from "../context/ThemeContext";
@@ -24,6 +25,7 @@ import MainTabNavigator from "./maintab";
 import RegisterScreen from "../screens/auth/RegisterScreen";
 import ResetPasswordScreen from "../screens/auth/ResetPasswordScreen";
 import { AuthStackParamList } from "../types";
+import { isNetworkUsable } from "../services/networkState";
 
 const Stack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -107,7 +109,6 @@ const MainStackNavigator = React.memo(() => (
           );
         },
       }}
-      // options={{ animation: "ios_from_left" }}
     />
     <Stack.Screen
       name="News"
@@ -132,7 +133,6 @@ const MainStackNavigator = React.memo(() => (
           fontSize: +moderateScale(18).toFixed(0),
         },
       }}
-      // options={{ animation: "ios_from_left" }}
     />
     <Stack.Screen
       name="StatistikaDetail"
@@ -458,7 +458,6 @@ const MainStackNavigator = React.memo(() => (
             />
           );
         },
-
         freezeOnBlur: true,
         headerTitleAlign: "center",
         headerTitleStyle: {
@@ -492,7 +491,6 @@ const MainStackNavigator = React.memo(() => (
         },
       }}
     />
-
     <Stack.Screen
       name="PurchaseGroup"
       component={PurchaseStack}
@@ -532,7 +530,8 @@ const MainStackNavigator = React.memo(() => (
 export default function AppNavigation() {
   const { isAuthenticated, isLoading } = useAuth();
   const { theme } = useTheme();
-  const [isConnected, setIsConnected] = useState(true);
+  const [isOnline, setIsOnline] = useState(true);
+
   const navigationTheme = useMemo(
     () => ({
       ...DefaultTheme,
@@ -542,29 +541,43 @@ export default function AppNavigation() {
         background: theme.colors.background,
       },
     }),
-    [theme.colors.background],
+    [theme.colors.background, theme.isDark],
   );
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      const next = !!state.isConnected;
-      setIsConnected((prev) => (prev === next ? prev : next));
-    });
 
+  const applyNetworkState = useCallback(
+    (state: {
+      isConnected: boolean | null;
+      isInternetReachable: boolean | null;
+    }) => {
+      const next = isNetworkUsable(state);
+      setIsOnline((previous) => (previous === next ? previous : next));
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(applyNetworkState);
+    void NetInfo.fetch().then(applyNetworkState);
     return () => unsubscribe();
-  }, []);
-  if (!isConnected) {
-    return <NoConnection setIsConnected={setIsConnected} />;
-  }
+  }, [applyNetworkState]);
+
+  const handleRetry = useCallback(async () => {
+    applyNetworkState(await NetInfo.fetch());
+  }, [applyNetworkState]);
+
   if (isLoading) {
     return <LoadingScreen />;
   }
 
   return (
-    <NavigationContainer theme={navigationTheme}>
-      <PurchaseProvider>
-        {isAuthenticated ? <MainStackNavigator /> : <AuthStackNavigator />}
-        <PurchaseModal />
-      </PurchaseProvider>
-    </NavigationContainer>
+    <View style={{ flex: 1 }}>
+      <NavigationContainer theme={navigationTheme}>
+        <PurchaseProvider>
+          {isAuthenticated ? <MainStackNavigator /> : <AuthStackNavigator />}
+          <PurchaseModal />
+        </PurchaseProvider>
+      </NavigationContainer>
+      {!isOnline && <NoConnection onRetry={handleRetry} />}
+    </View>
   );
 }
