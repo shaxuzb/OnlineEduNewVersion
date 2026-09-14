@@ -3,8 +3,10 @@ import EmptyData from "@/src/components/exceptions/EmptyData";
 import LoadingData from "@/src/components/exceptions/LoadingData";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useMockQuizResultsHistory } from "@/src/hooks/useQuiz";
+import { RootStackParamList } from "@/src/navigation/rootTypes";
 import { QuizResultHistoryItem, Theme } from "@/src/types";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { memo, useCallback, useMemo } from "react";
 import {
   FlatList,
@@ -12,17 +14,19 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  // TouchableOpacity,
   View,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
-// import { SafeAreaView } from "react-native-safe-area-context";
 import { moderateScale } from "react-native-size-matters";
 
 const BRAND_GRADIENT = ["#3a5dde", "#5e84e6"] as const;
 
 type Styles = ReturnType<typeof createStyles>;
 type ResultStatus = "fail" | "pass" | "best";
+type Props = NativeStackScreenProps<
+  RootStackParamList,
+  "MockQuizResultsHistory"
+>;
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const formatDate = (iso: string) => {
@@ -34,7 +38,6 @@ const formatTime = (iso: string) => {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-// ── Status visuals (red = no score, green = passed, amber = personal best) ─────
 interface StatusVisual {
   solid: string;
   tint: string;
@@ -46,7 +49,6 @@ const STATUS_VISUALS: Record<ResultStatus, StatusVisual> = {
   best: { solid: "#F5A524", tint: "#FEF2E0", icon: "stats-chart" },
 };
 
-// ── Memoized result row (receives primitives only) ────────────────────────────
 const ResultCard = memo(function ResultCard({
   date,
   time,
@@ -98,7 +100,6 @@ const ResultCard = memo(function ResultCard({
   );
 });
 
-// ── Hero stat column ──────────────────────────────────────────────────────────
 const HeroStat = memo(function HeroStat({
   value,
   label,
@@ -120,23 +121,16 @@ const HeroStat = memo(function HeroStat({
   );
 });
 
-export default function MockQuizResultsHistoryScreen({
-  navigation,
-  route,
-}: {
-  navigation: any;
-  route: any;
-}) {
+export default function MockQuizResultsHistoryScreen({ route }: Props) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { userId, mockTestId } = route.params;
 
   const { data, isLoading, error, refetch } = useMockQuizResultsHistory(
-    Number(userId),
-    Number(mockTestId),
+    userId,
+    mockTestId,
   );
 
-  // Newest first
   const items = useMemo<QuizResultHistoryItem[]>(() => {
     if (!Array.isArray(data) || data.length === 0) return [];
     return [...data].sort(
@@ -145,7 +139,6 @@ export default function MockQuizResultsHistoryScreen({
     );
   }, [data]);
 
-  // Everything in the hero card is computed from the data.
   const stats = useMemo(() => {
     if (items.length === 0) {
       return {
@@ -165,10 +158,10 @@ export default function MockQuizResultsHistoryScreen({
       count: items.length,
       highest: Math.round(Math.max(...percents)),
       average: Math.round(sum / items.length),
-      lastScore: items[0].score, // most recent attempt
-      best: Math.max(...scores), // personal-best score (drives the amber icon)
+      lastScore: items[0].score,
+      best: Math.max(...scores),
     };
-  }, [items, route.params?.themeName]);
+  }, [items]);
 
   const getStatus = useCallback(
     (score: number): ResultStatus => {
@@ -252,25 +245,6 @@ export default function MockQuizResultsHistoryScreen({
   return (
     <View style={styles.container}>
       <StatusBar barStyle={theme.isDark ? "light-content" : "dark-content"} />
-      {/* <SafeAreaView edges={["top"]} style={styles.navSafeArea}>
-        
-        <View style={styles.navRow}>
-          <TouchableOpacity
-            style={styles.navBtn}
-            onPress={() => navigation.goBack()}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name="arrow-back"
-              size={moderateScale(24)}
-              color={theme.colors.text}
-            />
-          </TouchableOpacity>
-          <Text style={styles.navTitle}>Tarixni ko'rish</Text>
-          <View style={styles.navBtn} />
-        </View>
-      </SafeAreaView> */}
 
       {isLoading ? (
         <LoadingData />
@@ -301,8 +275,6 @@ const createStyles = (theme: Theme) =>
       flex: 1,
       backgroundColor: theme.colors.background,
     },
-
-    // ── Nav header ───────────────────────────────────────────
     navSafeArea: {
       backgroundColor: theme.colors.background,
     },
@@ -326,15 +298,11 @@ const createStyles = (theme: Theme) =>
       fontWeight: "700",
       color: theme.colors.text,
     },
-
-    // ── List ─────────────────────────────────────────────────
     listContent: {
       paddingHorizontal: moderateScale(16),
       paddingBottom: moderateScale(28),
       flexGrow: 1,
     },
-
-    // ── Hero card ────────────────────────────────────────────
     heroCardMain: {
       borderRadius: moderateScale(20),
       padding: moderateScale(18),
@@ -388,8 +356,6 @@ const createStyles = (theme: Theme) =>
       fontSize: moderateScale(11),
       marginTop: moderateScale(2),
     },
-
-    // ── Result card ──────────────────────────────────────────
     card: {
       flexDirection: "row",
       alignItems: "center",
