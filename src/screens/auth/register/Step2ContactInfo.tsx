@@ -8,8 +8,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
 } from "react-native";
+import axios from "axios";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import { useRegister } from "../../../context/RegisterContext";
@@ -17,6 +17,7 @@ import { useTheme } from "../../../context/ThemeContext";
 import { Theme } from "../../../types";
 import { Ionicons } from "@expo/vector-icons";
 import { registrationService } from "@/src/services/registrationService";
+import { getApiStatus } from "@/src/services/apiError";
 import Toast from "react-native-toast-message";
 import {
   formatUzbekPhone,
@@ -57,23 +58,26 @@ const Step2ContactInfo: React.FC = () => {
       });
       await registrationService.sendSms(phoneNumber);
 
-      // Show SMS sending confirmation
       nextStep();
       Toast.show({
-        type: "success", // 'success' | 'error' | 'info'
+        type: "success",
         text1: "SMS yuborildi!",
         text2: `${formatUzbekPhone(phoneNumber)} raqamiga tasdiqlash kodi yuborildi`,
       });
-    } catch (error: any) {
-      if (error.status === 400) {
+    } catch (error: unknown) {
+      if (getApiStatus(error) === 400) {
+        const message = axios.isAxiosError(error)
+          ? error.response?.data?.message
+          : undefined;
         return Toast.show({
-          type: "error", // 'success' | 'error' | 'info'
+          type: "error",
           text1: "SMS yuborilgan",
-          text2: error.response.data.message,
+          text2: message || "Tasdiqlash kodi avval yuborilgan",
         });
       }
+
       Toast.show({
-        type: "error", // 'success' | 'error' | 'info'
+        type: "error",
         text1: "Xatolik",
         text2: "SMS yuborishda xatolik yuz berdi",
       });
@@ -114,7 +118,6 @@ const Step2ContactInfo: React.FC = () => {
               isValid,
             }) => (
               <View style={styles.formContainer}>
-                {/* Phone */}
                 <View style={styles.inputContainer}>
                   <Text style={styles.label}>Telefon raqam</Text>
                   <TextInput
@@ -139,7 +142,6 @@ const Step2ContactInfo: React.FC = () => {
                   )}
                 </View>
 
-                {/* Email */}
                 <View style={styles.inputContainer}>
                   <Text style={styles.label}>Elektron pochta (shart emas)</Text>
                   <TextInput
@@ -160,7 +162,6 @@ const Step2ContactInfo: React.FC = () => {
                   )}
                 </View>
 
-                {/* Buttons */}
                 <View style={styles.buttonsRow}>
                   <TouchableOpacity
                     style={[styles.navButton, styles.backButton]}
