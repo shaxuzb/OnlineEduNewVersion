@@ -1,10 +1,11 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../types";
 import LinearGradient from "react-native-linear-gradient";
 import { moderateScale } from "react-native-size-matters";
 import DeviceInfo from "react-native-device-info";
-const Stack = createNativeStackNavigator<RootStackParamList>();
+import { CoursesStackParamList } from "./coursesTypes";
+
+const Stack = createNativeStackNavigator<CoursesStackParamList>();
 const isTablet = DeviceInfo.isTablet();
 
 export const CoursesStackNavigator = React.memo(function CoursesStackNavigator() {
