@@ -14,18 +14,15 @@ import React, { useCallback, useEffect } from "react";
 import { BackHandler, StatusBar, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import SystemNavigationBar from "react-native-system-navigation-bar";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { RootStackParamList } from "@/src/navigation/rootTypes";
 import VideoPlayerCore from "./VideoPlayerCore";
 
-const VideoPlayerScreen = ({
-  navigation,
-  route,
-}: {
-  navigation: any;
-  route: any;
-}) => {
+type Props = NativeStackScreenProps<RootStackParamList, "VideoPlayer">;
+
+const VideoPlayerScreen = ({ navigation, route }: Props) => {
   const { lessonTitle, videoFileId } = route.params;
 
-  // ── Immersive mode ─────────────────────────────────────────────
   useEffect(() => {
     SystemNavigationBar.stickyImmersive();
     return () => {
@@ -33,7 +30,6 @@ const VideoPlayerScreen = ({
     };
   }, []);
 
-  // ── Screen capture prevention ──────────────────────────────────
   useEffect(() => {
     ScreenCapture.preventScreenCaptureAsync().catch(console.warn);
     return () => {
@@ -41,7 +37,6 @@ const VideoPlayerScreen = ({
     };
   }, []);
 
-  // ── Back handler ───────────────────────────────────────────────
   const handleBack = useCallback(async () => {
     await ScreenCapture.allowScreenCaptureAsync().catch(console.warn);
     await ScreenOrientation.lockAsync(
@@ -52,7 +47,7 @@ const VideoPlayerScreen = ({
 
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      handleBack();
+      void handleBack();
       return true;
     });
     return () => {
@@ -67,9 +62,8 @@ const VideoPlayerScreen = ({
     <GestureHandlerRootView style={styles.root}>
       <StatusBar hidden backgroundColor="#000" />
       <VideoPlayerCore
-        lessonTitle={String(lessonTitle ?? "")}
-        videoFileId={String(videoFileId ?? "")}
-        navigation={navigation}
+        lessonTitle={lessonTitle}
+        videoFileId={videoFileId}
         onBack={handleBack}
       />
     </GestureHandlerRootView>
