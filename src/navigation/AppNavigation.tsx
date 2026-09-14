@@ -26,8 +26,9 @@ import RegisterScreen from "../screens/auth/RegisterScreen";
 import ResetPasswordScreen from "../screens/auth/ResetPasswordScreen";
 import { AuthStackParamList } from "../types";
 import { isNetworkUsable } from "../services/networkState";
+import { RootStackParamList } from "./rootTypes";
 
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const isTablet = DeviceInfo.isTablet();
 
@@ -45,7 +46,6 @@ const mockFlowScreenOptions = {
       />
     );
   },
-  title: "Tarixni ko'rish",
   headerBackButtonDisplayMode: "minimal" as const,
   headerTitleAlign: "center" as const,
   freezeOnBlur: true,
@@ -324,28 +324,28 @@ const MainStackNavigator = React.memo(() => (
     <Stack.Screen
       name="MockQuizScreen"
       getComponent={() => require("../screens/courses/MockQuizScreen").default}
-      options={mockFlowScreenOptions}
+      options={{ ...mockFlowScreenOptions, title: "Mock test" }}
     />
     <Stack.Screen
       name="MockQuizResults"
       getComponent={() =>
         require("../screens/courses/MockQuizResultsScreen").default
       }
-      options={mockFlowScreenOptions}
+      options={{ ...mockFlowScreenOptions, title: "Natijalar" }}
     />
     <Stack.Screen
       name="MockQuizSolution"
       getComponent={() =>
         require("../screens/courses/MockSolutionScreen").default
       }
-      options={mockFlowScreenOptions}
+      options={{ ...mockFlowScreenOptions, title: "Yechimlar" }}
     />
     <Stack.Screen
       name="MockQuizResultsHistory"
       getComponent={() =>
         require("../screens/courses/MockQuizResultsHistoryScreen").default
       }
-      options={mockFlowScreenOptions}
+      options={{ ...mockFlowScreenOptions, title: "Natijalar tarixi" }}
     />
     <Stack.Screen
       name="QuizResultsSertificate"
