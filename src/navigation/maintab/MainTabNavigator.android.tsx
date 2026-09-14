@@ -2,6 +2,7 @@ import React, { useCallback, useMemo } from "react";
 import DeviceInfo from "react-native-device-info";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../context/ThemeContext";
 import { useSession } from "../../hooks/useSession";
 import { useAuth } from "../../context/AuthContext";
@@ -18,12 +19,15 @@ import LinearGradient from "react-native-linear-gradient";
 import SaveScreen from "../../screens/save/SaveScreen";
 import { CoursesStackNavigator } from "../CoursesStackNavigator";
 import StatistikaScreen from "../../screens/statistics/StatistikaScreen";
+import { MainTabParamList } from "../mainTabTypes";
+import { RootStackParamList } from "../rootTypes";
 
-const Tab = createBottomTabNavigator();
+const Tab = createBottomTabNavigator<MainTabParamList>();
 const isTablet = DeviceInfo.isTablet();
 
 const MainTabNavigator = React.memo(() => {
-  const navigation = useNavigation<any>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme } = useTheme();
   const { isSuperAdmin } = useSession();
   const { plan } = useAuth();
@@ -156,7 +160,7 @@ const MainTabNavigator = React.memo(() => {
         <Tab.Screen
           name="Payment"
           component={EmptyScreen}
-          listeners={({ navigation }) => ({
+          listeners={() => ({
             tabPress: (e) => {
               e.preventDefault();
               navigation.navigate("PurchaseGroup", {
