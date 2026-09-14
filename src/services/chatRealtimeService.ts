@@ -15,10 +15,11 @@ const INITIAL_RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000] as const;
 
 export const notificationsHubUrl = `${apiUrl}/hubs/notifications`;
 
-export const buildNotificationsHubUrl = (accessToken?: string) =>
-  accessToken
-    ? `${notificationsHubUrl}?access_token=${encodeURIComponent(accessToken)}`
-    : notificationsHubUrl;
+// Authentication is intentionally owned by SignalR's accessTokenFactory so
+// reconnects always use the latest session token instead of a token captured
+// when the connection object was first created.
+export const buildNotificationsHubUrl = (_accessToken?: string) =>
+  notificationsHubUrl;
 
 export const shouldSuspendNotificationsHub = (
   platform: string,
@@ -48,10 +49,10 @@ export const shouldAttemptChatConnection = ({
 
 export const createChatRealtimeConnection = (
   accessTokenFactory: () => Promise<string>,
-  accessToken?: string,
+  _accessToken?: string,
 ): HubConnection =>
   new HubConnectionBuilder()
-    .withUrl(buildNotificationsHubUrl(accessToken), {
+    .withUrl(buildNotificationsHubUrl(), {
       accessTokenFactory,
       transport: HttpTransportType.WebSockets,
       skipNegotiation: true,
