@@ -1,10 +1,20 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, AppState, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  AppState,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import Pdf from "react-native-pdf";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import { COLORS } from "../../utils";
-import { getStoredAccessToken, refreshAccessToken } from "../../services/AxiosService";
+import {
+  getStoredAccessToken,
+  refreshAccessToken,
+} from "../../services/AxiosService";
 import {
   buildProtectedMediaSource,
   isMediaAuthError,
@@ -16,15 +26,17 @@ interface ProtectedPdfViewerProps {
   onLoadStateChange?: (loading: boolean) => void;
 }
 
+type ProtectedPdfSource = {
+  uri: string;
+  headers: Record<string, string>;
+};
+
 export default function ProtectedPdfViewer({
   path,
   onLoadStateChange,
 }: ProtectedPdfViewerProps) {
   const { theme } = useTheme();
-  const [source, setSource] = useState<{
-    uri: string;
-    headers: Record<string, string>;
-  } | null>(null);
+  const [source, setSource] = useState<ProtectedPdfSource | null>(null);
   const [loading, setLoading] = useState(true);
   const recoveryAttemptedRef = useRef(false);
 
@@ -36,13 +48,13 @@ export default function ProtectedPdfViewer({
     [onLoadStateChange],
   );
 
-  const loadSource = useCallback(
-    async (forceRefresh = false) => {
+  const resolveSource = useCallback(
+    async (forceRefresh = false): Promise<ProtectedPdfSource> => {
       const token = forceRefresh
         ? await refreshAccessToken()
         : await getStoredAccessToken();
       if (!token) throw new Error("Missing media access token");
-      setSource(buildProtectedMediaSource(path, token));
+      return buildProtectedMediaSource(path, token);
     },
     [path],
   );
@@ -50,24 +62,40 @@ export default function ProtectedPdfViewer({
   useEffect(() => {
     let active = true;
     recoveryAttemptedRef.current = false;
+    setSource(null);
     setLoadingState(true);
 
-    void loadSource().catch(() => {
-      if (!active) return;
-      setLoadingState(false);
-      Alert.alert("Xatolik", "PDF faylni ochishda xatolik yuz berdi.");
-    });
+    const applySource = async () => {
+      try {
+        const nextSource = await resolveSource();
+        if (!active) return;
+        setSource(nextSource);
+      } catch {
+        if (!active) return;
+        setSource(null);
+        setLoadingState(false);
+        Alert.alert("Xatolik", "PDF faylni ochishda xatolik yuz berdi.");
+      }
+    };
+
+    void applySource();
 
     const subscription = AppState.addEventListener("change", (nextState) => {
       if (nextState !== "active" || !active) return;
-      void loadSource().catch(() => undefined);
+
+      void resolveSource()
+        .then((nextSource) => {
+          if (!active) return;
+          setSource(nextSource);
+        })
+        .catch(() => undefined);
     });
 
     return () => {
       active = false;
       subscription.remove();
     };
-  }, [loadSource, setLoadingState]);
+  }, [resolveSource, setLoadingState]);
 
   const handleLoadComplete = useCallback(() => {
     recoveryAttemptedRef.current = false;
@@ -80,18 +108,20 @@ export default function ProtectedPdfViewer({
         recoveryAttemptedRef.current = true;
         try {
           setLoadingState(true);
-          await loadSource(true);
+          const nextSource = await resolveSource(true);
+          setSource(nextSource);
           return;
         } catch (refreshError) {
           console.warn("PDF auth recovery failed:", refreshError);
         }
       }
 
+      setSource(null);
       setLoadingState(false);
       console.warn("Protected PDF error:", error);
       Alert.alert("Xatolik", "PDF faylni ochishda xatolik yuz berdi.");
     },
-    [loadSource, setLoadingState],
+    [resolveSource, setLoadingState],
   );
 
   if (!source) {
@@ -103,7 +133,9 @@ export default function ProtectedPdfViewer({
     ) : (
       <View style={styles.errorContainer}>
         <Ionicons name="document-outline" size={64} color={COLORS.gray} />
-        <Text style={[styles.errorText, { color: theme.colors.text }]}>PDF yuklanmadi</Text>
+        <Text style={[styles.errorText, { color: theme.colors.text }]}>
+          PDF yuklanmadi
+        </Text>
       </View>
     );
   }
