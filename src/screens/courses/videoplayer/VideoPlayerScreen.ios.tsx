@@ -13,23 +13,18 @@
 import * as ScreenOrientation from "expo-screen-orientation";
 import React, { useCallback, useRef } from "react";
 import { StatusBar, StyleSheet } from "react-native";
-import {
-  GestureHandlerRootView,
-} from "react-native-gesture-handler";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import ScreenGuardModule from "react-native-screenguard";
 import { useFocusEffect } from "@react-navigation/native";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { RootStackParamList } from "@/src/navigation/rootTypes";
 import VideoPlayerCore from "./VideoPlayerCore";
 
-const VideoPlayerScreen = ({
-  navigation,
-  route,
-}: {
-  navigation: any;
-  route: any;
-}) => {
+type Props = NativeStackScreenProps<RootStackParamList, "VideoPlayer">;
+
+const VideoPlayerScreen = ({ navigation, route }: Props) => {
   const { lessonTitle, videoFileId } = route.params;
 
-  // ── ScreenGuard (race-condition-safe) ──────────────────────────
   const guardActiveRef = useRef(false);
   const guardReqRef = useRef(0);
 
@@ -38,16 +33,17 @@ const VideoPlayerScreen = ({
     guardActiveRef.current = enabled;
     const reqId = ++guardReqRef.current;
 
-    (async () => {
+    void (async () => {
       try {
         if (enabled) {
-          try { await ScreenGuardModule.unregister(); } catch { /* ignore */ }
+          try {
+            await ScreenGuardModule.unregister();
+          } catch {}
           await ScreenGuardModule.initSettings({
             displayScreenGuardOverlay: false,
             timeAfterResume: 500,
             getScreenshotPath: false,
           });
-          // Bail out if a newer request came in
           if (guardReqRef.current !== reqId || !guardActiveRef.current) return;
           await ScreenGuardModule.registerWithBlurView({ radius: 20 });
         } else {
@@ -71,7 +67,6 @@ const VideoPlayerScreen = ({
     }, [setGuard]),
   );
 
-  // ── Back navigation ────────────────────────────────────────────
   const handleBack = useCallback(() => {
     setGuard(false);
     ScreenOrientation.lockAsync(
@@ -82,12 +77,10 @@ const VideoPlayerScreen = ({
 
   return (
     <GestureHandlerRootView style={styles.root}>
-      {/* Fully hidden – VideoControls pads for the notch internally */}
       <StatusBar hidden translucent backgroundColor="transparent" />
       <VideoPlayerCore
-        lessonTitle={String(lessonTitle ?? "")}
-        videoFileId={String(videoFileId ?? "")}
-        navigation={navigation}
+        lessonTitle={lessonTitle}
+        videoFileId={videoFileId}
         onBack={handleBack}
       />
     </GestureHandlerRootView>
