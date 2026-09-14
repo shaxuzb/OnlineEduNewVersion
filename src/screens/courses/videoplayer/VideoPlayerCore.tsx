@@ -40,6 +40,7 @@ import {
   buildProtectedMediaSource,
   isMediaAuthError,
 } from "../../../services/mediaAuthService";
+import { isProtectedVideoReady } from "../../../services/videoPlaybackPolicy";
 import SettingsDropdown from "./components/SettingsDropdown";
 import VideoControls from "./components/VideoControls";
 import SeekRipple from "./components/SeekRipple";
@@ -264,6 +265,7 @@ const VideoPlayerCore: React.FC<VideoPlayerCoreProps> = ({
     durationRef.current = data.duration;
     setDuration(data.duration);
     setBuffering(false);
+    mediaRecoveryAttemptedRef.current = false;
   }, []);
 
   const onBuffer = useCallback(
@@ -397,32 +399,38 @@ const VideoPlayerCore: React.FC<VideoPlayerCoreProps> = ({
     }),
     [videoUrl, videoHeaders],
   );
+  const isVideoReady = useMemo(
+    () => isProtectedVideoReady(videoUrl, videoHeaders),
+    [videoHeaders, videoUrl],
+  );
 
   return (
     <View style={styles.root}>
       <GestureDetector gesture={composed}>
         <View style={styles.touchArea}>
           <Animated.View style={videoZoomStyle}>
-            <Video
-              ref={videoRef}
-              source={videoSource}
-              style={styles.video}
-              paused={paused}
-              rate={playbackRate}
-              resizeMode="contain"
-              viewType={Platform.OS === "android" ? ViewType.TEXTURE : undefined}
-              onProgress={onProgress}
-              onLoad={onLoad}
-              onBuffer={onBuffer}
-              onLoadStart={onLoadStart}
-              onReadyForDisplay={onReadyForDisplay}
-              onSeek={onSeek}
-              onError={handleVideoError}
-              maxBitRate={4000000}
-              ignoreSilentSwitch="ignore"
-              playInBackground={false}
-              progressUpdateInterval={500}
-            />
+            {isVideoReady && (
+              <Video
+                ref={videoRef}
+                source={videoSource}
+                style={styles.video}
+                paused={paused}
+                rate={playbackRate}
+                resizeMode="contain"
+                viewType={Platform.OS === "android" ? ViewType.TEXTURE : undefined}
+                onProgress={onProgress}
+                onLoad={onLoad}
+                onBuffer={onBuffer}
+                onLoadStart={onLoadStart}
+                onReadyForDisplay={onReadyForDisplay}
+                onSeek={onSeek}
+                onError={handleVideoError}
+                maxBitRate={4000000}
+                ignoreSilentSwitch="ignore"
+                playInBackground={false}
+                progressUpdateInterval={500}
+              />
+            )}
           </Animated.View>
 
           <SeekRipple
