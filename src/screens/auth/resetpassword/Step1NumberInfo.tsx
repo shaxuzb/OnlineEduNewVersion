@@ -10,6 +10,7 @@ import {
   ScrollView,
   Alert,
 } from "react-native";
+import axios from "axios";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import { useTheme } from "../../../context/ThemeContext";
@@ -22,6 +23,7 @@ import {
   isCompleteUzbekPhone,
   normalizeUzbekPhone,
 } from "../../../utils/phone";
+import { shouldTreatResetRequestAsAlreadySent } from "./resetPasswordRequestPolicy";
 
 const Step2Schema = Yup.object().shape({
   phone: Yup.string()
@@ -49,13 +51,20 @@ const Step1NumberInfo: React.FC = () => {
       nextStep();
       Alert.alert(
         "SMS yuborildi!",
-        `${formatUzbekPhone(phone)} raqamiga tasdiqlash kodi yuborildi`
+        `${formatUzbekPhone(phone)} raqamiga tasdiqlash kodi yuborildi`,
       );
-      // Show SMS sending confirmation
-    } catch (error: any) {
-      if (error.status === 400) {
-        Alert.alert("SMS yuborilgan", error.response.data.message);
+    } catch (error: unknown) {
+      if (shouldTreatResetRequestAsAlreadySent(error)) {
+        const message = axios.isAxiosError(error)
+          ? error.response?.data?.message
+          : undefined;
+        Alert.alert(
+          "SMS yuborilgan",
+          message || "Tasdiqlash kodi avval yuborilgan",
+        );
+        return;
       }
+
       Alert.alert("Xatolik", "SMS yuborishda xatolik yuz berdi");
     }
   };
@@ -91,7 +100,6 @@ const Step1NumberInfo: React.FC = () => {
               isValid,
             }) => (
               <View style={styles.formContainer}>
-                {/* Phone */}
                 <View style={styles.inputContainer}>
                   <Text style={styles.label}>Telefon raqam</Text>
                   <TextInput
@@ -113,7 +121,6 @@ const Step1NumberInfo: React.FC = () => {
                     <Text style={styles.errorText}>{errors.phone}</Text>
                   )}
                 </View>
-                {/* Buttons */}
                 <View style={styles.buttonsRow}>
                   <TouchableOpacity
                     style={[
