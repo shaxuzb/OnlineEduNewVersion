@@ -1,7 +1,7 @@
 import { modalService } from "@/src/components/modals/modalService";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
-import { useQuizResults } from "@/src/hooks/useQuiz";
+import { useMockQuizResults } from "@/src/hooks/useQuiz";
 import { QuizResultsResponse, Theme } from "@/src/types";
 import { BORDER_RADIUS, COLORS, FONT_SIZES, SPACING } from "@/src/utils";
 import { FontAwesome6, Ionicons } from "@expo/vector-icons";
@@ -21,7 +21,7 @@ import {
   shouldShowBlockingQueryLoader,
 } from "@/src/utils/queryStateUtils";
 
-export default function QuizResultsScreenSertificate({
+export default function MockQuizResultsScreen({
   navigation,
   route,
 }: {
@@ -31,17 +31,16 @@ export default function QuizResultsScreenSertificate({
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const { plan } = useAuth();
-  const { testId, userId, themeId, mavzu } = route.params;
-
+  const { mockTestId, userId, mockTestName } = route.params;
   const {
     data: quizResults,
     isPending: resultsPending,
     isFetching: resultsFetching,
     isFetched: resultsFetched,
-  } = useQuizResults(Number(userId), Number(themeId));
+  } = useMockQuizResults(Number(userId), Number(mockTestId));
   const result = quizResults?.[0];
   const hasResults = Boolean(result);
-  const hasValidResultParams = Boolean(Number(userId) && Number(themeId));
+  const hasValidResultParams = Boolean(Number(userId) && Number(mockTestId));
   const showResultsLoading = shouldShowBlockingQueryLoader({
     isPending: resultsPending,
     isFetching: resultsFetching,
@@ -65,13 +64,6 @@ export default function QuizResultsScreenSertificate({
     );
   }, [quizResults]);
 
-  const handleOpenHistory = () => {
-    navigation.navigate("QuizResultsHistorySertificate", {
-      userId,
-      themeId,
-    });
-  };
-
   const handleFinish = () => {
     navigation.reset({
       index: 0,
@@ -92,7 +84,12 @@ export default function QuizResultsScreenSertificate({
       ],
     });
   };
-
+  const handleOpenHistory = () => {
+    navigation.navigate("MockQuizResultsHistory", {
+      userId,
+      mockTestId,
+    });
+  };
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
       "hardwareBackPress",
@@ -100,14 +97,13 @@ export default function QuizResultsScreenSertificate({
     );
     return () => backHandler.remove();
   }, []);
-
   useEffect(() => {
     navigation.setOptions({
       headerShown: true,
       headerBackVisible: false,
       headerLeft: () => null,
       gestureEnabled: false,
-      title: mavzu,
+      title: mockTestName,
       headerTitle: () => (
         <View style={headerRightStyles.container}>
           <Text
@@ -115,14 +111,13 @@ export default function QuizResultsScreenSertificate({
             numberOfLines={2}
             adjustsFontSizeToFit
           >
-            {mavzu || "IDS mavzulashtirilgan testlar to'plami"}
+            {mockTestName}
           </Text>
         </View>
       ),
       freezeOnBlur: true,
     });
   }, [navigation]);
-
   if (showResultsLoading)
     return (
       <SafeAreaView style={styles.centerContainer}>
@@ -150,62 +145,49 @@ export default function QuizResultsScreenSertificate({
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
+          {/* Circle */}
           <View style={styles.percentageCircle}>
             <Text
               style={styles.percentageText}
               numberOfLines={1}
               adjustsFontSizeToFit
             >
-              {result.degree}
+              {result.percent.toFixed(0)}%
             </Text>
           </View>
 
-          <View style={styles.resultMessageBox}>
-            <Text
-              style={styles.resultMessage}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-            >
-              {result.resultMessage}
-            </Text>
-          </View>
-
+          {/* Stats */}
           <View style={styles.statsBox}>
             <View style={styles.statsRow}>
-              <Text style={styles.statsLabel}>Umumiy to'plagan bali:</Text>
-              <Text style={styles.statsValue}>{result.score}</Text>
+              <Text style={styles.statsLabel}>To'g'ri:</Text>
+              <Text style={styles.statsValue}>{result.score} ta</Text>
             </View>
             <View style={styles.statsRow}>
-              <Text style={styles.statsLabel}>
-                Umumiy ballga nisbatan foiz ko'rsatkichi:
+              <Text style={styles.statsLabel}>Noto'g'ri:</Text>
+              <Text style={styles.statsValue}>
+                {result.maxScore - result.score} ta
               </Text>
-              <Text style={styles.statsValue}>{result.percent}%</Text>
-            </View>
-            <View style={styles.statsRow}>
-              <Text style={styles.statsLabel}>Sertifikat darajasi:</Text>
-              <Text style={styles.statsValue}>{result.degree}</Text>
             </View>
           </View>
 
+          {/* Wrong list */}
           <View style={styles.wrongBox}>
             <Text style={styles.wrongTitle}>
-              Xato ishlangan yoki ishlanmagan misol nomerlari:
+              Xato yoki ishlanmagan misollar:
             </Text>
             <View style={styles.wrongNumbers}>
               {groupedTestData.map(([subTestNo, questions]) => {
                 return (
                   <View key={subTestNo}>
-                    {groupedTestData.length > 1 && (
-                      <Text
-                        style={{
-                          fontSize: moderateScale(16),
-                          marginBottom: moderateScale(8),
-                          color: theme.colors.text,
-                        }}
-                      >
-                        Test {subTestNo}
-                      </Text>
-                    )}
+                    <Text
+                      style={{
+                        fontSize: moderateScale(16),
+                        marginBottom: moderateScale(8),
+                        color: theme.colors.text,
+                      }}
+                    >
+                      Test {subTestNo}
+                    </Text>
                     <View
                       style={{ flexDirection: "row", gap: 5, flexWrap: "wrap" }}
                     >
@@ -213,7 +195,6 @@ export default function QuizResultsScreenSertificate({
                         (num, index) => (
                           <View key={index} style={styles.badge}>
                             <Text style={styles.badgeText}>
-                              {num?.partLabel}
                               {num.questionNumber}
                             </Text>
                           </View>
@@ -228,16 +209,16 @@ export default function QuizResultsScreenSertificate({
               Ushbu misollarni qayta yechishni tavsiya qilamiz!
             </Text>
           </View>
+
+          {/* Buttons */}
         </View>
       </ScrollView>
-
       <TouchableOpacity
         style={styles.historyButton}
         onPress={handleOpenHistory}
       >
         <Text style={styles.historyButtonText}>Tarixni ko'rish</Text>
       </TouchableOpacity>
-
       <View style={styles.actions}>
         <TouchableOpacity
           style={[styles.button, styles.outlineButton]}
@@ -248,15 +229,23 @@ export default function QuizResultsScreenSertificate({
                 (item) => item.code === "SOLUTION",
               )
             ) {
-              navigation.navigate("QuizSolutionSertificate", {
+              navigation.navigate("MockQuizSolution", {
                 userId,
-                testId,
-                themeId,
-                mavzu,
+                mockTestId,
+                mockTestName,
               });
             } else {
               modalService.open();
             }
+            // router.navigate({
+            //   pathname: "/(root)/lesson/lessondetail/quiz/solution",
+            //   params: {
+            //     userId,
+            //     testId,
+            //     themeId,
+            //     mavzu,
+            //   },
+            // });
           }}
         >
           {!(
@@ -284,7 +273,7 @@ export default function QuizResultsScreenSertificate({
             size={moderateScale(20)}
             color={theme.colors.primary}
           />
-          <Text style={styles.outlineText}>Natijani ko'rish</Text>
+          <Text style={styles.outlineText}>Natijani ko‘rish</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -302,7 +291,6 @@ export default function QuizResultsScreenSertificate({
     </SafeAreaView>
   );
 }
-
 const headerRightStyles = StyleSheet.create({
   container: {
     borderRadius: moderateScale(BORDER_RADIUS.sm),
@@ -315,7 +303,6 @@ const headerRightStyles = StyleSheet.create({
     fontWeight: "500",
   },
 });
-
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
@@ -360,39 +347,6 @@ const createStyles = (theme: Theme) =>
       fontWeight: "bold",
       color: theme.colors.primary,
     },
-    statsBox: {
-      backgroundColor: theme.colors.card,
-      borderRadius: moderateScale(BORDER_RADIUS.base),
-      padding: moderateScale(SPACING.sm),
-      marginBottom: moderateScale(SPACING.lg),
-      width: "100%",
-    },
-    statsRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      paddingVertical: moderateScale(SPACING.xs),
-      gap: moderateScale(8),
-    },
-    statsLabel: {
-      flex: 1,
-      fontSize: moderateScale(FONT_SIZES.sm),
-      color: theme.colors.text,
-    },
-    statsValue: {
-      fontSize: moderateScale(FONT_SIZES.sm),
-      fontWeight: "bold",
-      color: theme.colors.text,
-    },
-    resultMessageBox: {
-      justifyContent: "center",
-      alignItems: "center",
-      marginBottom: moderateScale(SPACING.xl),
-    },
-    resultMessage: {
-      fontSize: moderateScale(FONT_SIZES.lg),
-      fontWeight: "600",
-      color: theme.colors.text,
-    },
     historyButton: {
       justifyContent: "center",
       alignItems: "center",
@@ -405,6 +359,27 @@ const createStyles = (theme: Theme) =>
       borderBottomWidth: 1,
       fontWeight: "600",
     },
+    statsBox: {
+      backgroundColor: theme.colors.card,
+      borderRadius: moderateScale(BORDER_RADIUS.base),
+      padding: moderateScale(SPACING.sm),
+      marginBottom: moderateScale(SPACING.lg),
+      width: "100%",
+    },
+    statsRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingVertical: moderateScale(SPACING.xs),
+    },
+    statsLabel: {
+      fontSize: moderateScale(FONT_SIZES.base),
+      color: theme.colors.text,
+    },
+    statsValue: {
+      fontSize: moderateScale(FONT_SIZES.base),
+      fontWeight: "bold",
+      color: theme.colors.text,
+    },
     wrongBox: {
       backgroundColor: theme.colors.card,
       borderRadius: moderateScale(BORDER_RADIUS.base),
@@ -416,7 +391,7 @@ const createStyles = (theme: Theme) =>
       fontSize: moderateScale(FONT_SIZES.base),
       fontWeight: "600",
       color: theme.colors.text,
-      marginBottom: moderateScale(SPACING.lg),
+      marginBottom: moderateScale(SPACING.xs),
     },
     wrongNumbers: {
       flexDirection: "column",
@@ -436,10 +411,10 @@ const createStyles = (theme: Theme) =>
       fontWeight: "600",
     },
     encouragement: {
-      fontSize: moderateScale(FONT_SIZES.sm),
+      fontSize: moderateScale(FONT_SIZES.base),
       textAlign: "center",
       color: theme.colors.text,
-      marginTop: moderateScale(SPACING.base),
+      marginTop: moderateScale(SPACING.sm),
       fontStyle: "italic",
     },
     actions: {

@@ -1,8 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  DefaultTheme,
-  NavigationContainer,
-} from "@react-navigation/native";
+import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useTheme } from "../context/ThemeContext";
 
@@ -31,6 +28,29 @@ import { AuthStackParamList } from "../types";
 const Stack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const isTablet = DeviceInfo.isTablet();
+
+const mockFlowScreenOptions = {
+  headerStyle: {
+    backgroundColor: isTablet ? "#3a5dde" : undefined,
+  },
+  headerBackground() {
+    return (
+      <LinearGradient
+        colors={["#3a5dde", "#5e84e6"]}
+        start={{ x: 0.5, y: 1.0 }}
+        end={{ x: 0.5, y: 0.0 }}
+        style={{ flex: 1 }}
+      />
+    );
+  },
+  title: "Tarixni ko'rish",
+  headerBackButtonDisplayMode: "minimal" as const,
+  headerTitleAlign: "center" as const,
+  freezeOnBlur: true,
+  headerTitleStyle: {
+    fontSize: +moderateScale(18).toFixed(0),
+  },
+};
 
 const AuthStackNavigator = React.memo(() => (
   <AuthStack.Navigator
@@ -300,6 +320,32 @@ const MainStackNavigator = React.memo(() => (
           fontSize: +moderateScale(18).toFixed(0),
         },
       }}
+    />
+    <Stack.Screen
+      name="MockQuizScreen"
+      getComponent={() => require("../screens/courses/MockQuizScreen").default}
+      options={mockFlowScreenOptions}
+    />
+    <Stack.Screen
+      name="MockQuizResults"
+      getComponent={() =>
+        require("../screens/courses/MockQuizResultsScreen").default
+      }
+      options={mockFlowScreenOptions}
+    />
+    <Stack.Screen
+      name="MockQuizSolution"
+      getComponent={() =>
+        require("../screens/courses/MockSolutionScreen").default
+      }
+      options={mockFlowScreenOptions}
+    />
+    <Stack.Screen
+      name="MockQuizResultsHistory"
+      getComponent={() =>
+        require("../screens/courses/MockQuizResultsHistoryScreen").default
+      }
+      options={mockFlowScreenOptions}
     />
     <Stack.Screen
       name="QuizResultsSertificate"

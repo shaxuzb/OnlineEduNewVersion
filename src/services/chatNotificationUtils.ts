@@ -1,5 +1,10 @@
 import { IncomingChatMessage } from "./chatRealtimeUtils";
 
+export const shouldShowChatNotification = (
+  chatScreenVisible: boolean,
+  appState: string,
+) => appState !== "active" || !chatScreenVisible;
+
 export const getChatNotificationContent = ({
   threadId,
   message,

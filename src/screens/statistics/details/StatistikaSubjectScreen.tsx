@@ -15,6 +15,11 @@ import LoadingData from "@/src/components/exceptions/LoadingData";
 import ErrorData from "@/src/components/exceptions/ErrorData";
 import NoTestResultsModal from "../components/NoTestResultsModal";
 import { moderateScale, s } from "react-native-size-matters";
+import {
+  buildStatisticsSections,
+  getStatisticsThemeKey,
+  StatisticsSubjectSection,
+} from "./statistikaSubjectListUtils";
 
 export default function StatistikaSubjectScreen({
   navigation,
@@ -29,10 +34,11 @@ export default function StatistikaSubjectScreen({
   const { userId, subjectId, subjectName, subjectPercent, subjectCode } =
     route.params;
 
-  const { data, isLoading, isError, refetch } = useThemeStatistics(
+  const { data, isLoading, isFetching, isError, refetch } = useThemeStatistics(
     Number(userId),
     Number(subjectId),
   );
+  const sections = useMemo(() => buildStatisticsSections(data), [data]);
   const handleThemePress = useCallback(
     (chapterTheme: ChapterThemeStatistic) => {
       if (chapterTheme.isSolved && chapterTheme.testId) {
@@ -52,6 +58,23 @@ export default function StatistikaSubjectScreen({
     },
     [navigation, subjectId, subjectCode, userId],
   );
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: StatisticsSubjectSection }) => (
+      <Text style={styles.chapterSectionTitle}>{section.title}</Text>
+    ),
+    [styles.chapterSectionTitle],
+  );
+  const renderItem = useCallback(
+    ({ item }: { item: ChapterThemeStatistic }) => (
+      <ThemeItem
+        chapterTheme={item}
+        onPress={handleThemePress}
+        theme={theme}
+        styles={styles}
+      />
+    ),
+    [handleThemePress, styles, theme],
+  );
   useEffect(() => {
     navigation.setOptions({
       title: subjectName.toString(),
@@ -66,35 +89,20 @@ export default function StatistikaSubjectScreen({
   }, [navigation, subjectName, subjectPercent]);
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
-      {isLoading ? (
+      {isLoading || (isFetching && !data) ? (
         <LoadingData />
-      ) : isError ? (
+      ) : isError && !data ? (
         <ErrorData refetch={refetch} />
       ) : (
         <SectionList
-          sections={
-            data?.map((chapter) => ({
-              title: `${chapter.ordinalNumber}-bob. ${chapter.name}`,
-              data: chapter.themes,
-            })) ?? []
-          }
-          keyExtractor={(item, index) => item.id.toString() + index}
-          renderSectionHeader={({ section: { title } }) => (
-            <Text style={styles.chapterSectionTitle}>{title}</Text>
-          )}
-          renderItem={({ item }) => (
-            <ThemeItem
-              key={item.id}
-              chapterTheme={item}
-              onPress={handleThemePress}
-              theme={theme}
-              styles={styles}
-            />
-          )}
-          initialNumToRender={2}
-          maxToRenderPerBatch={2}
-          windowSize={2}
-          scrollEnabled
+          sections={sections}
+          keyExtractor={getStatisticsThemeKey}
+          renderSectionHeader={renderSectionHeader}
+          renderItem={renderItem}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          updateCellsBatchingPeriod={50}
+          windowSize={5}
           contentContainerStyle={styles.content}
         />
       )}

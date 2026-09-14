@@ -123,6 +123,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
+  const refetchPlan = useCallback(() => {
+    void refetch();
+  }, [refetch]);
+
   const value: AuthContextType = useMemo(
     () => ({
       user,
@@ -132,9 +136,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       isLoginLoading,
       login,
       logout,
-      refetchPlan: () => {
-        void refetch();
-      },
+      refetchPlan,
     }),
     [
       isAuthenticated,
@@ -143,7 +145,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       login,
       logout,
       plan,
-      refetch,
+      refetchPlan,
       user,
     ],
   );

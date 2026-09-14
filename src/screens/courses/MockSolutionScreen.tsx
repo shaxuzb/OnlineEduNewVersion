@@ -20,7 +20,7 @@ import * as SecureStore from "expo-secure-store";
 import Toast from "react-native-toast-message";
 import { BORDER_RADIUS, COLORS, FONT_SIZES, SPACING } from "@/src/utils";
 import { useTheme } from "@/src/context/ThemeContext";
-import { useQuizResults, useThemeTest } from "@/src/hooks/useQuiz";
+import { useMockQuizResults, useMockTest } from "@/src/hooks/useQuiz";
 import { AnswerKey, Theme } from "@/src/types";
 import { CustomStyledCard } from "@/src/components/ui/cards/CustomStyledCard";
 import PdfLoadingState from "@/src/components/courses/PdfLoadingState";
@@ -90,8 +90,8 @@ const ErrorState = React.memo(({ onRetry }: { onRetry: () => void }) => (
 ));
 
 const PdfViewer = React.memo(
-  ({ testId, authToken, isAuthLoading }: {
-    testId: number;
+  ({ mockTestId, authToken, isAuthLoading }: {
+    mockTestId: number;
     authToken: string | null;
     isAuthLoading: boolean;
   }) => {
@@ -115,7 +115,7 @@ const PdfViewer = React.memo(
 
     useEffect(() => {
       setIsPdfLoading(true);
-    }, [authToken, testId]);
+    }, [authToken, mockTestId]);
 
     if (isAuthLoading) {
       return (
@@ -139,7 +139,7 @@ const PdfViewer = React.memo(
       <View style={styles.pdfViewer}>
         <Pdf
           source={{
-            uri: `${Constants.expoConfig?.extra?.API_URL}/api/theme-test/${testId}/pdf`,
+            uri: `${Constants.expoConfig?.extra?.API_URL}/api/mock-tests/${mockTestId}/pdf`,
             headers: { Authorization: `Bearer ${authToken}` },
             cache: true,
             method: "get",
@@ -209,7 +209,7 @@ const TestGridItem = React.memo(
   ),
 );
 
-export default function SolutionScreen({
+export default function MockSolutionScreen({
   navigation,
   route,
 }: {
@@ -218,7 +218,7 @@ export default function SolutionScreen({
 }) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { themeId, userId, testId, mavzu, percent } = route.params;
+  const { mockTestId, userId, mockTestName } = route.params;
 
   // API hooks
   const {
@@ -226,10 +226,10 @@ export default function SolutionScreen({
     isLoading: resultsLoading,
     isSuccess: resultsSuccess,
     error: resultsError,
-  } = useQuizResults(Number(userId), Number(themeId));
+  } = useMockQuizResults(Number(userId), Number(mockTestId));
 
-  // const { data: pdfBlob, isLoading } = useTestPdf(Number(testId));
-  const { data: testData } = useThemeTest(Number(testId));
+  // const { data: pdfBlob, isLoading } = useTestPdf(Number(mockTestId));
+  const { data: testData } = useMockTest(Number(mockTestId));
 
   const [showTestIndex, setShowTestIndex] = useState(1);
   const [showSolution, setShowSolution] = useState(false);
@@ -307,7 +307,7 @@ export default function SolutionScreen({
       navigation.navigate("VideoPlayer", {
         lessonTitle: `${currentAnswer?.questionId}-test yechimi`,
         videoFileId: currentAnswer.videoFileId,
-        mavzu: `${currentAnswer?.questionId}-test yechimi`,
+        mockTestName: `${currentAnswer?.questionId}-test yechimi`,
       });
     } else {
       Toast.show({
@@ -353,12 +353,12 @@ export default function SolutionScreen({
   }, [testData]);
   useEffect(() => {
     navigation.setOptions({
-      title: "Mashqlar (IDS kitobidan)",
+      title: mockTestName,
       headerTitle: ({ children }: { children: any }) => (
         <HeaderTitle title={children} />
       ),
       freezeOnBlur: true,
-      headerRight: () => <HeaderRight percent={percent} />,
+      headerRight: () => <HeaderRight percent={quizResults?.[0]?.percent ?? 0} />,
     });
   }, [navigation]);
   // Loading and error states
@@ -443,7 +443,7 @@ export default function SolutionScreen({
         ) : (
           <View style={styles.pdfContainer}>
             <PdfViewer
-              testId={Number(testId)}
+              mockTestId={Number(mockTestId)}
               authToken={authToken}
               isAuthLoading={isAuthLoading}
             />

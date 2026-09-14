@@ -1,11 +1,12 @@
 import { modalService } from "@/src/components/modals/modalService";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
-import { useQuizResults } from "@/src/hooks/useQuiz";
-import { useThemeTestStatistics } from "@/src/hooks/useStatistics";
+import { useMockQuizResults, useQuizResults } from "@/src/hooks/useQuiz";
+import { useSubjectTestStatistics } from "@/src/hooks/useStatistics";
 import {
   QuizResultsResponse,
   Theme,
+  ThemeTestStatistic,
   ThemeTestStatisticWrongAnswers,
 } from "@/src/types";
 import { BORDER_RADIUS, FONT_SIZES, SPACING } from "@/src/utils";
@@ -21,6 +22,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { moderateScale } from "react-native-size-matters";
+import {
+  getStatisticsResultActions,
+  getStatisticsResultSource,
+  shouldShowStatisticsEmptyState,
+} from "../statisticsSourceUtils";
 
 function StatistikaTestScreen({
   navigation,
@@ -36,25 +42,78 @@ function StatistikaTestScreen({
   const { testId, userId, subjectId, themeName, themeId, subjectCode, mavzu } =
     route.params;
 
-  const isNationalSubject = subjectCode === "NATIONAL_CERTIFICATE";
+  const statisticsSource = getStatisticsResultSource(subjectCode);
+  const isNationalSubject = statisticsSource === "nationalCertificate";
+  const isMockSubject = statisticsSource === "mockTest";
+  const resultActions = useMemo(
+    () => getStatisticsResultActions(statisticsSource),
+    [statisticsSource],
+  );
 
   const {
     data: themeTestStatistics,
     isLoading: themeTestLoading,
+    isFetching: themeTestFetching,
+    isFetched: themeTestFetched,
     error: themeTestError,
-  } = useThemeTestStatistics(Number(userId), Number(subjectId), Number(testId));
+  } = useSubjectTestStatistics(
+    Number(userId),
+    Number(subjectId),
+    Number(testId),
+    statisticsSource === "themeTest",
+  );
+
+  const {
+    data: mockQuizResults,
+    isLoading: mockResultsLoading,
+    isFetching: mockResultsFetching,
+    isFetched: mockResultsFetched,
+    error: mockResultsError,
+  } = useMockQuizResults(
+    Number(userId),
+    isMockSubject ? Number(testId) : 0,
+  );
 
   const {
     data: nationalQuizResults,
+    isPending: nationalResultsPending,
     isLoading: nationalResultsLoading,
+    isFetching: nationalResultsFetching,
+    isFetched: nationalResultsFetched,
     error: nationalResultsError,
   } = useQuizResults(Number(userId), isNationalSubject ? Number(themeId) : 0);
 
+  const subjectTestStatistics = useMemo<ThemeTestStatistic | undefined>(() => {
+    if (!isMockSubject) return themeTestStatistics;
+
+    const mockResult = mockQuizResults?.[0];
+    if (!mockResult) return undefined;
+
+    return {
+      testId: mockResult.testId,
+      name: themeName,
+      score: mockResult.score,
+      percent: mockResult.percent,
+      ordinalNumber: 0,
+      correct: mockResult.correctQuestionsCount,
+      wrong: mockResult.wrongQuestionsCount,
+      total: mockResult.totalQuestionsCount,
+      wrongOrUnsolvedNumbers: mockResult.answers
+        .filter((answer) => !answer.isCorrect)
+        .map((answer) => ({
+          subTestNo: answer.subTestNo,
+          dbQuestionNumber: answer.dbQuestionNumber,
+          partLabel: answer.partLabel,
+          questionNumber: answer.questionNumber,
+        })),
+    };
+  }, [isMockSubject, mockQuizResults, themeName, themeTestStatistics]);
+
   const groupedThemeTestData = useMemo(() => {
-    if (!themeTestStatistics) return [];
+    if (!subjectTestStatistics) return [];
 
     return Object.entries(
-      themeTestStatistics.wrongOrUnsolvedNumbers.reduce(
+      subjectTestStatistics.wrongOrUnsolvedNumbers.reduce(
         (acc: any, key: any) => {
           const group = acc[key.subTestNo] || [];
           group.push(key);
@@ -64,7 +123,7 @@ function StatistikaTestScreen({
         {},
       ),
     );
-  }, [themeTestStatistics]);
+  }, [subjectTestStatistics]);
 
   const groupedNationalWrongData = useMemo(() => {
     if (!nationalQuizResults?.[0]) return [];
@@ -82,19 +141,54 @@ function StatistikaTestScreen({
   }, [nationalQuizResults]);
 
   const isLoading = isNationalSubject
-    ? nationalResultsLoading
-    : themeTestLoading;
+    ? nationalResultsPending ||
+      nationalResultsLoading ||
+      nationalResultsFetching ||
+      (!nationalResultsFetched && !nationalQuizResults?.[0])
+    : isMockSubject
+      ? mockResultsLoading ||
+        mockResultsFetching ||
+        (!mockResultsFetched && !mockQuizResults?.[0])
+      : themeTestLoading ||
+        themeTestFetching ||
+        (!themeTestFetched && !subjectTestStatistics);
   const hasError = isNationalSubject
-    ? nationalResultsError ||
-      (!nationalResultsLoading && !nationalQuizResults?.[0])
-    : !!themeTestError;
+    ? (Boolean(nationalResultsError) &&
+        nationalResultsFetched &&
+        !nationalResultsFetching) ||
+      shouldShowStatisticsEmptyState({
+        isFetched: nationalResultsFetched,
+        isFetching: nationalResultsFetching,
+        hasData: Boolean(nationalQuizResults?.[0]),
+      })
+    : isMockSubject
+      ? (Boolean(mockResultsError) && mockResultsFetched && !mockResultsFetching) ||
+        shouldShowStatisticsEmptyState({
+          isFetched: mockResultsFetched,
+          isFetching: mockResultsFetching,
+          hasData: Boolean(mockQuizResults?.[0]),
+        })
+      : (Boolean(themeTestError) && themeTestFetched && !themeTestFetching) ||
+        shouldShowStatisticsEmptyState({
+          isFetched: themeTestFetched,
+          isFetching: themeTestFetching,
+          hasData: Boolean(subjectTestStatistics),
+        });
 
   const handleOpenHistory = useCallback(() => {
-    navigation.navigate("QuizResultsHistorySertificate", {
+    if (resultActions.history === "MockQuizResultsHistory") {
+      navigation.navigate(resultActions.history, {
+        userId,
+        mockTestId: testId,
+      });
+      return;
+    }
+
+    navigation.navigate(resultActions.history, {
       userId,
       themeId,
     });
-  }, [navigation, userId, themeId]);
+  }, [navigation, resultActions.history, testId, themeId, userId]);
 
   const handleGoBack = useCallback(() => {
     navigation.goBack();
@@ -240,7 +334,7 @@ function StatistikaTestScreen({
                       numberOfLines={1}
                       adjustsFontSizeToFit
                     >
-                      {themeTestStatistics?.percent}%
+                      {subjectTestStatistics?.percent}%
                     </Text>
                   </View>
                 </View>
@@ -249,13 +343,13 @@ function StatistikaTestScreen({
                   <View style={styles.statsRow}>
                     <Text style={styles.statsLabel}>To'g'ri:</Text>
                     <Text style={styles.statsValue}>
-                      {themeTestStatistics?.correct} ta
+                      {subjectTestStatistics?.correct} ta
                     </Text>
                   </View>
                   <View style={styles.statsRow}>
                     <Text style={styles.statsLabel}>Noto'g'ri:</Text>
                     <Text style={styles.statsValue}>
-                      {themeTestStatistics?.wrong} ta
+                      {subjectTestStatistics?.wrong} ta
                     </Text>
                   </View>
                 </View>
@@ -312,24 +406,30 @@ function StatistikaTestScreen({
                     (item) => item.code === "SOLUTION",
                   )
                 ) {
-                  if (subjectCode === "NATIONAL_CERTIFICATE") {
+                  if (resultActions.solution === "QuizSolutionSertificate") {
                     return navigation.navigate("QuizSolutionSertificate", {
                       userId,
                       testId,
                       themeId,
                       mavzu,
-                      percent: isNationalSubject
-                        ? nationalQuizResults?.[0]?.percent
-                        : themeTestStatistics?.percent,
-                    });
-                  } else {
-                    navigation.navigate("QuizSolution", {
-                      userId,
-                      testId,
-                      themeId,
-                      percent: themeTestStatistics?.percent,
+                      percent: nationalQuizResults?.[0]?.percent,
                     });
                   }
+
+                  if (resultActions.solution === "MockQuizSolution") {
+                    return navigation.navigate("MockQuizSolution", {
+                      userId,
+                      mockTestId: testId,
+                      mockTestName: themeName,
+                    });
+                  }
+
+                  navigation.navigate("QuizSolution", {
+                    userId,
+                    testId,
+                    themeId,
+                    percent: subjectTestStatistics?.percent,
+                  });
                 } else {
                   modalService.open();
                 }

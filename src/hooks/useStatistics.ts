@@ -26,16 +26,20 @@ export const useThemeStatistics = (userId: number, subjectId: number) => {
     // staleTime: 5 * 60 * 1000, // 5 minutes
   });
 };
-export const useThemeTestStatistics = (
+export const useSubjectTestStatistics = (
   userId: number,
   subjectId: number,
   testId: number,
+  enabled = true,
 ) => {
   return useQuery<ThemeTestStatistic, Error>({
     queryKey: statisticsKeys.test(userId, subjectId, testId),
     queryFn: () =>
       statisticsService.getTestStatistics(userId, subjectId, testId),
-    enabled: Boolean(userId && subjectId && testId),
+    enabled: enabled && Boolean(userId && subjectId && testId),
     // staleTime: 5 * 60 * 1000, // 5 minutes
   });
 };
+
+// Backward-compatible alias for existing consumers.
+export const useThemeTestStatistics = useSubjectTestStatistics;

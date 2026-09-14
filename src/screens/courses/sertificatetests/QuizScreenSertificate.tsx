@@ -32,6 +32,8 @@ import {
 } from "@/src/hooks/useQuiz";
 import { QuizAnswer, Theme } from "@/src/types";
 import { moderateScale } from "react-native-size-matters";
+import PdfLoadingState from "@/src/components/courses/PdfLoadingState";
+import { shouldShowPdfLoading } from "../pdfLoadingUtils";
 import MathView from "react-native-math-view";
 import MathLiveModalKeyboard, {
   MathLiveModalRef,
@@ -118,15 +120,21 @@ const ErrorState = React.memo(({ onRetry }: { onRetry: () => void }) => (
 ));
 
 const PdfViewer = React.memo(
-  ({ testId, authToken }: { testId: number; authToken: string | null }) => {
+  ({ testId, authToken, isAuthLoading }: {
+    testId: number;
+    authToken: string | null;
+    isAuthLoading: boolean;
+  }) => {
     const { theme } = useTheme();
     const styles = useMemo(() => createStyles(theme), [theme]);
+    const [isPdfLoading, setIsPdfLoading] = useState(true);
 
-    const handleLoadComplete = useCallback((numberOfPages: number) => {
-      console.log("PDF loaded with", numberOfPages, "pages");
+    const handleLoadComplete = useCallback((_numberOfPages: number) => {
+      setIsPdfLoading(false);
     }, []);
 
     const handleError = useCallback((error: unknown) => {
+      setIsPdfLoading(false);
       Alert.alert(
         "Xatolik",
         "PDF faylni ochishda xatolik yuz berdi. Fayl mavjudligini tekshiring.",
@@ -134,6 +142,19 @@ const PdfViewer = React.memo(
       );
       console.error("PDF Error:", error);
     }, []);
+
+    useEffect(() => {
+      setIsPdfLoading(true);
+    }, [authToken, testId]);
+
+    if (isAuthLoading) {
+      return (
+        <PdfLoadingState
+          color={theme.colors.primary}
+          backgroundColor={theme.colors.background}
+        />
+      );
+    }
 
     if (!authToken) {
       return (
@@ -145,29 +166,37 @@ const PdfViewer = React.memo(
     }
 
     return (
-      <Pdf
-        source={{
-          uri: `${Constants.expoConfig?.extra?.API_URL}/api/theme-test/${testId}/pdf`,
-          headers: { Authorization: `Bearer ${authToken}` },
-          cache: false,
-          method: "get",
-        }}
-        onLoadComplete={handleLoadComplete}
-        onError={handleError}
-        style={styles.pdf}
-        trustAllCerts={false}
-        enablePaging={false}
-        horizontal={false}
-        spacing={0}
-        password=""
-        scale={1}
-        enableDoubleTapZoom
-        minScale={1}
-        maxScale={5}
-        renderActivityIndicator={() => (
-          <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={styles.pdfViewer}>
+        <Pdf
+          source={{
+            uri: `${Constants.expoConfig?.extra?.API_URL}/api/theme-test/${testId}/pdf`,
+            headers: { Authorization: `Bearer ${authToken}` },
+            cache: false,
+            method: "get",
+          }}
+          onLoadComplete={handleLoadComplete}
+          onError={handleError}
+          style={styles.pdf}
+          trustAllCerts={false}
+          enablePaging={false}
+          horizontal={false}
+          spacing={0}
+          password=""
+          scale={1}
+          enableDoubleTapZoom
+          minScale={1}
+          maxScale={5}
+          renderActivityIndicator={() => (
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          )}
+        />
+        {shouldShowPdfLoading(authToken, isPdfLoading) && (
+          <PdfLoadingState
+            color={theme.colors.primary}
+            backgroundColor={theme.colors.background}
+          />
         )}
-      />
+      </View>
     );
   },
 );
@@ -378,6 +407,7 @@ export default function QuizScreenSertificate({
   >({});
   const [showTestModal, setShowTestModal] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [remainingSecondsDisplay, setRemainingSecondsDisplay] = useState(
     TIMED_TEST_DURATION_SECONDS,
   );
@@ -490,6 +520,8 @@ export default function QuizScreenSertificate({
         }
       } catch (error) {
         console.error("Error loading auth token:", error);
+      } finally {
+        setIsAuthLoading(false);
       }
     };
 
@@ -797,7 +829,11 @@ export default function QuizScreenSertificate({
     return (
       <SafeAreaView style={styles.container} edges={["bottom"]}>
         <View style={styles.pdfContainer}>
-          <PdfViewer testId={numericTestId} authToken={authToken} />
+          <PdfViewer
+            testId={numericTestId}
+            authToken={authToken}
+            isAuthLoading={isAuthLoading}
+          />
         </View>
       </SafeAreaView>
     );
@@ -806,7 +842,11 @@ export default function QuizScreenSertificate({
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       <View style={styles.pdfContainer}>
-        <PdfViewer testId={numericTestId} authToken={authToken} />
+        <PdfViewer
+          testId={numericTestId}
+          authToken={authToken}
+          isAuthLoading={isAuthLoading}
+        />
       </View>
 
       <View style={styles.quizControls}>
@@ -1148,6 +1188,10 @@ const createStyles = (theme: Theme) =>
     pdfContainer: {
       flex: 1,
       backgroundColor: theme.colors.background,
+    },
+    pdfViewer: {
+      flex: 1,
+      position: "relative",
     },
     pdf: {
       flex: 1,

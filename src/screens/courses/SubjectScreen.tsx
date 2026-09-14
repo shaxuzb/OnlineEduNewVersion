@@ -3,7 +3,13 @@ import ErrorData from "@/src/components/exceptions/ErrorData";
 import LoadingData from "@/src/components/exceptions/LoadingData";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useThemes } from "@/src/hooks/useThemes";
-import { ChapterTheme, Theme } from "@/src/types";
+import { isMockTestChapter } from "@/src/services/mockTestUtils";
+import {
+  ChapterTheme,
+  MockTestChapter,
+  SubjectChapter,
+  Theme,
+} from "@/src/types";
 import { FontAwesome6, Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo } from "react";
 import {
@@ -19,6 +25,14 @@ import PageCard from "@/src/components/ui/cards/PageCard";
 import { moderateScale } from "react-native-size-matters";
 import { modalService } from "@/src/components/modals/modalService";
 import { alertService } from "@/src/components/modals/customalert/alertService";
+import MockTestCard from "@/src/components/courses/MockTestCard";
+
+type SubjectListItem = ChapterTheme | MockTestChapter;
+type SubjectSection = {
+  title: string;
+  data: SubjectListItem[];
+  isMockTest: boolean;
+};
 
 export default function SubjectScreen({
   navigation,
@@ -33,11 +47,12 @@ export default function SubjectScreen({
 
   const { data, isLoading, isError, refetch } = useThemes(Number(subjectId));
 
-  const sections = useMemo(
+  const sections = useMemo<SubjectSection[]>(
     () =>
-      data?.results?.map((chapter) => ({
+      data?.results?.map((chapter: SubjectChapter) => ({
         title: chapter.name,
-        data: chapter.themes,
+        data: isMockTestChapter(chapter) ? [chapter] : chapter.themes,
+        isMockTest: isMockTestChapter(chapter),
       })) ?? [],
     [data?.results],
   );
@@ -103,76 +118,110 @@ export default function SubjectScreen({
     [navigation, subjectCode],
   );
 
-  const keyExtractor = useCallback((item: ChapterTheme) => String(item.id), []);
+  const handleMockTestPress = useCallback(
+    (chapter: MockTestChapter) => {
+      if (!chapter.hasAccess) {
+        modalService.open();
+        return;
+      }
+
+      navigation.navigate("MockQuizScreen", {
+        mockTestId: chapter.mockTestId,
+        mockTestName: chapter.mockTestName || chapter.name,
+        subjectId: chapter.subjectId,
+      });
+    },
+    [navigation],
+  );
+
+  const keyExtractor = useCallback((item: SubjectListItem) => {
+    return isMockTestChapter(item)
+      ? `mock-${item.mockTestId}`
+      : `theme-${item.id}`;
+  }, []);
 
   const renderSectionHeader = useCallback(
-    ({ section: { title } }: { section: { title: string } }) => (
-      <Text style={styles.chapterSectionTitle}>{title}</Text>
-    ),
+    ({ section }: { section: SubjectSection }) =>
+      section.isMockTest ? null : (
+        <Text style={styles.chapterSectionTitle}>{section.title}</Text>
+      ),
     [styles.chapterSectionTitle],
   );
 
   const renderItem = useCallback(
-    ({ item: chapterTheme }: { item: ChapterTheme }) => (
-      <TouchableOpacity
-        style={[
-          styles.themeCard,
-          !chapterTheme.hasAccess && styles.lockedThemeCard,
-        ]}
-        activeOpacity={0.8}
-        onPress={() => handleThemePress(chapterTheme)}
-      >
-        {!chapterTheme.hasAccess && (
-          <View style={styles.crownIcon}>
-            <FontAwesome6 name="crown" size={16} color="#FFD700" />
-          </View>
-        )}
-        <View style={styles.themeLeft}>
-          <View style={styles.lockIconContainer}>
-            <Ionicons
-              name={chapterTheme.hasAccess ? "lock-closed" : "lock-open"}
-              size={moderateScale(16)}
-              color={
-                !chapterTheme.hasAccess
-                  ? theme.colors.textMuted
-                  : theme.colors.success
-              }
-            />
-          </View>
-          <View style={styles.themeInfo}>
-            <Text style={styles.themeNumber}>
-              {subjectCode === "NATIONAL_CERTIFICATE"
-                ? chapterTheme.content
-                : `${chapterTheme.ordinalNumber}-mavzu`}
-            </Text>
-            <Text
-              style={[
-                styles.themeName,
-                !chapterTheme.hasAccess && styles.lockedThemeName,
-              ]}
-              numberOfLines={2}
-            >
-              {chapterTheme.name}
-            </Text>
-          </View>
-          {subjectCode !== "NATIONAL_CERTIFICATE" && (
-            <View>
-              <Text style={styles.loadingText}>{chapterTheme.percent}%</Text>
+    ({ item }: { item: SubjectListItem }) => {
+      if (isMockTestChapter(item)) {
+        return (
+          <MockTestCard
+            chapter={item}
+            onPress={() => handleMockTestPress(item)}
+          />
+        );
+      }
+
+      const chapterTheme = item;
+      return (
+        <TouchableOpacity
+          style={[
+            styles.themeCard,
+            !chapterTheme.hasAccess && styles.lockedThemeCard,
+          ]}
+          activeOpacity={0.8}
+          onPress={() => handleThemePress(chapterTheme)}
+        >
+          {!chapterTheme.hasAccess && (
+            <View style={styles.crownIcon}>
+              <FontAwesome6 name="crown" size={16} color="#FFD700" />
             </View>
           )}
-        </View>
-        {subjectCode === "NATIONAL_CERTIFICATE" && (
-          <>
-            <Text style={styles.themeCountloadingText}>
-              {chapterTheme.percent}%
-            </Text>
-            <Text style={styles.themeCount}>{chapterTheme.description}</Text>
-          </>
-        )}
-      </TouchableOpacity>
-    ),
+          <View style={styles.themeLeft}>
+            <View style={styles.lockIconContainer}>
+              <Ionicons
+                name={chapterTheme.hasAccess ? "lock-closed" : "lock-open"}
+                size={moderateScale(16)}
+                color={
+                  !chapterTheme.hasAccess
+                    ? theme.colors.textMuted
+                    : theme.colors.success
+                }
+              />
+            </View>
+            <View style={styles.themeInfo}>
+              <Text style={styles.themeNumber}>
+                {subjectCode === "NATIONAL_CERTIFICATE"
+                  ? chapterTheme.content
+                  : `${chapterTheme.ordinalNumber}-mavzu`}
+              </Text>
+              <Text
+                style={[
+                  styles.themeName,
+                  !chapterTheme.hasAccess && styles.lockedThemeName,
+                ]}
+                numberOfLines={2}
+              >
+                {chapterTheme.name}
+              </Text>
+            </View>
+            {subjectCode !== "NATIONAL_CERTIFICATE" && (
+              <View>
+                <Text style={styles.loadingText}>{chapterTheme.percent}%</Text>
+              </View>
+            )}
+          </View>
+          {subjectCode === "NATIONAL_CERTIFICATE" && (
+            <>
+              <Text style={styles.themeCountloadingText}>
+                {chapterTheme.percent}%
+              </Text>
+              <Text style={styles.themeCount}>{chapterTheme.description}</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      );
+    },
     [
       handleThemePress,
+      handleMockTestPress,
       styles,
       subjectCode,
       theme.colors.success,

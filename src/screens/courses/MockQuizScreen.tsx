@@ -1,0 +1,1268 @@
+import { Ionicons } from "@expo/vector-icons";
+import * as ScreenCapture from "expo-screen-capture";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  InteractionManager,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import Pdf from "react-native-pdf";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import Constants from "expo-constants";
+import * as SecureStore from "expo-secure-store";
+import { BORDER_RADIUS, COLORS, FONT_SIZES, SPACING } from "@/src/utils";
+import { useTheme } from "@/src/context/ThemeContext";
+import {
+  useCurrentUserId,
+  useSubmitMockTestResults,
+  useMockTest,
+} from "@/src/hooks/useQuiz";
+import { AnswerKey, QuizAnswer, Theme } from "@/src/types";
+import { CustomStyledCard } from "@/src/components/ui/cards/CustomStyledCard";
+import PdfLoadingState from "@/src/components/courses/PdfLoadingState";
+import { moderateScale } from "react-native-size-matters";
+import { ScaledSheet } from "react-native-size-matters";
+import { shouldShowPdfLoading } from "./pdfLoadingUtils";
+import {
+  getMockTestGridMaxHeight,
+  splitMockTestColumns,
+} from "./mockQuizScreenUtils";
+import {
+  useFocusEffect,
+  useIsFocused,
+  usePreventRemove,
+} from "@react-navigation/native";
+import ScreenGuardModule from "react-native-screenguard";
+
+const { width } = Dimensions.get("window");
+
+interface LocalQuizAnswer {
+  questionId: number;
+  selectedOption: string | null;
+  subTestNo: number;
+  isConfirmed: boolean;
+}
+
+// Memoized komponentlar
+const HeaderTitle = React.memo(({ title }: { title: string }) => (
+  <View style={headerTitleStyles.container}>
+    <Text
+      style={headerTitleStyles.title}
+      adjustsFontSizeToFit
+      numberOfLines={2}
+    >
+      {title}
+    </Text>
+  </View>
+));
+
+const HeaderRight = React.memo(({ percent }: { percent: number }) => (
+  <View style={headerRightStyles.container}>
+    <Text style={headerRightStyles.text}>{percent}</Text>
+  </View>
+));
+
+const LoadingState = React.memo(() => (
+  <SafeAreaView style={loadingStyles.container}>
+    <View style={loadingStyles.content}>
+      <ActivityIndicator size="large" color={COLORS.primary} />
+      <Text style={loadingStyles.text}>Test yuklanmoqda...</Text>
+    </View>
+  </SafeAreaView>
+));
+
+const ErrorState = React.memo(({ onRetry }: { onRetry: () => void }) => (
+  <SafeAreaView style={errorStyles.container}>
+    <View style={errorStyles.content}>
+      <Ionicons name="alert-circle-outline" size={64} color={COLORS.error} />
+      <Text style={errorStyles.title}>Test ma'lumotlari yuklanmadi</Text>
+      <TouchableOpacity style={errorStyles.button} onPress={onRetry}>
+        <Text style={errorStyles.buttonText}>Orqaga qaytish</Text>
+      </TouchableOpacity>
+    </View>
+  </SafeAreaView>
+));
+
+const PdfViewer = React.memo(
+  ({
+    mockTestId,
+    authToken,
+    isAuthLoading,
+  }: {
+    mockTestId: number;
+    authToken: string | null;
+    isAuthLoading: boolean;
+  }) => {
+    const theme = useTheme();
+    const styles = useMemo(() => createStyles(theme.theme), [theme.theme]);
+    const [isPdfLoading, setIsPdfLoading] = useState(true);
+
+    const handleLoadComplete = useCallback((_numberOfPages: number) => {
+      setIsPdfLoading(false);
+    }, []);
+
+    const handleError = useCallback((error: any) => {
+      setIsPdfLoading(false);
+      Alert.alert(
+        "Xatolik",
+        "PDF faylni ochishda xatolik yuz berdi. Fayl mavjudligini tekshiring.",
+        [{ text: "OK" }],
+      );
+      console.error("PDF Error:", error);
+    }, []);
+
+    useEffect(() => {
+      setIsPdfLoading(true);
+    }, [authToken, mockTestId]);
+
+    if (isAuthLoading) {
+      return (
+        <PdfLoadingState
+          color={theme.theme.colors.primary}
+          backgroundColor={theme.theme.colors.background}
+        />
+      );
+    }
+
+    if (!authToken) {
+      return (
+        <View style={styles.errorContainer}>
+          <Ionicons name="document-outline" size={64} color={COLORS.gray} />
+          <Text style={styles.errorTitle}>Autentifikatsiya xatosi</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.pdfViewer}>
+        <Pdf
+          source={{
+            uri: `${Constants.expoConfig?.extra?.API_URL}/api/mock-tests/${mockTestId}/pdf`,
+            headers: { Authorization: `Bearer ${authToken}` },
+            cache: false,
+            method: "get",
+          }}
+          onLoadComplete={handleLoadComplete}
+          onError={handleError}
+          style={styles.pdf}
+          trustAllCerts={false}
+          enablePaging={false}
+          horizontal={false}
+          spacing={0}
+          password=""
+          scale={1}
+          enableDoubleTapZoom
+          minScale={1}
+          maxScale={5}
+          renderActivityIndicator={() => (
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          )}
+        />
+        {shouldShowPdfLoading(authToken, isPdfLoading) && (
+          <PdfLoadingState
+            color={theme.theme.colors.primary}
+            backgroundColor={theme.theme.colors.background}
+          />
+        )}
+      </View>
+    );
+  },
+);
+
+const OptionButton = React.memo(
+  ({
+    option,
+    isSelected,
+    onSelect,
+    disabled = false,
+    styles,
+  }: {
+    option: string;
+    isSelected: string | null | undefined;
+    disabled: boolean;
+    onSelect: (selectedOption: any) => void;
+    styles: any;
+  }) => (
+    <TouchableOpacity
+      activeOpacity={1}
+      style={[
+        styles.optionButton,
+        isSelected === option && styles.optionButtonSelected,
+      ]}
+      onPress={() => onSelect(option)}
+      disabled={disabled}
+    >
+      <Text
+        style={[
+          styles.optionButtonText,
+          isSelected === option && styles.optionButtonTextSelected,
+        ]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+      >
+        {option}
+      </Text>
+    </TouchableOpacity>
+  ),
+);
+
+const TestGridItem = React.memo(
+  ({
+    item,
+    selectedOption,
+    handleConfirm,
+    isFinishing,
+    styles,
+  }: {
+    item: AnswerKey;
+    selectedOption: string | null;
+    isFinishing: boolean;
+    handleConfirm: (
+      selectedOption: any,
+      currentQuestion: any,
+      currentSubTestNo: any,
+    ) => void;
+    styles: any;
+  }) => {
+    const questionOptions = useMemo(
+      () => (item?.options ? JSON.parse(item.options) : []),
+      [item],
+    );
+
+    return (
+      <View
+        style={{
+          flexDirection: "row",
+          gap: 10,
+          alignItems: "center",
+          marginTop: 2,
+        }}
+      >
+        <Text
+          style={[styles.testGridItemText]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
+          {item.questionNumber}
+        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            gap: 4,
+          }}
+        >
+          {questionOptions.map((option: string) => (
+            <OptionButton
+              key={option}
+              option={option}
+              disabled={isFinishing}
+              isSelected={selectedOption}
+              onSelect={(selected) =>
+                handleConfirm(selected, item.dbQuestionNumber, item.subTestNo)
+              }
+              styles={styles}
+            />
+          ))}
+        </View>
+      </View>
+    );
+  },
+);
+
+export default function MockQuizScreen({
+  navigation,
+  route,
+}: {
+  navigation: any;
+  route: any;
+}) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
+  const { mockTestId, mockTestName } = route.params;
+  const numericMockTestId = Number(mockTestId);
+  const isFocused = useIsFocused();
+  // API hooks
+  const {
+    data: testData,
+    isLoading: testLoading,
+    error: testError,
+  } = useMockTest(numericMockTestId);
+
+  const submitResults = useSubmitMockTestResults();
+  const currentUserId = useCurrentUserId();
+
+  // State management
+  const [answersByQuestionState, setAnswersByQuestionState] = useState<
+    Record<number, LocalQuizAnswer>
+  >({});
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [showTestIndex, setShowTestIndex] = useState(1);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isFinishing, _setIsFinishing] = useState(false);
+  const isScreenGuardEnabledRef = useRef(false);
+  const guardRequestIdRef = useRef(0);
+  const answers = useMemo(
+    () => Object.values(answersByQuestionState),
+    [answersByQuestionState],
+  );
+  const answersByQuestion = useMemo(() => {
+    return Object.entries(answersByQuestionState).reduce<
+      Record<number, string | null>
+    >((acc, [questionId, value]) => {
+      acc[Number(questionId)] = value.selectedOption;
+      return acc;
+    }, {});
+  }, [answersByQuestionState]);
+
+  // Memoized values
+  const totalQuestions = useMemo(
+    () => testData?.questionCount || 0,
+    [testData],
+  );
+  const groupedSubTest = useMemo(() => {
+    if (!testData) return [];
+    const groups: { [key: number]: AnswerKey[] } = {};
+
+    // Guruhlash: subTestNo bo‘yicha
+    testData.answerKeys.forEach((item) => {
+      if (!groups[item.subTestNo]) {
+        groups[item.subTestNo] = [];
+      }
+      groups[item.subTestNo].push(item);
+    });
+
+    // Har bir guruhdan faqat birinchi elementni olish
+    const result = Object.values(groups).map(
+      (group) => (group as AnswerKey[])[0].subTestNo,
+    );
+
+    return result;
+  }, [testData]);
+  // Auth token loading
+  useEffect(() => {
+    const loadAuthToken = async () => {
+      try {
+        const sessionData = await SecureStore.getItemAsync("session");
+        if (sessionData) {
+          const { token } = JSON.parse(sessionData);
+          setAuthToken(token);
+        }
+      } catch (error) {
+        console.error("Error loading auth token:", error);
+      } finally {
+        setIsAuthLoading(false);
+      }
+    };
+
+    loadAuthToken();
+  }, []);
+
+  // Load saved answer when question changes
+  // useEffect(() => {
+  //   const savedAnswer = answers.find((a) => a.questionId === currentQuestion);
+  //   if (savedAnswer) {
+  //     setSelectedOption(savedAnswer.selectedOption);
+  //     setTextInputValue(
+  //       isMultipleChoice ? "" : savedAnswer.selectedOption || ""
+  //     );
+  //   } else {
+  //     setSelectedOption(null);
+  //     setTextInputValue("");
+  //   }
+  // }, [currentQuestion, answers, isMultipleChoice]);
+
+  // Event handlers
+  const handleGoBack = useCallback(() => {
+    Alert.alert(
+      "Testni tark etish",
+      "Haqiqatan ham testni tark etmoqchimisiz?",
+      [
+        { text: "Bekor qilish", style: "cancel" },
+        { text: "Chiqish", onPress: () => navigation.goBack() },
+      ],
+    );
+  }, []);
+
+  // const handleOptionSelect = useCallback(
+  //   (option: string) => {
+  //     setSelectedOption(option);
+  //     setTextInputValue("");
+  //     if (currentAnswer?.isConfirmed) {
+  //       handleEditAnswer();
+  //     }
+  //   },
+  //   [currentAnswer]
+  // );
+
+  const handleConfirm = useCallback(
+    (selectedOption: any, currentQuestion: any, currentSubTestNo: any) => {
+      if (!selectedOption) return;
+
+      const newAnswer: LocalQuizAnswer = {
+        questionId: currentQuestion,
+        selectedOption: selectedOption,
+        subTestNo: currentSubTestNo ?? 1,
+        isConfirmed: true,
+      };
+
+      setAnswersByQuestionState((prev) => {
+        const existing = prev[currentQuestion];
+        if (
+          existing &&
+          existing.selectedOption === selectedOption &&
+          existing.subTestNo === (currentSubTestNo ?? 1) &&
+          existing.isConfirmed
+        ) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          [currentQuestion]: newAnswer,
+        };
+      });
+    },
+    [],
+  );
+
+  // const handleEditAnswer = useCallback(() => {
+  //   setAnswers((prev) => prev.filter((a) => a.questionId !== currentQuestion));
+  // }, [currentQuestion]);
+
+  // const handleNext = useCallback(() => {
+  //   setShowTestModal(false);
+  //   setCurrentQuestion((prev) => prev + 1);
+  // }, [currentQuestion, totalQuestions]);
+
+  // const handlePrevious = useCallback(() => {
+  //   if (currentQuestion > 1) {
+  //     setShowTestModal(false);
+  //     setCurrentQuestion((prev) => prev - 1);
+  //   }
+  // }, [currentQuestion]);
+
+  const handleFinishTest = useCallback(async () => {
+    if (!currentUserId || !mockTestId) {
+      Alert.alert("Xatolik", "Foydalanuvchi ma'lumotlari topilmadi");
+      return;
+    }
+
+    const answeredQuestions = answers.filter((a) => a.isConfirmed).length;
+    const unansweredCount = totalQuestions - answeredQuestions;
+
+    Alert.alert(
+      "Testni yakunlash",
+      `Siz ${totalQuestions} ta savoldan ${answeredQuestions} tasiga javob berdingiz.${
+        unansweredCount > 0
+          ? `\n${unansweredCount} ta savol javobsiz qoldi.`
+          : ""
+      }\n\nTestni yakunlamoqchimisiz?`,
+      [
+        { text: "Bekor qilish", style: "cancel" },
+        {
+          text: "Ha, yakunlash",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const submissionAnswers: QuizAnswer[] = answers
+                .filter((a) => a.isConfirmed)
+                .map((answer) => ({
+                  questionNumber: answer.questionId,
+                  subTestNo: answer.subTestNo,
+                  partIndex:
+                    testData?.answerKeys?.find(
+                      (ak) => ak.dbQuestionNumber === answer.questionId,
+                    )?.partIndex || 0,
+                  answer: answer.selectedOption || "",
+                }));
+              await submitResults.mutateAsync({
+                testId: numericMockTestId,
+                userId: currentUserId,
+                answers: submissionAnswers,
+              });
+              navigation.navigate("MockQuizResults", {
+                mockTestId: numericMockTestId,
+                userId: currentUserId,
+                mockTestName,
+              });
+              // navigation.navigate({
+              //   pathname: "/lesson/lessondetail/quiz/result",
+              //   params: {
+              //     mockTestId: numericMockTestId,
+              //     userId: currentUserId,
+              //     themeId: testData?.themeId,
+              //     mockTestName: mockTestName || "1-mockTestName",
+              //   },
+              // });
+            } catch (error) {
+              console.error("Error submitting quiz:", error);
+              Alert.alert(
+                "Xatolik",
+                "Test natijalarini yuborishda xatolik yuz berdi. Qaytadan urinib ko'ring.",
+                [
+                  { text: "Bekor qilish", style: "cancel" },
+                  { text: "Qayta urinish", onPress: () => handleFinishTest() },
+                ],
+              );
+            }
+          },
+        },
+      ],
+    );
+  }, [
+    currentUserId,
+    mockTestId,
+    answers,
+    totalQuestions,
+    testData,
+    numericMockTestId,
+    mockTestName,
+    submitResults,
+  ]);
+  // useEffect(() => {
+  //   if (currentQuestion === totalQuestions && currentAnswer?.isConfirmed) {
+  //     setIsFinishing(true);
+  //     const timer = setTimeout(() => {
+  //       handleFinishTest();
+  //       setIsFinishing(false);
+  //     }, 1000);
+  //     return () => clearTimeout(timer);
+  //   }
+  // }, [answers, currentQuestion, handleNext]);
+
+  const handleShowTestModal = useCallback(() => {
+    setShowTestModal(true);
+  }, []);
+
+  const setScreenProtectionEnabled = useCallback((enabled: boolean) => {
+    if (Platform.OS === "ios") {
+      if (isScreenGuardEnabledRef.current === enabled) return;
+      isScreenGuardEnabledRef.current = enabled;
+      const requestId = ++guardRequestIdRef.current;
+
+      InteractionManager.runAfterInteractions(() => {
+        if (
+          guardRequestIdRef.current !== requestId ||
+          (enabled && !isScreenGuardEnabledRef.current)
+        ) {
+          return;
+        }
+
+        void (async () => {
+          try {
+            if (enabled) {
+              try {
+                await ScreenGuardModule.unregister();
+              } catch {}
+
+              await ScreenGuardModule.initSettings({
+                displayScreenGuardOverlay: false,
+                timeAfterResume: 500,
+                getScreenshotPath: false,
+              });
+
+              if (
+                guardRequestIdRef.current !== requestId ||
+                !isScreenGuardEnabledRef.current
+              ) {
+                return;
+              }
+
+              await ScreenGuardModule.registerWithBlurView({
+                radius: 20,
+              });
+              return;
+            }
+
+            await ScreenGuardModule.unregister();
+          } catch (error) {
+            console.warn("Quiz iOS ScreenGuard error:", error);
+          }
+        })();
+      });
+
+      return;
+    }
+
+    if (Platform.OS === "android") {
+      if (enabled) {
+        ScreenCapture.preventScreenCaptureAsync().catch(console.warn);
+      } else {
+        ScreenCapture.allowScreenCaptureAsync().catch(console.warn);
+      }
+    }
+  }, []);
+
+  // const handleTestSelect = useCallback((testNumber: number) => {
+  //   // setCurrentQuestion(testNumber);
+  //   setShowTestModal(false);
+  // }, []);
+
+  // Grouped test data for modal
+  // const groupedTestData = useMemo(() => {
+  //   if (!testData?.answerKeys) return [];
+
+  //   return Object.entries(
+  //     testData.answerKeys.reduce((acc: any, key: any) => {
+  //       const group = acc[key.subTestNo] || [];
+  //       group.push(key);
+  //       acc[key.subTestNo] = group;
+  //       return acc;
+  //     }, {})
+  //   );
+  // }, [testData]);
+  const groupedTestData = useMemo(() => {
+    if (!testData?.answerKeys) return [];
+
+    return testData.answerKeys.filter(
+      (item) => item.subTestNo === showTestIndex,
+    );
+  }, [testData, showTestIndex]);
+  usePreventRemove(isFocused, ({ data }) => {
+    Alert.alert(
+      "Testni tark etish",
+      "Haqiqatan ham testni tark etmoqchimisiz?",
+      [
+        { text: "Bekor qilish", style: "cancel" },
+        {
+          text: "Chiqish",
+          onPress: () => navigation.dispatch(data.action),
+        },
+      ],
+    );
+  });
+  useEffect(() => {
+    navigation.setOptions({
+      title: mockTestName,
+      headerTitle: ({ children }: { children: any }) => (
+        <HeaderTitle title={children} />
+      ),
+      headerBackTitle: ".",
+      freezeOnBlur: true,
+      // headerRight: () => <HeaderRight percent={percent} />,
+    });
+  }, [navigation, mockTestName]);
+
+  useFocusEffect(
+    useCallback(() => {
+      setScreenProtectionEnabled(true);
+      return () => {
+        setScreenProtectionEnabled(false);
+      };
+    }, [setScreenProtectionEnabled]),
+  );
+  // Loading and error states
+  if (testLoading) {
+    return <LoadingState />;
+  }
+
+  if (testError || !testData) {
+    return <ErrorState onRetry={handleGoBack} />;
+  }
+
+  return (
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
+      {/* PDF Content */}
+      <View style={styles.pdfContainer}>
+        {/* {pdfBlob && authToken ? ( */}
+        <PdfViewer
+          mockTestId={numericMockTestId}
+          authToken={authToken}
+          isAuthLoading={isAuthLoading}
+        />
+        {/* ) : (
+          <View style={styles.errorContainer}>
+            <Ionicons name="document-outline" size={64} color={COLORS.gray} />
+            <Text style={styles.errorTitle}>Test topilmadi</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={handleGoBack}>
+              <Text style={styles.retryButtonText}>Orqaga qaytish</Text>
+            </TouchableOpacity>
+          </View>
+        )} */}
+      </View>
+      <View style={styles.quizControls}>
+        <View style={styles.actionContainer}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.choiceButton]}
+            activeOpacity={1}
+          >
+            <Ionicons
+              name="chevron-back"
+              size={moderateScale(20)}
+              style={{
+                flexGrow: 1,
+              }}
+              onPress={() => {
+                setShowTestIndex((prev) => prev - 1);
+              }}
+              disabled={showTestIndex === 1}
+              color={showTestIndex === 1 ? COLORS.textMuted : COLORS.primary}
+            />
+            <Text style={styles.choiceButtonText}>{showTestIndex}-test</Text>
+            <Ionicons
+              name="chevron-forward"
+              size={moderateScale(20)}
+              color={
+                showTestIndex === groupedSubTest.length
+                  ? COLORS.textMuted
+                  : COLORS.primary
+              }
+              onPress={() => {
+                setShowTestIndex((prev) => prev + 1);
+              }}
+              disabled={showTestIndex === groupedSubTest.length}
+              style={{
+                flexGrow: 1,
+                textAlign: "right",
+              }}
+            />
+          </TouchableOpacity>
+
+          <CustomStyledCard
+            style={{
+              flexGrow: 1,
+              flexShrink: 0,
+              borderRadius: moderateScale(BORDER_RADIUS.sm),
+            }}
+          >
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                styles.confirmButton,
+                // !isAnswerSelected && styles.confirmButtonDisabled,
+              ]}
+              onPress={handleShowTestModal}
+              disabled={isFinishing}
+            >
+              {isFinishing ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <>
+                  <Text
+                    style={[
+                      styles.confirmButtonText,
+                      // !isAnswerSelected && styles.confirmButtonTextDisabled,
+                    ]}
+                  >
+                    Belgilash
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </CustomStyledCard>
+        </View>
+        <CustomStyledCard
+          style={{
+            marginTop: moderateScale(SPACING.sm),
+            borderRadius: moderateScale(BORDER_RADIUS.sm),
+          }}
+        >
+          <TouchableOpacity
+            onPress={handleFinishTest}
+            activeOpacity={1}
+            style={styles.finishButton}
+            disabled={submitResults.isPending}
+          >
+            {submitResults.isPending ? (
+              <ActivityIndicator color="white" size="small" />
+            ) : (
+              <Text style={styles.finishButtonText}>Testni yakunlash</Text>
+            )}
+          </TouchableOpacity>
+        </CustomStyledCard>
+      </View>
+
+      {/* Test Navigation Popover */}
+      {showTestModal && (
+        <TestModal
+          groupedTestData={groupedTestData}
+          handleConfirm={handleConfirm}
+          answersByQuestion={answersByQuestion}
+          isFinishing={isFinishing}
+          onClose={() => setShowTestModal(false)}
+          styles={styles}
+        />
+      )}
+    </SafeAreaView>
+  );
+}
+
+const TestModal = React.memo(
+  ({
+    groupedTestData,
+    handleConfirm,
+    answersByQuestion,
+    isFinishing,
+    onClose,
+    styles,
+  }: {
+    groupedTestData: AnswerKey[];
+    answersByQuestion: Record<number, string | null>;
+    isFinishing: boolean;
+    handleConfirm: (
+      selectedOption: any,
+      currentQuestion: any,
+      currentSubTestNo: any,
+    ) => void;
+    onClose: () => void;
+    styles: any;
+  }) => {
+    const [leftColumn, rightColumn] = splitMockTestColumns(groupedTestData);
+    const gridRows = Array.from(
+      { length: Math.max(leftColumn.length, rightColumn.length) },
+      (_, index) => ({
+        left: leftColumn[index],
+        right: rightColumn[index],
+      }),
+    );
+
+    return (
+      <View style={styles.popoverOverlay} pointerEvents="box-none">
+        <TouchableOpacity
+          style={styles.popoverBackground}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+
+        <View style={styles.popoverContainer}>
+          <View style={styles.popoverHeader}>
+            <Text style={styles.popoverTitle}>
+              {groupedTestData[0].subTestNo}-test
+            </Text>
+          </View>
+          <FlatList
+            data={gridRows}
+            style={styles.testGridScroll}
+            contentContainerStyle={styles.testGridContent}
+            nestedScrollEnabled
+            showsVerticalScrollIndicator={gridRows.length > 13}
+            keyExtractor={(item, index) =>
+              `${item.left?.id ?? item.right?.id ?? index}`
+            }
+            renderItem={({ item }) => (
+              <View style={styles.testGridRow}>
+                <View style={styles.testGridCell}>
+                  {item.left && (
+                    <TestGridItem
+                      item={item.left}
+                      isFinishing={isFinishing}
+                      handleConfirm={handleConfirm}
+                      selectedOption={
+                        answersByQuestion[item.left.dbQuestionNumber] ?? null
+                      }
+                      styles={styles}
+                    />
+                  )}
+                </View>
+                <View style={[styles.testGridCell, styles.testGridCellRight]}>
+                  {item.right && (
+                    <TestGridItem
+                      item={item.right}
+                      isFinishing={isFinishing}
+                      handleConfirm={handleConfirm}
+                      selectedOption={
+                        answersByQuestion[item.right.dbQuestionNumber] ?? null
+                      }
+                      styles={styles}
+                    />
+                  )}
+                </View>
+              </View>
+            )}
+          />
+        </View>
+      </View>
+    );
+  },
+);
+
+// Alohida style sheet'lar
+const headerTitleStyles = ScaledSheet.create({
+  container: {
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  title: {
+    fontSize: moderateScale(FONT_SIZES.lg),
+    fontWeight: "bold",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+    lineHeight: moderateScale(20),
+    color: COLORS.white,
+  },
+});
+
+const headerRightStyles = ScaledSheet.create({
+  container: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDER_RADIUS.sm,
+    minWidth: 50,
+    alignItems: "center",
+  },
+  text: {
+    fontSize: moderateScale(FONT_SIZES.sm),
+    color: COLORS.white,
+    fontWeight: "500",
+  },
+});
+
+const loadingStyles = ScaledSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.secondary,
+  },
+  content: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.white,
+  },
+  text: {
+    marginTop: SPACING.base,
+    fontSize: moderateScale(FONT_SIZES.base),
+    color: COLORS.text,
+  },
+});
+
+const errorStyles = ScaledSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.secondary,
+  },
+  content: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: moderateScale(SPACING.xl),
+  },
+  title: {
+    fontSize: moderateScale(FONT_SIZES.xl),
+    fontWeight: "bold",
+    color: COLORS.text,
+    marginTop: SPACING.base,
+    textAlign: "center",
+  },
+  button: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.base,
+    borderRadius: BORDER_RADIUS.base,
+    marginTop: SPACING.xl,
+  },
+  buttonText: {
+    fontSize: FONT_SIZES.base,
+    color: COLORS.white,
+    fontWeight: "500",
+  },
+});
+
+const createStyles = (theme: Theme) =>
+  ScaledSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    pdfContainer: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    pdfViewer: {
+      flex: 1,
+      position: "relative",
+    },
+    pdf: {
+      flex: 1,
+      width: width,
+    },
+    errorContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: SPACING.xl,
+    },
+    errorTitle: {
+      fontSize: FONT_SIZES.xl,
+      fontWeight: "bold",
+      color: COLORS.text,
+      marginTop: SPACING.base,
+      textAlign: "center",
+    },
+    retryButton: {
+      backgroundColor: COLORS.primary,
+      paddingHorizontal: SPACING.xl,
+      paddingVertical: SPACING.base,
+      borderRadius: BORDER_RADIUS.base,
+      marginTop: SPACING.xl,
+    },
+    retryButtonText: {
+      fontSize: FONT_SIZES.base,
+      color: COLORS.white,
+      fontWeight: "500",
+    },
+    quizControls: {
+      position: "relative",
+      backgroundColor: theme.colors.card,
+      paddingTop: SPACING.base,
+      paddingHorizontal: SPACING.lg,
+      paddingBottom: SPACING.lg,
+    },
+    topControlsRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      backgroundColor: theme.colors.card,
+      paddingVertical: SPACING.sm,
+      paddingHorizontal: SPACING.sm,
+      marginHorizontal: -SPACING.lg,
+      marginTop: -SPACING.base,
+      marginBottom: SPACING.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    navButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: SPACING.xs,
+      paddingHorizontal: SPACING.sm,
+    },
+    navButtonDisabled: {
+      opacity: 0.5,
+    },
+    navButtonText: {
+      fontSize: FONT_SIZES.base,
+      color: COLORS.primary,
+    },
+    dbQuestionNumber: {
+      fontSize: FONT_SIZES.base,
+      fontWeight: "bold",
+      color: theme.colors.text,
+      marginHorizontal: SPACING.sm,
+    },
+    optionButton: {
+      width: (26 / 385) * width,
+      aspectRatio: 1 / 1,
+      borderRadius: (8 / 375) * width,
+      backgroundColor: theme.colors.card,
+      borderWidth: 1,
+      marginBottom: SPACING.xs,
+      borderColor: theme.colors.textMuted,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    optionButtonSelected: {
+      backgroundColor: COLORS.primary,
+      borderColor: COLORS.primary,
+    },
+    optionButtonText: {
+      fontSize: moderateScale(FONT_SIZES.base),
+      fontWeight: "500",
+      color: theme.colors.text,
+    },
+    optionButtonTextSelected: {
+      color: COLORS.white,
+    },
+    actionContainer: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: SPACING.base,
+    },
+    actionButton: {
+      flex: 1,
+      paddingVertical: moderateScale(SPACING.sm),
+      borderRadius: moderateScale(BORDER_RADIUS.sm),
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    choiceButton: {
+      backgroundColor: theme.colors.card,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    choiceButtonText: {
+      fontSize: moderateScale(FONT_SIZES.base),
+      color: theme.colors.text,
+      fontWeight: "500",
+    },
+    confirmButton: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    confirmButtonDisabled: {
+      backgroundColor: COLORS.white,
+      opacity: 0.6,
+    },
+    confirmButtonText: {
+      fontSize: moderateScale(FONT_SIZES.base),
+      color: COLORS.white,
+      fontWeight: "500",
+      marginRight: SPACING.xs,
+    },
+    confirmButtonTextDisabled: {
+      color: "gray",
+    },
+    handIcon: {
+      marginLeft: SPACING.xs,
+    },
+    finishButton: {
+      paddingVertical: moderateScale(SPACING.sm + 2),
+      paddingHorizontal: moderateScale(SPACING.xs),
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    finishButtonText: {
+      fontSize: moderateScale(FONT_SIZES.base),
+      color: COLORS.white,
+      fontWeight: "bold",
+      marginRight: moderateScale(SPACING.xs),
+    },
+    finishIcon: {
+      marginLeft: moderateScale(SPACING.xs),
+    },
+    popoverOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 1000,
+    },
+    popoverBackground: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: "transparent",
+    },
+    popoverContainer: {
+      position: "absolute",
+      bottom: moderateScale(155),
+      left: SPACING.lg,
+      right: SPACING.lg,
+      backgroundColor: theme.colors.card,
+      paddingHorizontal: moderateScale(10),
+      paddingBottom: moderateScale(6),
+      borderColor: theme.colors.inputBorder,
+      borderWidth: 1,
+      borderRadius: BORDER_RADIUS.lg,
+    },
+    popoverHeader: {
+      paddingVertical: SPACING.xs,
+      alignItems: "flex-start",
+    },
+    popoverTitle: {
+      fontSize: moderateScale(FONT_SIZES.base),
+      fontWeight: "bold",
+      color: theme.colors.text,
+    },
+    testGridScroll: {
+      maxHeight: getMockTestGridMaxHeight(36, SPACING.sm),
+    },
+    testGridContent: {
+      paddingBottom: 0,
+    },
+    testGridRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    testGridCell: {
+      flex: 1,
+      alignItems: "flex-start",
+    },
+    testGridCellRight: {
+      alignItems: "flex-end",
+    },
+    popoverContent: {
+      paddingHorizontal: SPACING.lg,
+      paddingVertical: SPACING.sm,
+      maxHeight: 220,
+    },
+    popoverArrow: {
+      position: "absolute",
+      bottom: -8,
+      left: "50%",
+      marginLeft: -8,
+      width: 0,
+      height: 0,
+      borderLeftWidth: 8,
+      borderRightWidth: 8,
+      borderTopWidth: 8,
+      borderLeftColor: "transparent",
+      borderRightColor: "transparent",
+      borderTopColor: COLORS.white,
+    },
+    subTestTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.colors.text,
+      marginBottom: 4,
+    },
+    testGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: SPACING.sm,
+    },
+    testGridItem: {
+      width: 36,
+      height: 36,
+      borderRadius: 120,
+      backgroundColor: theme.colors.border,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: SPACING.sm,
+    },
+    testGridItemAnswered: {
+      backgroundColor: COLORS.primary,
+      borderColor: COLORS.primary,
+    },
+    testGridItemCurrent: {
+      backgroundColor: "#ffd700",
+      borderColor: "#ffd700",
+    },
+    testGridItemText: {
+      fontSize: (FONT_SIZES.lg / width) * width,
+      fontWeight: "500",
+      width: 22,
+      textAlign: "right",
+      color: theme.colors.text,
+    },
+    testGridItemTextActive: {
+      color: COLORS.white,
+    },
+    textInputContainer: {
+      marginBottom: SPACING.base,
+    },
+    textInputLabel: {
+      fontSize: moderateScale(FONT_SIZES.base),
+      fontWeight: "500",
+      color: COLORS.text,
+      marginBottom: SPACING.xs,
+    },
+    textInput: {
+      borderWidth: 1,
+      borderColor: COLORS.gray,
+      borderRadius: BORDER_RADIUS.sm,
+      padding: SPACING.sm,
+      fontSize: FONT_SIZES.base,
+      color: COLORS.text,
+      backgroundColor: COLORS.white,
+      minHeight: 80,
+      textAlignVertical: "top",
+    },
+  });

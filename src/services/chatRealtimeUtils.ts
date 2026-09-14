@@ -24,6 +24,29 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const toNumber = (value: unknown, fallback: number) =>
   typeof value === "number" && Number.isFinite(value) ? value : fallback;
 
+const toMessageId = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string" || !value.trim()) return null;
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const toSenderType = (value: unknown): 0 | 1 | null => {
+  if (value === 0 || value === "0" || value === "User" || value === "user") {
+    return 0;
+  }
+  if (
+    value === 1 ||
+    value === "1" ||
+    value === "Admin" ||
+    value === "admin"
+  ) {
+    return 1;
+  }
+  return null;
+};
+
 export const normalizeUnreadPayload = (
   payload: unknown,
   fallback: ChatUnreadState = emptyChatUnreadState,
@@ -81,19 +104,34 @@ export const normalizeIncomingMessage = (
 
   const rawMessage = isRecord(eventPayload.message)
     ? eventPayload.message
+    : isRecord(eventPayload.chatMessage)
+      ? eventPayload.chatMessage
+      : isRecord(eventPayload.data)
+        ? eventPayload.data
     : eventPayload;
   const threadId =
-    eventPayload.threadId ?? rawMessage.threadId ?? rawMessage.userId;
-  const id = rawMessage.id;
-  const text = rawMessage.text;
-  const senderType = rawMessage.senderType;
-  const createdAt = rawMessage.createdAt;
+    eventPayload.threadId ??
+    eventPayload.threadID ??
+    rawMessage.threadId ??
+    rawMessage.threadID ??
+    rawMessage.userId ??
+    rawMessage.userID;
+  const id = toMessageId(
+    rawMessage.id ?? rawMessage.messageId ?? rawMessage.messageID,
+  );
+  const text = rawMessage.text ?? rawMessage.content ?? rawMessage.messageText;
+  const senderType = toSenderType(rawMessage.senderType);
+  const createdAt =
+    rawMessage.createdAt ??
+    rawMessage.sentAt ??
+    rawMessage.timestamp ??
+    rawMessage.createdDate;
 
   if (
     (typeof threadId !== "number" && typeof threadId !== "string") ||
-    typeof id !== "number" ||
+    id === null ||
     typeof text !== "string" ||
-    (senderType !== 0 && senderType !== 1) ||
+    senderType === null ||
     (typeof createdAt !== "string" && !(createdAt instanceof Date))
   ) {
     return null;
@@ -109,7 +147,7 @@ export const normalizeIncomingMessage = (
       text,
       senderType,
       createdAt: date,
-      isRead: Boolean(rawMessage.isRead),
+      isRead: rawMessage.isRead === true || rawMessage.isRead === "true",
       isSent:
         typeof rawMessage.isSent === "boolean"
           ? rawMessage.isSent

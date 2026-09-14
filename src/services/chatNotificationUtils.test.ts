@@ -1,6 +1,9 @@
 /// <reference types="jest" />
 
-import { getChatNotificationContent } from "./chatNotificationUtils";
+import {
+  getChatNotificationContent,
+  shouldShowChatNotification,
+} from "./chatNotificationUtils";
 
 describe("chat notification content", () => {
   it("creates a concise notification with the chat thread metadata", () => {
@@ -21,5 +24,11 @@ describe("chat notification content", () => {
       body: "Assalomu alaykum",
       data: { type: "chat-message", threadId: "42" },
     });
+  });
+
+  it("suppresses notifications while the chat screen is active", () => {
+    expect(shouldShowChatNotification(true, "active")).toBe(false);
+    expect(shouldShowChatNotification(false, "active")).toBe(true);
+    expect(shouldShowChatNotification(true, "background")).toBe(true);
   });
 });

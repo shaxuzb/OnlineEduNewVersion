@@ -17,6 +17,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { moderateScale } from "react-native-size-matters";
+import {
+  shouldShowBlockingQueryLoader,
+} from "@/src/utils/queryStateUtils";
 
 export default function QuizResultsScreen({
   navigation,
@@ -31,15 +34,26 @@ export default function QuizResultsScreen({
   const { testId, userId, themeId, mavzu } = route.params;
   const {
     data: quizResults,
-    isLoading: resultsLoading,
-    error: resultsError,
+    isPending: resultsPending,
+    isFetching: resultsFetching,
+    isFetched: resultsFetched,
   } = useQuizResults(Number(userId), Number(themeId));
+  const result = quizResults?.[0];
+  const hasResults = Boolean(result);
+  const hasValidResultParams = Boolean(Number(userId) && Number(themeId));
+  const showResultsLoading = shouldShowBlockingQueryLoader({
+    isPending: resultsPending,
+    isFetching: resultsFetching,
+    isFetched: resultsFetched && hasValidResultParams,
+    hasData: hasResults,
+  }) && hasValidResultParams;
 
   const groupedTestData = useMemo(() => {
-    if (!quizResults) return [];
+    const firstResult = quizResults?.[0];
+    if (!firstResult) return [];
 
     return Object.entries(
-      quizResults[0].answers
+      firstResult.answers
         .filter((item) => !item.isCorrect)
         .reduce((acc: any, key: any) => {
           const group = acc[key.subTestNo] || [];
@@ -79,16 +93,16 @@ export default function QuizResultsScreen({
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
       "hardwareBackPress",
-      () => {
-        handleFinish();
-        return true;
-      },
+      () => true,
     );
     return () => backHandler.remove();
   }, []);
   useEffect(() => {
     navigation.setOptions({
       headerShown: true,
+      headerBackVisible: false,
+      headerLeft: () => null,
+      gestureEnabled: false,
       title: "Mashqlar (IDS kitobidan)",
       headerTitle: () => (
         <View style={headerRightStyles.container}>
@@ -104,7 +118,7 @@ export default function QuizResultsScreen({
       freezeOnBlur: true,
     });
   }, [navigation]);
-  if (resultsLoading)
+  if (showResultsLoading)
     return (
       <SafeAreaView style={styles.centerContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -112,7 +126,7 @@ export default function QuizResultsScreen({
       </SafeAreaView>
     );
 
-  if (resultsError || !quizResults)
+  if (!result)
     return (
       <SafeAreaView style={styles.centerContainer}>
         <Ionicons
@@ -122,7 +136,7 @@ export default function QuizResultsScreen({
         />
         <Text style={styles.errorTitle}>Natijalar topilmadi</Text>
         <TouchableOpacity style={styles.retryButton} onPress={handleFinish}>
-          <Text style={styles.retryButtonText}>Orqaga qaytish</Text>
+          <Text style={styles.retryButtonText}>Yakunlash</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -138,7 +152,7 @@ export default function QuizResultsScreen({
               numberOfLines={1}
               adjustsFontSizeToFit
             >
-              {quizResults[0].percent.toFixed(0)}%
+              {result.percent.toFixed(0)}%
             </Text>
           </View>
 
@@ -146,12 +160,12 @@ export default function QuizResultsScreen({
           <View style={styles.statsBox}>
             <View style={styles.statsRow}>
               <Text style={styles.statsLabel}>To'g'ri:</Text>
-              <Text style={styles.statsValue}>{quizResults[0].score} ta</Text>
+              <Text style={styles.statsValue}>{result.score} ta</Text>
             </View>
             <View style={styles.statsRow}>
               <Text style={styles.statsLabel}>Noto'g'ri:</Text>
               <Text style={styles.statsValue}>
-                {quizResults[0].maxScore - quizResults[0].score} ta
+                {result.maxScore - result.score} ta
               </Text>
             </View>
           </View>

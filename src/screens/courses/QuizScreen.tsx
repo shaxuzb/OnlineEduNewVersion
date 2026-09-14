@@ -1,5 +1,7 @@
-import { Ionicons } from "@expo/vector-icons";
+import { FontAwesome6, Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import * as ScreenCapture from "expo-screen-capture";
+import * as SecureStore from "expo-secure-store";
 import React, {
   useCallback,
   useEffect,
@@ -11,7 +13,6 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
-  FlatList,
   InteractionManager,
   Platform,
   StyleSheet,
@@ -21,37 +22,26 @@ import {
 } from "react-native";
 import Pdf from "react-native-pdf";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-import Constants from "expo-constants";
-import * as SecureStore from "expo-secure-store";
-import { BORDER_RADIUS, COLORS, FONT_SIZES, SPACING } from "@/src/utils";
-import { useTheme } from "@/src/context/ThemeContext";
-import {
-  useCurrentUserId,
-  useSubmitTestResults,
-  useThemeTest,
-} from "@/src/hooks/useQuiz";
-import { AnswerKey, QuizAnswer, Theme } from "@/src/types";
-import { CustomStyledCard } from "@/src/components/ui/cards/CustomStyledCard";
-import { moderateScale } from "react-native-size-matters";
-import { ScaledSheet } from "react-native-size-matters";
-import {
-  useFocusEffect,
-  useIsFocused,
-  usePreventRemove,
-} from "@react-navigation/native";
+import { moderateScale, ScaledSheet } from "react-native-size-matters";
 import ScreenGuardModule from "react-native-screenguard";
+import { useFocusEffect } from "@react-navigation/native";
+import { CustomStyledCard } from "@/src/components/ui/cards/CustomStyledCard";
+import PdfLoadingState from "@/src/components/courses/PdfLoadingState";
+import { modalService } from "@/src/components/modals/modalService";
+import { useAuth } from "@/src/context/AuthContext";
+import { useTheme } from "@/src/context/ThemeContext";
+import { useThemeTest } from "@/src/hooks/useQuiz";
+import { Theme } from "@/src/types";
+import { BORDER_RADIUS, COLORS, FONT_SIZES, SPACING } from "@/src/utils";
+import {
+  getQuizPdfPath,
+  getQuizPdfToggleLabel,
+  QuizPdfMode,
+} from "./quizPdfModeUtils";
+import { shouldShowPdfLoading } from "./pdfLoadingUtils";
 
 const { width } = Dimensions.get("window");
 
-interface LocalQuizAnswer {
-  questionId: number;
-  selectedOption: string | null;
-  subTestNo: number;
-  isConfirmed: boolean;
-}
-
-// Memoized komponentlar
 const HeaderTitle = React.memo(({ title }: { title: string }) => (
   <View style={headerTitleStyles.container}>
     <Text
@@ -61,12 +51,6 @@ const HeaderTitle = React.memo(({ title }: { title: string }) => (
     >
       {title}
     </Text>
-  </View>
-));
-
-const HeaderRight = React.memo(({ percent }: { percent: number }) => (
-  <View style={headerRightStyles.container}>
-    <Text style={headerRightStyles.text}>{percent}</Text>
   </View>
 ));
 
@@ -92,22 +76,31 @@ const ErrorState = React.memo(({ onRetry }: { onRetry: () => void }) => (
 ));
 
 const PdfViewer = React.memo(
-  ({ testId, authToken }: { testId: number; authToken: string | null }) => {
-    const theme = useTheme();
-    const styles = useMemo(() => createStyles(theme.theme), [theme.theme]);
+  ({
+    pdfPath,
+    authToken,
+    isAuthLoading,
+  }: {
+    pdfPath: string;
+    authToken: string | null;
+    isAuthLoading: boolean;
+  }) => {
+    const { theme } = useTheme();
+    const styles = useMemo(() => createStyles(theme), [theme]);
+    const [isPdfLoading, setIsPdfLoading] = useState(true);
 
-    const handleLoadComplete = useCallback((numberOfPages: number) => {
-      console.log("PDF loaded with", numberOfPages, "pages");
-    }, []);
+    useEffect(() => {
+      setIsPdfLoading(true);
+    }, [authToken, pdfPath]);
 
-    const handleError = useCallback((error: any) => {
-      Alert.alert(
-        "Xatolik",
-        "PDF faylni ochishda xatolik yuz berdi. Fayl mavjudligini tekshiring.",
-        [{ text: "OK" }],
+    if (isAuthLoading) {
+      return (
+        <PdfLoadingState
+          color={theme.colors.primary}
+          backgroundColor={theme.colors.background}
+        />
       );
-      console.error("PDF Error:", error);
-    }, []);
+    }
 
     if (!authToken) {
       return (
@@ -119,128 +112,40 @@ const PdfViewer = React.memo(
     }
 
     return (
-      <Pdf
-        source={{
-          uri: `${Constants.expoConfig?.extra?.API_URL}/api/theme-test/${testId}/pdf`,
-          headers: { Authorization: `Bearer ${authToken}` },
-          cache: false,
-          method: "get",
-        }}
-        onLoadComplete={handleLoadComplete}
-        onError={handleError}
-        style={styles.pdf}
-        trustAllCerts={false}
-        enablePaging={false}
-        horizontal={false}
-        spacing={0}
-        password=""
-        scale={1}
-        enableDoubleTapZoom
-        minScale={1}
-        maxScale={5}
-        renderActivityIndicator={() => (
-          <ActivityIndicator size="large" color={COLORS.primary} />
-        )}
-      />
-    );
-  },
-);
-
-const OptionButton = React.memo(
-  ({
-    option,
-    isSelected,
-    onSelect,
-    disabled = false,
-    styles,
-  }: {
-    option: string;
-    isSelected: string | null | undefined;
-    disabled: boolean;
-    onSelect: (selectedOption: any) => void;
-    styles: any;
-  }) => (
-    <TouchableOpacity
-      activeOpacity={1}
-      style={[
-        styles.optionButton,
-        isSelected === option && styles.optionButtonSelected,
-      ]}
-      onPress={() => onSelect(option)}
-      disabled={disabled}
-    >
-      <Text
-        style={[
-          styles.optionButtonText,
-          isSelected === option && styles.optionButtonTextSelected,
-        ]}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-      >
-        {option}
-      </Text>
-    </TouchableOpacity>
-  ),
-);
-
-const TestGridItem = React.memo(
-  ({
-    item,
-    selectedOption,
-    handleConfirm,
-    isFinishing,
-    styles,
-  }: {
-    item: AnswerKey;
-    selectedOption: string | null;
-    isFinishing: boolean;
-    handleConfirm: (
-      selectedOption: any,
-      currentQuestion: any,
-      currentSubTestNo: any,
-    ) => void;
-    styles: any;
-  }) => {
-    const questionOptions = useMemo(
-      () => (item?.options ? JSON.parse(item.options) : []),
-      [item],
-    );
-
-    return (
-      <View
-        style={{
-          flexDirection: "row",
-          gap: 10,
-          alignItems: "center",
-          marginTop: 2,
-        }}
-      >
-        <Text
-          style={[styles.testGridItemText]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-        >
-          {item.questionNumber}
-        </Text>
-        <View
-          style={{
-            flexDirection: "row",
-            gap: 4,
+      <View style={styles.pdfViewer}>
+        <Pdf
+          source={{
+            uri: `${Constants.expoConfig?.extra?.API_URL}${pdfPath}`,
+            headers: { Authorization: `Bearer ${authToken}` },
+            cache: false,
+            method: "get",
           }}
-        >
-          {questionOptions.map((option: string) => (
-            <OptionButton
-              key={option}
-              option={option}
-              disabled={isFinishing}
-              isSelected={selectedOption}
-              onSelect={(selected) =>
-                handleConfirm(selected, item.dbQuestionNumber, item.subTestNo)
-              }
-              styles={styles}
-            />
-          ))}
-        </View>
+          onLoadComplete={() => setIsPdfLoading(false)}
+          onError={(error) => {
+            setIsPdfLoading(false);
+            console.error("Quiz PDF error:", error);
+            Alert.alert("Xatolik", "PDF faylni ochishda xatolik yuz berdi.");
+          }}
+          style={styles.pdf}
+          trustAllCerts={false}
+          enablePaging={false}
+          horizontal={false}
+          spacing={0}
+          password=""
+          scale={1}
+          enableDoubleTapZoom
+          minScale={1}
+          maxScale={5}
+          renderActivityIndicator={() => (
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          )}
+        />
+        {shouldShowPdfLoading(authToken, isPdfLoading) && (
+          <PdfLoadingState
+            color={theme.colors.primary}
+            backgroundColor={theme.colors.background}
+          />
+        )}
       </View>
     );
   },
@@ -255,272 +160,63 @@ export default function QuizScreen({
 }) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-
+  const { plan } = useAuth();
   const { testId, mavzu } = route.params;
   const numericTestId = Number(testId);
-  const isFocused = useIsFocused();
-  // API hooks
-  const {
-    data: testData,
-    isLoading: testLoading,
-    error: testError,
-  } = useThemeTest(numericTestId);
-
-  const submitResults = useSubmitTestResults();
-  const currentUserId = useCurrentUserId();
-
-  // State management
-  const [answersByQuestionState, setAnswersByQuestionState] = useState<
-    Record<number, LocalQuizAnswer>
-  >({});
-  const [showTestModal, setShowTestModal] = useState(false);
-  const [showTestIndex, setShowTestIndex] = useState(1);
+  const { data: testData, isLoading, error } = useThemeTest(numericTestId);
   const [authToken, setAuthToken] = useState<string | null>(null);
-  const [isFinishing, _setIsFinishing] = useState(false);
-  const isScreenGuardEnabledRef = useRef(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [pdfMode, setPdfMode] = useState<QuizPdfMode>("questions");
+  const screenGuardEnabledRef = useRef(false);
   const guardRequestIdRef = useRef(0);
-  const answers = useMemo(
-    () => Object.values(answersByQuestionState),
-    [answersByQuestionState],
+
+  const hasSolutionAccess = Boolean(
+    plan?.plan.subscriptionFeatures.some((item) => item.code === "SOLUTION"),
   );
-  const answersByQuestion = useMemo(() => {
-    return Object.entries(answersByQuestionState).reduce<
-      Record<number, string | null>
-    >((acc, [questionId, value]) => {
-      acc[Number(questionId)] = value.selectedOption;
-      return acc;
-    }, {});
-  }, [answersByQuestionState]);
-
-  // Memoized values
-  const totalQuestions = useMemo(
-    () => testData?.questionCount || 0,
-    [testData],
+  const pdfPath = useMemo(
+    () => getQuizPdfPath(numericTestId, pdfMode),
+    [numericTestId, pdfMode],
   );
-  const groupedSubTest = useMemo(() => {
-    if (!testData) return [];
-    const groups: { [key: number]: AnswerKey[] } = {};
+  const toggleLabel = getQuizPdfToggleLabel(pdfMode);
 
-    // Guruhlash: subTestNo bo‘yicha
-    testData.answerKeys.forEach((item) => {
-      if (!groups[item.subTestNo]) {
-        groups[item.subTestNo] = [];
-      }
-      groups[item.subTestNo].push(item);
-    });
-
-    // Har bir guruhdan faqat birinchi elementni olish
-    const result = Object.values(groups).map(
-      (group) => (group as AnswerKey[])[0].subTestNo,
-    );
-
-    return result;
-  }, [testData]);
-  // Auth token loading
   useEffect(() => {
-    const loadAuthToken = async () => {
-      try {
-        const sessionData = await SecureStore.getItemAsync("session");
-        if (sessionData) {
-          const { token } = JSON.parse(sessionData);
-          setAuthToken(token);
-        }
-      } catch (error) {
-        console.error("Error loading auth token:", error);
-      }
-    };
-
-    loadAuthToken();
+    void SecureStore.getItemAsync("session")
+      .then((sessionData) => {
+        if (sessionData) setAuthToken(JSON.parse(sessionData).token ?? null);
+      })
+      .catch((loadError) => console.error("Quiz token error:", loadError))
+      .finally(() => setIsAuthLoading(false));
   }, []);
 
-  // Load saved answer when question changes
-  // useEffect(() => {
-  //   const savedAnswer = answers.find((a) => a.questionId === currentQuestion);
-  //   if (savedAnswer) {
-  //     setSelectedOption(savedAnswer.selectedOption);
-  //     setTextInputValue(
-  //       isMultipleChoice ? "" : savedAnswer.selectedOption || ""
-  //     );
-  //   } else {
-  //     setSelectedOption(null);
-  //     setTextInputValue("");
-  //   }
-  // }, [currentQuestion, answers, isMultipleChoice]);
-
-  // Event handlers
   const handleGoBack = useCallback(() => {
-    Alert.alert(
-      "Testni tark etish",
-      "Haqiqatan ham testni tark etmoqchimisiz?",
-      [
-        { text: "Bekor qilish", style: "cancel" },
-        { text: "Chiqish", onPress: () => navigation.goBack() },
-      ],
-    );
-  }, []);
+    navigation.goBack();
+  }, [navigation]);
 
-  // const handleOptionSelect = useCallback(
-  //   (option: string) => {
-  //     setSelectedOption(option);
-  //     setTextInputValue("");
-  //     if (currentAnswer?.isConfirmed) {
-  //       handleEditAnswer();
-  //     }
-  //   },
-  //   [currentAnswer]
-  // );
-
-  const handleConfirm = useCallback(
-    (selectedOption: any, currentQuestion: any, currentSubTestNo: any) => {
-      if (!selectedOption) return;
-
-      const newAnswer: LocalQuizAnswer = {
-        questionId: currentQuestion,
-        selectedOption: selectedOption,
-        subTestNo: currentSubTestNo ?? 1,
-        isConfirmed: true,
-      };
-
-      setAnswersByQuestionState((prev) => {
-        const existing = prev[currentQuestion];
-        if (
-          existing &&
-          existing.selectedOption === selectedOption &&
-          existing.subTestNo === (currentSubTestNo ?? 1) &&
-          existing.isConfirmed
-        ) {
-          return prev;
-        }
-
-        return {
-          ...prev,
-          [currentQuestion]: newAnswer,
-        };
-      });
-    },
-    [],
-  );
-
-  // const handleEditAnswer = useCallback(() => {
-  //   setAnswers((prev) => prev.filter((a) => a.questionId !== currentQuestion));
-  // }, [currentQuestion]);
-
-  // const handleNext = useCallback(() => {
-  //   setShowTestModal(false);
-  //   setCurrentQuestion((prev) => prev + 1);
-  // }, [currentQuestion, totalQuestions]);
-
-  // const handlePrevious = useCallback(() => {
-  //   if (currentQuestion > 1) {
-  //     setShowTestModal(false);
-  //     setCurrentQuestion((prev) => prev - 1);
-  //   }
-  // }, [currentQuestion]);
-
-  const handleFinishTest = useCallback(async () => {
-    if (!currentUserId || !testId) {
-      Alert.alert("Xatolik", "Foydalanuvchi ma'lumotlari topilmadi");
+  const handlePdfToggle = useCallback(() => {
+    if (pdfMode === "answers") {
+      setPdfMode("questions");
       return;
     }
 
-    const answeredQuestions = answers.filter((a) => a.isConfirmed).length;
-    const unansweredCount = totalQuestions - answeredQuestions;
+    if (!hasSolutionAccess) {
+      modalService.open();
+      return;
+    }
 
-    Alert.alert(
-      "Testni yakunlash",
-      `Siz ${totalQuestions} ta savoldan ${answeredQuestions} tasiga javob berdingiz.${
-        unansweredCount > 0
-          ? `\n${unansweredCount} ta savol javobsiz qoldi.`
-          : ""
-      }\n\nTestni yakunlamoqchimisiz?`,
-      [
-        { text: "Bekor qilish", style: "cancel" },
-        {
-          text: "Ha, yakunlash",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const submissionAnswers: QuizAnswer[] = answers
-                .filter((a) => a.isConfirmed)
-                .map((answer) => ({
-                  questionNumber: answer.questionId,
-                  subTestNo: answer.subTestNo,
-                  partIndex:
-                    testData?.answerKeys?.find(
-                      (ak) => ak.dbQuestionNumber === answer.questionId,
-                    )?.partIndex || 0,
-                  answer: answer.selectedOption || "",
-                }));
-              await submitResults.mutateAsync({
-                testId: numericTestId,
-                userId: currentUserId,
-                answers: submissionAnswers,
-              });
-              navigation.navigate("QuizResults", {
-                testId: numericTestId,
-                userId: currentUserId,
-                themeId: testData?.themeId,
-                mavzu: mavzu || "1-mavzu",
-              });
-              // navigation.navigate({
-              //   pathname: "/lesson/lessondetail/quiz/result",
-              //   params: {
-              //     testId: numericTestId,
-              //     userId: currentUserId,
-              //     themeId: testData?.themeId,
-              //     mavzu: mavzu || "1-mavzu",
-              //   },
-              // });
-            } catch (error) {
-              console.error("Error submitting quiz:", error);
-              Alert.alert(
-                "Xatolik",
-                "Test natijalarini yuborishda xatolik yuz berdi. Qaytadan urinib ko'ring.",
-                [
-                  { text: "Bekor qilish", style: "cancel" },
-                  { text: "Qayta urinish", onPress: () => handleFinishTest() },
-                ],
-              );
-            }
-          },
-        },
-      ],
-    );
-  }, [
-    currentUserId,
-    testId,
-    answers,
-    totalQuestions,
-    testData,
-    numericTestId,
-    mavzu,
-    submitResults,
-  ]);
-  // useEffect(() => {
-  //   if (currentQuestion === totalQuestions && currentAnswer?.isConfirmed) {
-  //     setIsFinishing(true);
-  //     const timer = setTimeout(() => {
-  //       handleFinishTest();
-  //       setIsFinishing(false);
-  //     }, 1000);
-  //     return () => clearTimeout(timer);
-  //   }
-  // }, [answers, currentQuestion, handleNext]);
-
-  const handleShowTestModal = useCallback(() => {
-    setShowTestModal(true);
-  }, []);
+    setPdfMode("answers");
+  }, [hasSolutionAccess, pdfMode]);
 
   const setScreenProtectionEnabled = useCallback((enabled: boolean) => {
     if (Platform.OS === "ios") {
-      if (isScreenGuardEnabledRef.current === enabled) return;
-      isScreenGuardEnabledRef.current = enabled;
+      if (screenGuardEnabledRef.current === enabled) return;
+
+      screenGuardEnabledRef.current = enabled;
       const requestId = ++guardRequestIdRef.current;
 
       InteractionManager.runAfterInteractions(() => {
         if (
           guardRequestIdRef.current !== requestId ||
-          (enabled && !isScreenGuardEnabledRef.current)
+          (enabled && !screenGuardEnabledRef.current)
         ) {
           return;
         }
@@ -540,316 +236,94 @@ export default function QuizScreen({
 
               if (
                 guardRequestIdRef.current !== requestId ||
-                !isScreenGuardEnabledRef.current
+                !screenGuardEnabledRef.current
               ) {
                 return;
               }
 
-              await ScreenGuardModule.registerWithBlurView({
-                radius: 20,
-              });
+              await ScreenGuardModule.registerWithBlurView({ radius: 20 });
               return;
             }
 
             await ScreenGuardModule.unregister();
-          } catch (error) {
-            console.warn("Quiz iOS ScreenGuard error:", error);
+          } catch (screenGuardError) {
+            console.warn("Quiz screen guard error:", screenGuardError);
           }
         })();
       });
-
       return;
     }
 
     if (Platform.OS === "android") {
       if (enabled) {
-        ScreenCapture.preventScreenCaptureAsync().catch(console.warn);
+        void ScreenCapture.preventScreenCaptureAsync().catch(console.warn);
       } else {
-        ScreenCapture.allowScreenCaptureAsync().catch(console.warn);
+        void ScreenCapture.allowScreenCaptureAsync().catch(console.warn);
       }
     }
   }, []);
 
-  // const handleTestSelect = useCallback((testNumber: number) => {
-  //   // setCurrentQuestion(testNumber);
-  //   setShowTestModal(false);
-  // }, []);
-
-  // Grouped test data for modal
-  // const groupedTestData = useMemo(() => {
-  //   if (!testData?.answerKeys) return [];
-
-  //   return Object.entries(
-  //     testData.answerKeys.reduce((acc: any, key: any) => {
-  //       const group = acc[key.subTestNo] || [];
-  //       group.push(key);
-  //       acc[key.subTestNo] = group;
-  //       return acc;
-  //     }, {})
-  //   );
-  // }, [testData]);
-  const groupedTestData = useMemo(() => {
-    if (!testData?.answerKeys) return [];
-
-    return testData.answerKeys.filter(
-      (item) => item.subTestNo === showTestIndex,
-    );
-  }, [testData, showTestIndex]);
-  usePreventRemove(isFocused, ({ data }) => {
-    Alert.alert(
-      "Testni tark etish",
-      "Haqiqatan ham testni tark etmoqchimisiz?",
-      [
-        { text: "Bekor qilish", style: "cancel" },
-        {
-          text: "Chiqish",
-          onPress: () => navigation.dispatch(data.action),
-        },
-      ],
-    );
-  });
   useEffect(() => {
     navigation.setOptions({
-      title: "Mashqlar (IDS kitobidan)",
-      headerTitle: ({ children }: { children: any }) => (
+      title: mavzu || "Mashqlar (IDS kitobidan)",
+      headerTitle: ({ children }: { children: string }) => (
         <HeaderTitle title={children} />
       ),
       headerBackTitle: ".",
       freezeOnBlur: true,
-      // headerRight: () => <HeaderRight percent={percent} />,
     });
-  }, [navigation]);
+  }, [mavzu, navigation]);
 
   useFocusEffect(
     useCallback(() => {
       setScreenProtectionEnabled(true);
-      return () => {
-        setScreenProtectionEnabled(false);
-      };
+      return () => setScreenProtectionEnabled(false);
     }, [setScreenProtectionEnabled]),
   );
-  // Loading and error states
-  if (testLoading) {
-    return <LoadingState />;
-  }
 
-  if (testError || !testData) {
-    return <ErrorState onRetry={handleGoBack} />;
-  }
+  if (isLoading) return <LoadingState />;
+  if (error || !testData) return <ErrorState onRetry={handleGoBack} />;
 
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
-      {/* PDF Content */}
       <View style={styles.pdfContainer}>
-        {/* {pdfBlob && authToken ? ( */}
-        <PdfViewer testId={numericTestId} authToken={authToken} />
-        {/* ) : (
-          <View style={styles.errorContainer}>
-            <Ionicons name="document-outline" size={64} color={COLORS.gray} />
-            <Text style={styles.errorTitle}>Test topilmadi</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={handleGoBack}>
-              <Text style={styles.retryButtonText}>Orqaga qaytish</Text>
-            </TouchableOpacity>
-          </View>
-        )} */}
+        <PdfViewer
+          pdfPath={pdfPath}
+          authToken={authToken}
+          isAuthLoading={isAuthLoading}
+        />
       </View>
       <View style={styles.quizControls}>
-        <View style={styles.actionContainer}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.choiceButton]}
-            activeOpacity={1}
-          >
-            <Ionicons
-              name="chevron-back"
-              size={moderateScale(20)}
-              style={{
-                flexGrow: 1,
-              }}
-              onPress={() => {
-                setShowTestIndex((prev) => prev - 1);
-              }}
-              disabled={showTestIndex === 1}
-              color={showTestIndex === 1 ? COLORS.textMuted : COLORS.primary}
-            />
-            <Text style={styles.choiceButtonText}>{showTestIndex}-test</Text>
-            <Ionicons
-              name="chevron-forward"
-              size={moderateScale(20)}
-              color={
-                showTestIndex === groupedSubTest.length
-                  ? COLORS.textMuted
-                  : COLORS.primary
-              }
-              onPress={() => {
-                setShowTestIndex((prev) => prev + 1);
-              }}
-              disabled={showTestIndex === groupedSubTest.length}
-              style={{
-                flexGrow: 1,
-                textAlign: "right",
-              }}
-            />
-          </TouchableOpacity>
-
-          <CustomStyledCard
-            style={{
-              flexGrow: 1,
-              flexShrink: 0,
-              borderRadius: moderateScale(BORDER_RADIUS.sm),
-            }}
-          >
+        <View style={styles.pdfToggleWrapper}>
+          <CustomStyledCard style={styles.pdfToggleCard}>
             <TouchableOpacity
-              style={[
-                styles.actionButton,
-                styles.confirmButton,
-                // !isAnswerSelected && styles.confirmButtonDisabled,
-              ]}
-              onPress={handleShowTestModal}
-              disabled={isFinishing}
+              activeOpacity={1}
+              style={styles.pdfToggleButton}
+              onPress={handlePdfToggle}
             >
-              {isFinishing ? (
-                <ActivityIndicator color="white" size="small" />
-              ) : (
-                <>
-                  <Text
-                    style={[
-                      styles.confirmButtonText,
-                      // !isAnswerSelected && styles.confirmButtonTextDisabled,
-                    ]}
-                  >
-                    Belgilash
-                  </Text>
-                </>
-              )}
+              <Ionicons
+                name={pdfMode === "answers" ? "book-outline" : "bulb-outline"}
+                size={moderateScale(20)}
+                color="#fff"
+              />
+              <Text style={styles.pdfToggleText}>{toggleLabel}</Text>
             </TouchableOpacity>
           </CustomStyledCard>
+          {pdfMode === "questions" && !hasSolutionAccess && (
+            <View pointerEvents="none" style={styles.crownBadge}>
+              <FontAwesome6
+                name="crown"
+                size={moderateScale(18)}
+                color="#FFD700"
+              />
+            </View>
+          )}
         </View>
-        <CustomStyledCard
-          style={{
-            marginTop: moderateScale(SPACING.sm),
-            borderRadius: moderateScale(BORDER_RADIUS.sm),
-          }}
-        >
-          <TouchableOpacity
-            onPress={handleFinishTest}
-            activeOpacity={1}
-            style={styles.finishButton}
-            disabled={submitResults.isPending}
-          >
-            {submitResults.isPending ? (
-              <ActivityIndicator color="white" size="small" />
-            ) : (
-              <Text style={styles.finishButtonText}>Testni yakunlash</Text>
-            )}
-          </TouchableOpacity>
-        </CustomStyledCard>
       </View>
-
-      {/* Test Navigation Popover */}
-      {showTestModal && (
-        <TestModal
-          groupedTestData={groupedTestData}
-          handleConfirm={handleConfirm}
-          answersByQuestion={answersByQuestion}
-          isFinishing={isFinishing}
-          onClose={() => setShowTestModal(false)}
-          styles={styles}
-        />
-      )}
     </SafeAreaView>
   );
 }
 
-const TestModal = React.memo(
-  ({
-    groupedTestData,
-    handleConfirm,
-    answersByQuestion,
-    isFinishing,
-    onClose,
-    styles,
-  }: {
-    groupedTestData: AnswerKey[];
-    answersByQuestion: Record<number, string | null>;
-    isFinishing: boolean;
-    handleConfirm: (
-      selectedOption: any,
-      currentQuestion: any,
-      currentSubTestNo: any,
-    ) => void;
-    onClose: () => void;
-    styles: any;
-  }) => {
-    const leftColumn = groupedTestData.slice(0, 10);
-    const rightColumn = groupedTestData.slice(10, 20);
-    return (
-      <View style={styles.popoverOverlay} pointerEvents="box-none">
-        <TouchableOpacity
-          style={styles.popoverBackground}
-          activeOpacity={1}
-          onPress={onClose}
-        />
-
-        <View style={styles.popoverContainer}>
-          <View style={styles.popoverHeader}>
-            <Text style={styles.popoverTitle}>
-              {groupedTestData[0].subTestNo}-test
-            </Text>
-          </View>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              paddingHorizontal: 0,
-            }}
-          >
-            {/* LEFT COLUMN: 1–10 */}
-            <View>
-              <FlatList
-                data={leftColumn}
-                scrollEnabled={false}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => (
-                  <TestGridItem
-                    item={item}
-                    isFinishing={isFinishing}
-                    handleConfirm={handleConfirm}
-                    selectedOption={
-                      answersByQuestion[item.dbQuestionNumber] ?? null
-                    }
-                    styles={styles}
-                  />
-                )}
-              />
-            </View>
-
-            {/* RIGHT COLUMN: 11–20 */}
-            <View>
-              <FlatList
-                data={rightColumn}
-                scrollEnabled={false}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => (
-                  <TestGridItem
-                    item={item}
-                    isFinishing={isFinishing}
-                    handleConfirm={handleConfirm}
-                    selectedOption={
-                      answersByQuestion[item.dbQuestionNumber] ?? null
-                    }
-                    styles={styles}
-                  />
-                )}
-              />
-            </View>
-          </View>
-        </View>
-      </View>
-    );
-  },
-);
-
-// Alohida style sheet'lar
 const headerTitleStyles = ScaledSheet.create({
   container: {
     flexWrap: "wrap",
@@ -859,35 +333,14 @@ const headerTitleStyles = ScaledSheet.create({
   title: {
     fontSize: moderateScale(FONT_SIZES.lg),
     fontWeight: "bold",
-    alignItems: "center",
-    justifyContent: "center",
     textAlign: "center",
     lineHeight: moderateScale(20),
     color: COLORS.white,
   },
 });
 
-const headerRightStyles = ScaledSheet.create({
-  container: {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    borderRadius: BORDER_RADIUS.sm,
-    minWidth: 50,
-    alignItems: "center",
-  },
-  text: {
-    fontSize: moderateScale(FONT_SIZES.sm),
-    color: COLORS.white,
-    fontWeight: "500",
-  },
-});
-
 const loadingStyles = ScaledSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.secondary,
-  },
+  container: { flex: 1, backgroundColor: COLORS.secondary },
   content: {
     flex: 1,
     justifyContent: "center",
@@ -902,10 +355,7 @@ const loadingStyles = ScaledSheet.create({
 });
 
 const errorStyles = ScaledSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.secondary,
-  },
+  container: { flex: 1, backgroundColor: COLORS.secondary },
   content: {
     flex: 1,
     justifyContent: "center",
@@ -935,18 +385,10 @@ const errorStyles = ScaledSheet.create({
 
 const createStyles = (theme: Theme) =>
   ScaledSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    pdfContainer: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    pdf: {
-      flex: 1,
-      width: width,
-    },
+    container: { flex: 1, backgroundColor: theme.colors.background },
+    pdfContainer: { flex: 1, backgroundColor: theme.colors.background },
+    pdfViewer: { flex: 1, position: "relative" },
+    pdf: { flex: 1, width },
     errorContainer: {
       flex: 1,
       justifyContent: "center",
@@ -960,245 +402,38 @@ const createStyles = (theme: Theme) =>
       marginTop: SPACING.base,
       textAlign: "center",
     },
-    retryButton: {
-      backgroundColor: COLORS.primary,
-      paddingHorizontal: SPACING.xl,
-      paddingVertical: SPACING.base,
-      borderRadius: BORDER_RADIUS.base,
-      marginTop: SPACING.xl,
-    },
-    retryButtonText: {
-      fontSize: FONT_SIZES.base,
-      color: COLORS.white,
-      fontWeight: "500",
-    },
     quizControls: {
-      position: "relative",
       backgroundColor: theme.colors.card,
       paddingTop: SPACING.base,
       paddingHorizontal: SPACING.lg,
       paddingBottom: SPACING.lg,
     },
-    topControlsRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      backgroundColor: theme.colors.card,
-      paddingVertical: SPACING.sm,
-      paddingHorizontal: SPACING.sm,
-      marginHorizontal: -SPACING.lg,
-      marginTop: -SPACING.base,
-      marginBottom: SPACING.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
+    pdfToggleWrapper: {
+      position: "relative",
+      paddingTop: moderateScale(7),
+      paddingRight: moderateScale(7),
+      overflow: "visible",
     },
-    navButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingVertical: SPACING.xs,
-      paddingHorizontal: SPACING.sm,
-    },
-    navButtonDisabled: {
-      opacity: 0.5,
-    },
-    navButtonText: {
-      fontSize: FONT_SIZES.base,
-      color: COLORS.primary,
-    },
-    dbQuestionNumber: {
-      fontSize: FONT_SIZES.base,
-      fontWeight: "bold",
-      color: theme.colors.text,
-      marginHorizontal: SPACING.sm,
-    },
-    optionButton: {
-      width: (26 / 385) * width,
-      aspectRatio: 1 / 1,
-      borderRadius: (8 / 375) * width,
-      backgroundColor: theme.colors.card,
-      borderWidth: 1,
-      marginBottom: SPACING.xs,
-      borderColor: theme.colors.textMuted,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    optionButtonSelected: {
-      backgroundColor: COLORS.primary,
-      borderColor: COLORS.primary,
-    },
-    optionButtonText: {
-      fontSize: moderateScale(FONT_SIZES.base),
-      fontWeight: "500",
-      color: theme.colors.text,
-    },
-    optionButtonTextSelected: {
-      color: COLORS.white,
-    },
-    actionContainer: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      gap: SPACING.base,
-    },
-    actionButton: {
-      flex: 1,
-      paddingVertical: moderateScale(SPACING.sm),
+    pdfToggleCard: { borderRadius: moderateScale(BORDER_RADIUS.sm) },
+    pdfToggleButton: {
+      minHeight: moderateScale(46),
+      paddingHorizontal: moderateScale(SPACING.base),
       borderRadius: moderateScale(BORDER_RADIUS.sm),
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
+      gap: moderateScale(SPACING.xs),
     },
-    choiceButton: {
-      backgroundColor: theme.colors.card,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    choiceButtonText: {
-      fontSize: moderateScale(FONT_SIZES.base),
-      color: theme.colors.text,
-      fontWeight: "500",
-    },
-    confirmButton: {
-      flexDirection: "row",
-      alignItems: "center",
-    },
-    confirmButtonDisabled: {
-      backgroundColor: COLORS.white,
-      opacity: 0.6,
-    },
-    confirmButtonText: {
-      fontSize: moderateScale(FONT_SIZES.base),
-      color: COLORS.white,
-      fontWeight: "500",
-      marginRight: SPACING.xs,
-    },
-    confirmButtonTextDisabled: {
-      color: "gray",
-    },
-    handIcon: {
-      marginLeft: SPACING.xs,
-    },
-    finishButton: {
-      paddingVertical: moderateScale(SPACING.sm + 2),
-      paddingHorizontal: moderateScale(SPACING.xs),
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    finishButtonText: {
+    pdfToggleText: {
       fontSize: moderateScale(FONT_SIZES.base),
       color: COLORS.white,
       fontWeight: "bold",
-      marginRight: moderateScale(SPACING.xs),
     },
-    finishIcon: {
-      marginLeft: moderateScale(SPACING.xs),
-    },
-    popoverOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      zIndex: 1000,
-    },
-    popoverBackground: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: "transparent",
-    },
-    popoverContainer: {
+    crownBadge: {
       position: "absolute",
-      bottom: moderateScale(155),
-      left: SPACING.lg,
-      right: SPACING.lg,
-      backgroundColor: theme.colors.card,
-      paddingHorizontal: moderateScale(10),
-      paddingBottom: moderateScale(6),
-      borderColor: theme.colors.inputBorder,
-      borderWidth: 1,
-      borderRadius: BORDER_RADIUS.lg,
-    },
-    popoverHeader: {
-      paddingVertical: SPACING.xs,
-      alignItems: "flex-start",
-    },
-    popoverTitle: {
-      fontSize: moderateScale(FONT_SIZES.base),
-      fontWeight: "bold",
-      color: theme.colors.text,
-    },
-    popoverContent: {
-      paddingHorizontal: SPACING.lg,
-      paddingVertical: SPACING.sm,
-      maxHeight: 220,
-    },
-    popoverArrow: {
-      position: "absolute",
-      bottom: -8,
-      left: "50%",
-      marginLeft: -8,
-      width: 0,
-      height: 0,
-      borderLeftWidth: 8,
-      borderRightWidth: 8,
-      borderTopWidth: 8,
-      borderLeftColor: "transparent",
-      borderRightColor: "transparent",
-      borderTopColor: COLORS.white,
-    },
-    subTestTitle: {
-      fontSize: 16,
-      fontWeight: "600",
-      color: theme.colors.text,
-      marginBottom: 4,
-    },
-    testGrid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: SPACING.sm,
-    },
-    testGridItem: {
-      width: 36,
-      height: 36,
-      borderRadius: 120,
-      backgroundColor: theme.colors.border,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      justifyContent: "center",
-      alignItems: "center",
-      marginBottom: SPACING.sm,
-    },
-    testGridItemAnswered: {
-      backgroundColor: COLORS.primary,
-      borderColor: COLORS.primary,
-    },
-    testGridItemCurrent: {
-      backgroundColor: "#ffd700",
-      borderColor: "#ffd700",
-    },
-    testGridItemText: {
-      fontSize: (FONT_SIZES.lg / width) * width,
-      fontWeight: "500",
-      width: 22,
-      textAlign: "right",
-      color: theme.colors.text,
-    },
-    testGridItemTextActive: {
-      color: COLORS.white,
-    },
-    textInputContainer: {
-      marginBottom: SPACING.base,
-    },
-    textInputLabel: {
-      fontSize: moderateScale(FONT_SIZES.base),
-      fontWeight: "500",
-      color: COLORS.text,
-      marginBottom: SPACING.xs,
-    },
-    textInput: {
-      borderWidth: 1,
-      borderColor: COLORS.gray,
-      borderRadius: BORDER_RADIUS.sm,
-      padding: SPACING.sm,
-      fontSize: FONT_SIZES.base,
-      color: COLORS.text,
-      backgroundColor: COLORS.white,
-      minHeight: 80,
-      textAlignVertical: "top",
+      top: -4,
+      right: 0,
+      zIndex: 2,
+      elevation: 2,
     },
   });

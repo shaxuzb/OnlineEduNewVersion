@@ -92,4 +92,29 @@ describe("chat realtime payloads", () => {
       },
     });
   });
+
+  it("normalizes the server message aliases used by realtime events", () => {
+    expect(
+      normalizeIncomingMessage({
+        threadId: "42",
+        message: {
+          messageId: "11",
+          content: "Alias payload",
+          senderType: "Admin",
+          sentAt: "2026-01-01T00:03:00.000Z",
+          isRead: false,
+        },
+      }),
+    ).toEqual({
+      threadId: "42",
+      message: {
+        id: 11,
+        text: "Alias payload",
+        senderType: 1,
+        createdAt: new Date("2026-01-01T00:03:00.000Z"),
+        isRead: false,
+        isSent: false,
+      },
+    });
+  });
 });

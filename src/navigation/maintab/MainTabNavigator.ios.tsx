@@ -7,6 +7,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useGeo } from "../../hooks/useGeo";
 import { useChatUnread } from "../../hooks/useChat";
 import { useAppIconBadge } from "../../hooks/useAppIconBadge";
+import { usePaymentNotificationCount } from "../../hooks/usePaymentNotificationCount";
 import { modalService } from "../../components/modals/modalService";
 import { moderateScale } from "react-native-size-matters";
 import { FontAwesome6, Ionicons } from "@expo/vector-icons";
@@ -28,8 +29,10 @@ const MainTabNavigator = React.memo(() => {
   const { countryCode } = useGeo();
   const { data: unreadState } = useChatUnread();
   const unreadChatCount = unreadState?.totalUnreadMessages ?? 0;
+  const { data: paymentNotificationCount = 0 } =
+    usePaymentNotificationCount();
 
-  useAppIconBadge(unreadChatCount);
+  useAppIconBadge(unreadChatCount + paymentNotificationCount);
 
   const hasStatisticsAccess = useMemo(
     () =>

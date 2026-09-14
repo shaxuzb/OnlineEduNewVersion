@@ -163,6 +163,25 @@ export type RootStackParamList = {
     testId: number;
     mavzu: string;
   };
+  MockQuizScreen: {
+    mockTestId: number;
+    mockTestName: string;
+    subjectId?: number;
+  };
+  MockQuizResults: {
+    mockTestId: number;
+    userId: number;
+    mockTestName: string;
+  };
+  MockQuizSolution: {
+    mockTestId: number;
+    userId: number;
+    mockTestName: string;
+  };
+  MockQuizResultsHistory: {
+    mockTestId: number;
+    userId: number;
+  };
   QuizResults: {
     testId: number;
     userId: number;
@@ -254,9 +273,37 @@ export interface ChapterWithThemes {
   themes: ChapterTheme[];
 }
 
+export interface MockTestChapter {
+  id: number;
+  name: string;
+  ordinalNumber: number;
+  subjectId: number;
+  subject: string;
+  subjectCode: string;
+  subjectType: string;
+  stateId: number;
+  state: string;
+  themes: [];
+  itemType: "MOCK_TEST";
+  isMockTest: true;
+  mockTestId: number;
+  mockTestName: string;
+  mockTestQuestionCount: number;
+  hasMockTestPdf: boolean;
+  hasMockTestAnswerPdf: boolean;
+  hasAccess: boolean;
+  themeUnitPrice: number;
+  themesCount: number;
+  paidThemesCount: number;
+  price: number;
+  percent: number;
+}
+
+export type SubjectChapter = ChapterWithThemes | MockTestChapter;
+
 export interface ThemesByChapterResponse {
   count: number;
-  results: ChapterWithThemes[];
+  results: SubjectChapter[];
 }
 
 export interface ThemeDetail {
@@ -309,6 +356,19 @@ export interface ThemeTest {
   testTypeId: number;
 
   answerKeys: AnswerKey[];
+}
+
+export interface MockTest {
+  id: number;
+  subjectId: number;
+  name: string;
+  originalName?: string;
+  questionCount: number;
+  chapters: Array<{ id: number; name: string }>;
+  answerKeys: AnswerKey[];
+  hasAccess: boolean;
+  hasTestPdf: boolean;
+  hasAnswerPdf: boolean;
 }
 
 export interface QuizAnswer {

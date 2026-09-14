@@ -18,22 +18,44 @@ import { COLORS, FONT_SIZES, SPACING } from "@/src/utils";
 import { Ionicons } from "@expo/vector-icons";
 import { Theme } from "@/src/types";
 import Toast from "react-native-toast-message";
+import PdfLoadingState from "@/src/components/courses/PdfLoadingState";
+import { shouldShowPdfLoading } from "./pdfLoadingUtils";
 
 const { width } = Dimensions.get("window");
 
 const PdfViewer = React.memo(
-  ({ themeId, authToken }: { themeId: number; authToken: string | null }) => {
+  ({ themeId, authToken, isAuthLoading }: {
+    themeId: number;
+    authToken: string | null;
+    isAuthLoading: boolean;
+  }) => {
     const theme = useTheme();
     const styles = useMemo(() => createStyles(theme.theme), [theme.theme]);
     const navigation = useNavigation();
+    const [isPdfLoading, setIsPdfLoading] = useState(true);
     const handleLoadComplete = useCallback((numberOfPages: number) => {
+      setIsPdfLoading(false);
       console.log("PDF loaded with", numberOfPages, "pages");
     }, []);
 
     const handleError = useCallback((error: any) => {
+      setIsPdfLoading(false);
       Toast.show({ type: "error", text1: "Pdf yuklanmagan" });
       navigation.goBack();
     }, []);
+
+    useEffect(() => {
+      setIsPdfLoading(true);
+    }, [authToken, themeId]);
+
+    if (isAuthLoading) {
+      return (
+        <PdfLoadingState
+          color={theme.theme.colors.primary}
+          backgroundColor={theme.theme.colors.background}
+        />
+      );
+    }
 
     if (!authToken) {
       return (
@@ -45,29 +67,37 @@ const PdfViewer = React.memo(
     }
 
     return (
-      <Pdf
-        source={{
-          uri: `${Constants.expoConfig?.extra?.API_URL}/api/themeabstract/${themeId}`,
-          headers: { Authorization: `Bearer ${authToken}` },
-          cache: false,
-          method: "get",
-        }}
-        onLoadComplete={handleLoadComplete}
-        onError={handleError}
-        style={styles.pdf}
-        trustAllCerts={false}
-        enablePaging={false}
-        horizontal={false}
-        spacing={0}
-        password=""
-        scale={1}
-        enableDoubleTapZoom
-        minScale={1}
-        maxScale={5}
-        renderActivityIndicator={() => (
-          <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={styles.pdfViewer}>
+        <Pdf
+          source={{
+            uri: `${Constants.expoConfig?.extra?.API_URL}/api/themeabstract/${themeId}`,
+            headers: { Authorization: `Bearer ${authToken}` },
+            cache: false,
+            method: "get",
+          }}
+          onLoadComplete={handleLoadComplete}
+          onError={handleError}
+          style={styles.pdf}
+          trustAllCerts={false}
+          enablePaging={false}
+          horizontal={false}
+          spacing={0}
+          password=""
+          scale={1}
+          enableDoubleTapZoom
+          minScale={1}
+          maxScale={5}
+          renderActivityIndicator={() => (
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          )}
+        />
+        {shouldShowPdfLoading(authToken, isPdfLoading) && (
+          <PdfLoadingState
+            color={theme.theme.colors.primary}
+            backgroundColor={theme.theme.colors.background}
+          />
         )}
-      />
+      </View>
     );
   },
 );
@@ -85,6 +115,7 @@ export default function ThemeAbstractScreen({
   const { themeId, mavzu } = route.params as any;
 
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   useEffect(() => {
     const loadAuthToken = async () => {
       try {
@@ -95,6 +126,8 @@ export default function ThemeAbstractScreen({
         }
       } catch (error) {
         console.error("Error loading auth token:", error);
+      } finally {
+        setIsAuthLoading(false);
       }
     };
 
@@ -111,7 +144,11 @@ export default function ThemeAbstractScreen({
       {/* PDF Content */}
       <View style={styles.pdfContainer}>
         {/* {pdfBlob && authToken ? ( */}
-        <PdfViewer themeId={themeId} authToken={authToken} />
+        <PdfViewer
+          themeId={themeId}
+          authToken={authToken}
+          isAuthLoading={isAuthLoading}
+        />
         {/* ) : (
              <View style={styles.errorContainer}>
                <Ionicons name="document-outline" size={64} color={COLORS.gray} />
@@ -134,6 +171,10 @@ const createStyles = (theme: Theme) =>
     pdfContainer: {
       flex: 1,
       backgroundColor: theme.colors.background,
+    },
+    pdfViewer: {
+      flex: 1,
+      position: "relative",
     },
     pdf: {
       flex: 1,
