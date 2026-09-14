@@ -3,37 +3,56 @@ import { Formik } from "formik";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import * as Yup from "yup";
 import LinearGradient from "react-native-linear-gradient";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import { useTheme } from "@/src/context/ThemeContext";
 import { usePurchase } from "@/src/context/PurchaseContext";
+import { PurchaseStackParamList } from "@/src/navigation/purchaseTypes";
+import { getApiStatus } from "@/src/services/apiError";
 import { purchaseService } from "@/src/services/purchaseService";
 import { Theme } from "@/src/types";
 import CreditCardInput from "./components/CreditCardInput";
+import {
+  isValidCardNumber,
+  isValidExpiry,
+  normalizeCardNumber,
+} from "./cardValidation";
 
 const ValidationScheme = Yup.object().shape({
-  number: Yup.string().required("Karta raqam majburiy"),
-  expire: Yup.string().required("Muddati majburiy"),
+  number: Yup.string()
+    .required("Karta raqam majburiy")
+    .test(
+      "valid-card-number",
+      "Karta raqami noto'g'ri",
+      (value) => Boolean(value && isValidCardNumber(value)),
+    ),
+  expire: Yup.string()
+    .required("Muddati majburiy")
+    .test(
+      "valid-expiry",
+      "Karta muddati noto'g'ri yoki o'tgan",
+      (value) => Boolean(value && isValidExpiry(value)),
+    ),
 });
 
-export default function CreditCardScreen({
-  navigation,
-  route,
-}: {
-  navigation: any;
-  route: any;
-}) {
+type Props = NativeStackScreenProps<
+  PurchaseStackParamList,
+  "CreditCardScreen"
+>;
+
+export default function CreditCardScreen({ navigation, route }: Props) {
   const { theme, isDark } = useTheme();
   const styles = createStyles(theme, isDark);
   const { selectedItem, submitPurchase } = usePurchase();
@@ -45,10 +64,9 @@ export default function CreditCardScreen({
     return price.toLocaleString("uz-UZ") + " so'm";
   };
 
-  const handleSendSms = async (orderId: any) => {
+  const handleSendSms = async (orderId: number) => {
     try {
       const data = await purchaseService.sendCardSms(orderId);
-      setLoading(false);
       navigation.navigate("OTPCardVerification", {
         orderId,
         phoneNumber: data.phone,
@@ -56,11 +74,10 @@ export default function CreditCardScreen({
       Toast.show({
         type: "success",
         text1: "SMS yuborildi!",
-        text2: `Tasdiqlash kodi yuborildi`,
+        text2: "Tasdiqlash kodi yuborildi",
       });
-    } catch (error: any) {
-      setLoading(false);
-      if (error.status === 400) {
+    } catch (error: unknown) {
+      if (getApiStatus(error) === 400) {
         Toast.show({
           type: "error",
           text1: "SMS yuborilgan",
@@ -73,10 +90,12 @@ export default function CreditCardScreen({
         text1: "Xatolik",
         text2: "SMS yuborishda xatolik yuz berdi",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: { number: string; expire: string }) => {
     setLoading(true);
 
     try {
@@ -85,14 +104,13 @@ export default function CreditCardScreen({
           planId: Number(selectedItem?.id),
           paymentType: paymentType.toString(),
           card: {
-            expire: values.expire.split("/").join(""),
-            number: values.number.split(" ").join(""),
+            expire: values.expire.replace(/\D/g, ""),
+            number: normalizeCardNumber(values.number),
           },
         },
       });
-      if (data as any) {
-        handleSendSms((data as any).id);
-      }
+
+      await handleSendSms(data.id);
     } catch (error) {
       setLoading(false);
       Toast.show({
@@ -111,12 +129,13 @@ export default function CreditCardScreen({
       headerBackground: () => (
         <View
           style={{ flex: 1, backgroundColor: isDark ? "#0F172A" : "#F9FAFB" }}
-        ></View>
+        />
       ),
       headerTintColor: theme.colors.text,
       statusBarStyle: !isDark ? "dark" : "light",
     });
-  }, [navigation, isDark]);
+  }, [navigation, isDark, theme.colors.text]);
+
   return (
     <SafeAreaView style={styles.container} edges={["bottom", "top"]}>
       <KeyboardAvoidingView
@@ -127,7 +146,6 @@ export default function CreditCardScreen({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {/* Card Form */}
           <View style={styles.formCard}>
             <View style={styles.formHeader}>
               <MaterialIcons
@@ -161,7 +179,6 @@ export default function CreditCardScreen({
                     inputStyle={{ color: isDark ? "#fff" : "#000" }}
                   />
 
-                  {/* Security Info */}
                   <View style={styles.securityInfo}>
                     <Ionicons
                       name="shield-checkmark"
@@ -169,11 +186,10 @@ export default function CreditCardScreen({
                       color="#10B981"
                     />
                     <Text style={styles.securityText}>
-                      Karta ma'lumotlaringiz xavfsiz saqlanadi
+                      Karta ma'lumotlari xavfsiz ulanish orqali yuboriladi
                     </Text>
                   </View>
 
-                  {/* Price Breakdown */}
                   <View style={styles.breakdownCard}>
                     <View style={styles.breakdownRow}>
                       <Text style={styles.breakdownLabel}>To'lov summasi</Text>
@@ -194,7 +210,6 @@ export default function CreditCardScreen({
                     </View>
                   </View>
 
-                  {/* Submit Button */}
                   <LinearGradient
                     colors={["#3a5dde", "#5e84e6"]}
                     start={{ x: 0.5, y: 1.0 }}
@@ -220,7 +235,6 @@ export default function CreditCardScreen({
                     </TouchableOpacity>
                   </LinearGradient>
 
-                  {/* Terms */}
                   <Text style={styles.termsText}>
                     To'lovni amalga oshirish orqali siz foydalanish shartlarimiz
                     bilan roziligingizni bildirasiz
@@ -229,34 +243,6 @@ export default function CreditCardScreen({
               )}
             </Formik>
           </View>
-
-          {/* Payment Info */}
-          {/* <View style={styles.infoCard}>
-            <View style={styles.infoHeader}>
-              <MaterialIcons name="info" size={20} color="#8B5CF6" />
-              <Text style={styles.infoTitle}>To'lov haqida</Text>
-            </View>
-            <View style={styles.infoPoints}>
-              <View style={styles.infoPoint}>
-                <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                <Text style={styles.infoPointText}>
-                  SMS orqali tasdiqlash kerak bo'ladi
-                </Text>
-              </View>
-              <View style={styles.infoPoint}>
-                <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                <Text style={styles.infoPointText}>
-                  Bank kartangizga bog'liq bo'lgan telefon raqamingizga SMS keladi
-                </Text>
-              </View>
-              <View style={styles.infoPoint}>
-                <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                <Text style={styles.infoPointText}>
-                  To'lov bank darajasida himoyalangan
-                </Text>
-              </View>
-            </View>
-          </View> */}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
