@@ -1,3 +1,6 @@
+import type { NavigatorScreenParams } from "@react-navigation/native";
+import type { PurchaseStackParamList } from "./purchaseTypes";
+
 export type CertificateTestMode = "timed" | "untimed";
 
 export type RootStackParamList = {
@@ -100,6 +103,6 @@ export type RootStackParamList = {
   };
   Profile: undefined;
   PersonalInfo: undefined;
-  PurchaseGroup: undefined;
+  PurchaseGroup: NavigatorScreenParams<PurchaseStackParamList> | undefined;
   PaymentOrders: undefined;
 };
