@@ -11,6 +11,8 @@ export type QuizAttemptQuestion = Omit<AnswerKey, "correctAnswer">;
 export interface QuizAttemptSubmission {
   testId: number;
   answers: Array<QuizAnswer & { subTestNo?: number }>;
+  /** @deprecated Caller-provided identity is ignored; AuthContext identity is used. */
+  userId?: number;
 }
 
 export type SafeThemeTest = Omit<ThemeTest, "answerKeys"> & {
@@ -91,12 +93,16 @@ export const normalizeThemeTest = (value: unknown): SafeThemeTest => {
 export const toLegacyQuizSubmission = (
   submission: QuizAttemptSubmission,
   userId: number,
-): QuizSubmissionRequest => ({
-  testId: submission.testId,
-  userId,
-  answers: submission.answers.map(({ questionNumber, partIndex, answer }) => ({
-    questionNumber,
-    partIndex,
-    answer,
-  })),
-});
+): QuizSubmissionRequest =>
+  ({
+    testId: submission.testId,
+    userId,
+    answers: submission.answers.map(
+      ({ questionNumber, partIndex, answer, subTestNo }) => ({
+        questionNumber,
+        partIndex,
+        answer,
+        ...(subTestNo !== undefined ? { subTestNo } : {}),
+      }),
+    ),
+  }) as QuizSubmissionRequest;
