@@ -64,6 +64,7 @@ const VideoPlayerScreen = ({ navigation, route }: Props) => {
       <VideoPlayerCore
         lessonTitle={lessonTitle}
         videoFileId={videoFileId}
+        navigation={navigation}
         onBack={handleBack}
       />
     </GestureHandlerRootView>
