@@ -3,9 +3,16 @@ import LoadingData from "@/src/components/exceptions/LoadingData";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useCurrentUserId } from "@/src/hooks/useQuiz";
 import { useStatistics } from "@/src/hooks/useStatistics";
+import { RootStackParamList } from "@/src/navigation/rootTypes";
+import { MainTabParamList } from "@/src/navigation/mainTabTypes";
 import { SubjectStatistic, Theme } from "@/src/types";
 import { BORDER_RADIUS, FONT_SIZES, SPACING } from "@/src/utils";
 import { Ionicons } from "@expo/vector-icons";
+import {
+  CompositeScreenProps,
+} from "@react-navigation/native";
+import { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { memo, useCallback, useMemo } from "react";
 import {
   ScrollView,
@@ -18,7 +25,12 @@ import LinearGradient from "react-native-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { moderateScale } from "react-native-size-matters";
 
-function StatistikaScreen({ navigation }: { navigation: any }) {
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<MainTabParamList, "Statistika">,
+  NativeStackScreenProps<RootStackParamList>
+>;
+
+function StatistikaScreen({ navigation }: Props) {
   const userId = useCurrentUserId();
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -27,9 +39,8 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
     isLoading,
     error,
     refetch,
-  } = useStatistics(Number(userId));
+  } = useStatistics(userId ?? 0);
 
-  // Calculate overall progress
   const overallProgress = useMemo(() => {
     if (!statistics || !Array.isArray(statistics) || statistics.length === 0)
       return 0;
@@ -40,10 +51,13 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
     );
     return Math.round(totalPercent / statistics.length);
   }, [statistics]);
+
   const handleRoutePress = useCallback(
     (item: SubjectStatistic) => {
+      if (!userId) return;
+
       navigation.navigate("StatistikaDetail", {
-        userId: userId,
+        userId,
         subjectId: item.subjectId,
         subjectName: item.subjectName,
         subjectPercent: item.percent,
@@ -52,12 +66,22 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
     },
     [navigation, userId],
   );
-  const getSubjectColor = useCallback((percentage: number) => {
-    if (percentage >= 80) return theme.colors.success;
-    if (percentage >= 60) return theme.colors.primary;
-    if (percentage >= 40) return theme.colors.warning;
-    return theme.colors.error;
-  }, [theme.colors.error, theme.colors.primary, theme.colors.success, theme.colors.warning]);
+
+  const getSubjectColor = useCallback(
+    (percentage: number) => {
+      if (percentage >= 80) return theme.colors.success;
+      if (percentage >= 60) return theme.colors.primary;
+      if (percentage >= 40) return theme.colors.warning;
+      return theme.colors.error;
+    },
+    [
+      theme.colors.error,
+      theme.colors.primary,
+      theme.colors.success,
+      theme.colors.warning,
+    ],
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={[]}>
       {isLoading ? (
@@ -66,13 +90,10 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
         <ErrorData refetch={refetch} />
       ) : (
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Pie Chart Section */}
           <View style={styles.chartSection}>
             <View style={styles.chartCard}>
               <View style={styles.pieChartContainer}>
-                {/* Beautiful 3D Pie Chart */}
                 <View style={styles.pieChartWrapper}>
-                  {/* Outer ring */}
                   <View
                     style={[
                       styles.outerRing,
@@ -80,9 +101,7 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
                     ]}
                   />
 
-                  {/* Main pie chart */}
                   <View style={styles.pieBase}>
-                    {/* Completed segment */}
                     <View
                       style={[
                         styles.completedSegment,
@@ -94,7 +113,6 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
                         },
                       ]}
                     />
-                    {/* Remaining segment */}
                     <View
                       style={[
                         styles.remainingSegment,
@@ -106,7 +124,6 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
                     />
                   </View>
 
-                  {/* Center circle with gradient effect */}
                   <View
                     style={[
                       styles.centerCircle,
@@ -142,14 +159,13 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
             </View>
           </View>
 
-          {/* Course Statistics */}
           <View style={styles.courseStatsSection}>
             <Text style={styles.sectionTitle}>Fanlar bo'yicha natijalars</Text>
 
             {statistics &&
             Array.isArray(statistics) &&
             statistics.length > 0 ? (
-              statistics.map((stat: SubjectStatistic, index: number) => (
+              statistics.map((stat: SubjectStatistic) => (
                 <TouchableOpacity
                   key={stat.subjectId}
                   style={[
@@ -163,7 +179,6 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
                   onPress={() => handleRoutePress(stat)}
                   activeOpacity={0.7}
                 >
-                  {/* Subject Icon */}
                   <View style={styles.subjectIcon}>
                     <LinearGradient
                       colors={["#3a5dde", "#5e84e6"]}
@@ -204,7 +219,6 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
                         {stat.correctSum}/{stat.totalSum} to'g'ri javob
                       </Text>
 
-                      {/* Enhanced Progress Bar */}
                       <View
                         style={[
                           styles.progressBarContainer,
@@ -224,7 +238,6 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
                             },
                           ]}
                         />
-                        {/* Shine effect */}
                         <View
                           style={[
                             styles.progressBarShine,
@@ -273,7 +286,9 @@ function StatistikaScreen({ navigation }: { navigation: any }) {
     </SafeAreaView>
   );
 }
+
 export default memo(StatistikaScreen);
+
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
