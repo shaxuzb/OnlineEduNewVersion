@@ -1,7 +1,11 @@
 import React, { useCallback, useMemo } from "react";
 import DeviceInfo from "react-native-device-info";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { useNavigation } from "@react-navigation/native";
+import {
+  BottomTabBarButtonProps,
+  BottomTabNavigationOptions,
+  createBottomTabNavigator,
+} from "@react-navigation/bottom-tabs";
+import { RouteProp, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../context/ThemeContext";
 import { useSession } from "../../hooks/useSession";
@@ -24,6 +28,18 @@ import { RootStackParamList } from "../rootTypes";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const isTablet = DeviceInfo.isTablet();
+
+type TabRoute = RouteProp<MainTabParamList, keyof MainTabParamList>;
+type TabPressEvent = { preventDefault: () => void };
+type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
+
+const TAB_ICONS: Record<keyof MainTabParamList, IoniconName> = {
+  Courses: "grid",
+  Statistika: "pie-chart",
+  Payment: "add-circle",
+  Save: "bookmark",
+  ChatTab: "chatbubble-ellipses-sharp",
+};
 
 const MainTabNavigator = React.memo(() => {
   const navigation =
@@ -63,38 +79,30 @@ const MainTabNavigator = React.memo(() => {
     [theme.colors.tabBarBackground, theme.colors.border],
   );
 
-  const tabBarButton = useCallback((props: any) => {
+  const tabBarButton = useCallback((props: BottomTabBarButtonProps) => {
     const filteredProps = Object.fromEntries(
       Object.entries(props).filter(([, value]) => value !== null),
-    );
+    ) as BottomTabBarButtonProps;
     return <TouchableOpacity activeOpacity={1} {...filteredProps} />;
   }, []);
 
   const handleChatTabPress = useCallback(
-    (e: any) => {
-      e.preventDefault();
+    (event: TabPressEvent) => {
+      event.preventDefault();
       navigation.navigate("Chat");
     },
     [navigation],
   );
 
   const screenOptions = useCallback(
-    ({ route }: { route: any }) => ({
-      tabBarIcon: ({ color, size }: { color: string; size: number }) => {
-        let iconName: any;
-
-        if (route.name === "Courses") {
-          iconName = "grid";
-        } else if (route.name === "Statistika") {
-          iconName = "pie-chart";
-        } else if (route.name === "Save") {
-          iconName = "bookmark";
-        } else if (route.name === "ChatTab") {
-          iconName = "chatbubble-ellipses-sharp";
-        }
-
-        return <Ionicons name={iconName} size={size + 5} color={color} />;
-      },
+    ({ route }: { route: TabRoute }): BottomTabNavigationOptions => ({
+      tabBarIcon: ({ color, size }) => (
+        <Ionicons
+          name={TAB_ICONS[route.name]}
+          size={size + 5}
+          color={color}
+        />
+      ),
       tabBarActiveTintColor: theme.colors.tabBarActive,
       tabBarInactiveTintColor: theme.colors.tabBarInactive,
       tabBarStyle,
@@ -131,9 +139,9 @@ const MainTabNavigator = React.memo(() => {
         name="Statistika"
         component={StatistikaScreen}
         listeners={{
-          tabPress: (e) => {
+          tabPress: (event) => {
             if (!hasStatisticsAccess) {
-              e.preventDefault();
+              event.preventDefault();
               handleShowPremiumModal();
             }
           },
@@ -161,8 +169,8 @@ const MainTabNavigator = React.memo(() => {
           name="Payment"
           component={EmptyScreen}
           listeners={() => ({
-            tabPress: (e) => {
-              e.preventDefault();
+            tabPress: (event) => {
+              event.preventDefault();
               navigation.navigate("PurchaseGroup", {
                 screen: "PurchaseScreen",
               });
