@@ -11,15 +11,17 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { NewsItem, Theme } from "../../types";
 import { useNews } from "@/src/hooks/useNews";
 import { useTheme } from "../../context/ThemeContext";
 import { lightColors } from "@/src/constants/theme";
+import { RootStackParamList } from "@/src/navigation/rootTypes";
 import { moderateScale } from "react-native-size-matters";
 
 type NewsStyles = ReturnType<typeof createStyles>;
+type Props = NativeStackScreenProps<RootStackParamList, "News">;
 
-// ── Module-scope pure helpers (no per-render allocation) ──────────────────────
 function formatDate(dateString: string): string {
   const date = new Date(dateString);
   const now = new Date();
@@ -62,7 +64,6 @@ function getNewsTypeColor(newsType: number, theme: Theme): string {
   }
 }
 
-// ── Memoized row — only re-renders when its own props change ───────────────────
 const NewsCard = React.memo(function NewsCard({
   item,
   theme,
@@ -117,7 +118,7 @@ const NewsCard = React.memo(function NewsCard({
   );
 });
 
-export default function NewsScreen({ navigation }: { navigation: any }) {
+export default function NewsScreen({ navigation }: Props) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
