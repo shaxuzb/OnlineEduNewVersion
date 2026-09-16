@@ -9,22 +9,32 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import {
+  CompositeNavigationProp,
+  useNavigation,
+} from "@react-navigation/native";
+import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useBookmark } from "../../context/BookmarkContext";
 import { useTheme } from "../../context/ThemeContext";
 import { SPACING, FONT_SIZES } from "../../utils";
 import { BookmarkedLesson, Theme } from "../../types";
 import PageCard from "@/src/components/ui/cards/PageCard";
+import { MainTabParamList } from "@/src/navigation/mainTabTypes";
+import { RootStackParamList } from "@/src/navigation/rootTypes";
 import { moderateScale } from "react-native-size-matters";
 
 type SaveStyles = ReturnType<typeof createStyles>;
+type SaveNavigation = CompositeNavigationProp<
+  BottomTabNavigationProp<MainTabParamList, "Save">,
+  NativeStackNavigationProp<RootStackParamList>
+>;
 
 interface BookmarkSection {
   title: string;
   data: BookmarkedLesson[];
 }
 
-// ── Memoized row — only re-renders when its own props change ───────────────────
 const BookmarkRow = React.memo(function BookmarkRow({
   lesson,
   onPress,
@@ -73,7 +83,7 @@ const BookmarkRow = React.memo(function BookmarkRow({
 });
 
 export default function SaveScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<SaveNavigation>();
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -84,8 +94,6 @@ export default function SaveScreen() {
     removeBookmark,
   } = useBookmark();
 
-  // Derive sections from the bookmark source of truth.
-  // Copy before sorting so we never mutate the underlying array (was a bug).
   const sections: BookmarkSection[] = useMemo(() => {
     const categorized = getBookmarksByCategory();
     return Object.keys(categorized).map((categoryName) => ({
@@ -97,7 +105,7 @@ export default function SaveScreen() {
 
   const handleLessonPress = useCallback(
     (lesson: BookmarkedLesson) => {
-      (navigation as any).navigate("LessonDetail", {
+      navigation.navigate("LessonDetail", {
         themeId: lesson.id,
         themeOrdinalNumber: lesson.mavzu.split("-")[0],
         themeName: lesson.title,
@@ -258,7 +266,7 @@ const createStyles = (theme: Theme) =>
       width: moderateScale(30),
       height: moderateScale(30),
       borderRadius: moderateScale(14),
-      backgroundColor: theme.colors.success + "20", // 20% opacity
+      backgroundColor: theme.colors.success + "20",
       justifyContent: "center",
       alignItems: "center",
       marginRight: moderateScale(SPACING.sm),
