@@ -29,7 +29,7 @@ export type RootStackParamList = {
     themeId: number;
     themeName: string;
     themeOrdinalNumber: string | number;
-    percent: number;
+    percent?: number;
   };
   VideoPlayer: {
     lessonTitle: string;
