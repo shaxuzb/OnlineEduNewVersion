@@ -1,17 +1,37 @@
 import { lightColors } from "@/src/constants/theme";
 import { OrderItem } from "@/src/types";
 import { formatDateTime, numberSpacing } from "@/src/utils";
-import { Pressable, Text, View } from "react-native";
+import {
+  Pressable,
+  Text,
+  TextStyle,
+  View,
+  ViewStyle,
+} from "react-native";
+
+type PaymentOrderCardStyles = {
+  card: ViewStyle;
+  subject: TextStyle;
+  date: TextStyle;
+  row: ViewStyle;
+  price: TextStyle;
+  status: TextStyle;
+  pending: TextStyle;
+  paid: TextStyle;
+  canceled: TextStyle;
+  payButton: ViewStyle;
+  payButtonText: TextStyle;
+};
 
 export default function PaymentOrderCard({
   order,
   styles,
 }: {
   order: OrderItem;
-  styles: any;
+  styles: PaymentOrderCardStyles;
 }) {
   return (
-    <View key={order.id} style={styles.card}>
+    <View style={styles.card}>
       <View>
         <Text style={styles.subject}>Sotuv turi: {order.scopeType}</Text>
         <Text style={styles.date}>Sana: {formatDateTime(order.createdAt)}</Text>
@@ -27,8 +47,8 @@ export default function PaymentOrderCard({
             order.status === "Kutilmoqda"
               ? styles.pending
               : order.status === "To‘langan"
-              ? styles.paid
-              : styles.canceled,
+                ? styles.paid
+                : styles.canceled,
           ]}
         >
           {order.status}
