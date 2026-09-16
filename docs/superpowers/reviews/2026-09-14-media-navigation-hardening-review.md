@@ -25,6 +25,7 @@ yarn test:ci
 - Native `<Video>` rendering is gated until both a non-empty protected-media URI and an Authorization header are ready.
 - Successful video load resets the one-shot media-auth recovery guard so a later token-expiry event in the same mounted screen can recover again.
 - Android and iOS video wrappers use the canonical root route contract.
+- `VideoPlayerCore` no longer accepts or depends on a broad navigation prop; platform wrappers retain navigation ownership and pass only `onBack` into the core.
 - `ProtectedPdfViewer` owns protected-PDF token loading and one-shot auth recovery through the shared Axios refresh path.
 - Protected PDF source resolution clears stale sources when the path changes, guards async source application after effect cleanup, and clears a stale document after fatal/auth-recovery failure.
 - Existing media-source regression tests cover API-path normalization and 401/403 auth-error recognition.
@@ -41,6 +42,7 @@ yarn test:ci
 - `NewsScreen` uses the canonical root `News` route contract instead of `navigation: any`.
 - `SaveScreen` uses a MainTab/root composite navigation contract instead of `(navigation as any)`.
 - Saved lessons can open `LessonDetail` without inventing a progress value: `LessonDetail.percent` is optional and the header omits the percentage when progress is unavailable.
+- `StatistikaScreen` uses a MainTab/root composite navigation contract instead of `navigation: any`; nullable authenticated user IDs no longer flow into detail navigation.
 - `QuizScreen`, `LessonDetailScreen`, `QuizResultsScreen`, `MockQuizResultsScreen`, mock/certificate history screens, certificate results, ThemeAbstract, and video wrappers have been moved to explicit navigation contracts.
 - `StatistikaSubjectScreen` uses `NativeStackScreenProps<RootStackParamList, "StatistikaDetail">`; redundant numeric route casts and the memoized theme-item `any` props were removed.
 - Certificate result navigation supplies the required solution `percent`, guarantees a `mavzu` fallback, passes history metadata, and resets to the typed nested Courses route.
@@ -68,9 +70,8 @@ yarn test:ci
 1. **Executable verification remains blocked.** No successful `yarn typecheck` or `yarn test:ci` evidence exists for this branch yet.
 2. **Legacy protected PDF screens remain.** `MockQuizScreen`, `MockSolutionScreen`, `SolutionScreen`, `QuizScreenSertificate`, and `SolutionScreenSertificate` still own SecureStore / `react-native-pdf` media auth and should be migrated to `ProtectedPdfViewer`. These files are large and should be changed with a patch-capable workspace or an exact full-source atomic commit rather than reconstructed from truncated connector output.
 3. **Legacy root route type duplication remains.** `src/types/index.ts` still contains an older `RootStackParamList`. `CoursesStackNavigator` and hardened screens no longer depend on it, but deletion should wait until remaining imports are verified with reliable code search/typecheck evidence.
-4. **Top-level statistics screen remains legacy-typed.** `StatistikaScreen.tsx` still accepts `navigation: any`; its file is large enough that a connector full replacement is intentionally deferred until safe patching is available.
-5. **Video core still exposes an unused broad prop.** `VideoPlayerCoreProps.navigation` remains `any` even though `VideoPlayerCore` no longer reads it; wrappers can drop it after the core file can be safely patched.
-6. **Purchase request typing still permits optional `scopeIds`.** Runtime guards protect the current UI flow, but the DTO should only be tightened after all direct order-creation callsites are verified because repository code search is incomplete.
+4. **Purchase request typing still permits optional `scopeIds`.** Runtime guards protect the current UI flow, but the DTO should only be tightened after all direct order-creation callsites are verified because repository code search is incomplete.
+5. **A few non-navigation local `any` values remain in media internals.** For example, the native video ref and `playableDuration` compatibility access still use broad typing; they should only be tightened against verified `react-native-video@6.16.1` type exports or a working typecheck.
 
 ## Merge gate
 
