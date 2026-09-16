@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   SectionList,
@@ -10,24 +11,32 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useThemeStatistics } from "@/src/hooks/useStatistics";
+import { RootStackParamList } from "@/src/navigation/rootTypes";
 import { ChapterThemeStatistic, Theme } from "@/src/types";
 import LoadingData from "@/src/components/exceptions/LoadingData";
 import ErrorData from "@/src/components/exceptions/ErrorData";
 import NoTestResultsModal from "../components/NoTestResultsModal";
-import { moderateScale, s } from "react-native-size-matters";
+import { moderateScale } from "react-native-size-matters";
 import {
   buildStatisticsSections,
   getStatisticsThemeKey,
   StatisticsSubjectSection,
 } from "./statistikaSubjectListUtils";
 
+type Props = NativeStackScreenProps<RootStackParamList, "StatistikaDetail">;
+type Styles = ReturnType<typeof createStyles>;
+
+type ThemeItemProps = {
+  chapterTheme: ChapterThemeStatistic;
+  onPress: (chapterTheme: ChapterThemeStatistic) => void;
+  theme: Theme;
+  styles: Styles;
+};
+
 export default function StatistikaSubjectScreen({
   navigation,
   route,
-}: {
-  navigation: any;
-  route: any;
-}) {
+}: Props) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [noTestResult, setNoTestResult] = useState(false);
@@ -35,10 +44,11 @@ export default function StatistikaSubjectScreen({
     route.params;
 
   const { data, isLoading, isFetching, isError, refetch } = useThemeStatistics(
-    Number(userId),
-    Number(subjectId),
+    userId,
+    subjectId,
   );
   const sections = useMemo(() => buildStatisticsSections(data), [data]);
+
   const handleThemePress = useCallback(
     (chapterTheme: ChapterThemeStatistic) => {
       if (chapterTheme.isSolved && chapterTheme.testId) {
@@ -56,14 +66,16 @@ export default function StatistikaSubjectScreen({
         setNoTestResult(true);
       }
     },
-    [navigation, subjectId, subjectCode, userId],
+    [navigation, subjectCode, subjectId, userId],
   );
+
   const renderSectionHeader = useCallback(
     ({ section }: { section: StatisticsSubjectSection }) => (
       <Text style={styles.chapterSectionTitle}>{section.title}</Text>
     ),
     [styles.chapterSectionTitle],
   );
+
   const renderItem = useCallback(
     ({ item }: { item: ChapterThemeStatistic }) => (
       <ThemeItem
@@ -75,9 +87,10 @@ export default function StatistikaSubjectScreen({
     ),
     [handleThemePress, styles, theme],
   );
+
   useEffect(() => {
     navigation.setOptions({
-      title: subjectName.toString(),
+      title: subjectName,
       freezeOnBlur: true,
       headerBackButtonDisplayMode: "minimal",
       headerRight: () => (
@@ -87,6 +100,7 @@ export default function StatistikaSubjectScreen({
       ),
     });
   }, [navigation, subjectName, subjectPercent]);
+
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       {isLoading || (isFetching && !data) ? (
@@ -113,9 +127,9 @@ export default function StatistikaSubjectScreen({
     </SafeAreaView>
   );
 }
-/* --- Theme Item (Memoized) --- */
+
 const ThemeItem = React.memo(
-  ({ chapterTheme, onPress, theme, styles }: any) => (
+  ({ chapterTheme, onPress, theme, styles }: ThemeItemProps) => (
     <TouchableOpacity
       style={[
         styles.themeCard,
@@ -159,7 +173,6 @@ const ThemeItem = React.memo(
   ),
 );
 
-/* --- Styles --- */
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
