@@ -57,7 +57,6 @@ function clamp(v: number, lo: number, hi: number): number {
 export interface VideoPlayerCoreProps {
   lessonTitle: string;
   videoFileId: string;
-  navigation: any;
   onBack: () => void;
 }
 
