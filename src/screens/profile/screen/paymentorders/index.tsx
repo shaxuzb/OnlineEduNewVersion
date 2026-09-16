@@ -9,10 +9,12 @@ import { FlatList, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import PaymentOrderCard from "./components/PaymentOrderCard";
 import { moderateScale } from "react-native-size-matters";
+
 const PaymentOrders = () => {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const { data, isLoading, isError, refetch } = useOrders();
+
   return (
     <SafeAreaView style={styles.container} edges={[]}>
       {isLoading ? (
@@ -22,6 +24,7 @@ const PaymentOrders = () => {
       ) : data && data.results.length > 0 ? (
         <FlatList
           data={data.results}
+          keyExtractor={(item) => String(item.id)}
           initialNumToRender={10}
           maxToRenderPerBatch={20}
           windowSize={2}
@@ -31,7 +34,7 @@ const PaymentOrders = () => {
             paddingHorizontal: 10,
           }}
           renderItem={({ item }) => (
-            <PaymentOrderCard key={item.id} order={item} styles={styles} />
+            <PaymentOrderCard order={item} styles={styles} />
           )}
         />
       ) : (
