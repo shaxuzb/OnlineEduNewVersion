@@ -38,8 +38,11 @@ yarn test:ci
 - Main-tab route callbacks, tab-press handlers, tab-bar button props, and Ionicons route mapping no longer use local `any` types.
 - `HomeScreen` uses a composite Courses/root navigation contract, removing legacy casts for Subject, Profile, and News navigation.
 - `SubjectScreen` uses a composite Courses/root navigation contract, and invalid extra certificate-quiz params were removed.
+- `NewsScreen` uses the canonical root `News` route contract instead of `navigation: any`.
+- `SaveScreen` uses a MainTab/root composite navigation contract instead of `(navigation as any)`.
+- Saved lessons can open `LessonDetail` without inventing a progress value: `LessonDetail.percent` is optional and the header omits the percentage when progress is unavailable.
 - `QuizScreen`, `LessonDetailScreen`, `QuizResultsScreen`, `MockQuizResultsScreen`, mock/certificate history screens, certificate results, ThemeAbstract, and video wrappers have been moved to explicit navigation contracts.
-- `StatistikaSubjectScreen` now uses `NativeStackScreenProps<RootStackParamList, "StatistikaDetail">`; redundant numeric route casts and the memoized theme-item `any` props were removed.
+- `StatistikaSubjectScreen` uses `NativeStackScreenProps<RootStackParamList, "StatistikaDetail">`; redundant numeric route casts and the memoized theme-item `any` props were removed.
 - Certificate result navigation supplies the required solution `percent`, guarantees a `mavzu` fallback, passes history metadata, and resets to the typed nested Courses route.
 - Quiz-result typing exposed and fixed missing solution-route data such as `percent` and history metadata.
 
@@ -58,6 +61,7 @@ yarn test:ci
 - Checkout and OTP navigate back to Courses through the typed parent root navigator instead of resetting a nested purchase stack to a root route.
 - OTP success no longer uses `"MainTabs" as never`.
 - OTP resend cooldown restarts after each resend; the 60-second timer is labeled as resend availability rather than code lifetime.
+- Payment-order list items use stable FlatList keys, and `PaymentOrderCard` no longer receives `styles: any` or renders a redundant child key.
 
 ## Remaining frontend gaps
 
