@@ -346,6 +346,8 @@ const createStyles = (theme: Theme) =>
       color: "white",
       fontSize: moderateScale(16),
       fontWeight: "500",
+      minWidth: moderateScale(48),
+      textAlign: "right",
     },
     content: {
       flex: 1,
