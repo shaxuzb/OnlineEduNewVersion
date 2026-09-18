@@ -171,14 +171,11 @@ export default function LessonDetailScreen({ navigation, route }: Props) {
     navigation.setOptions({
       title: `${themeOrdinalNumber}-mavzu`,
       freezeOnBlur: true,
-      headerRight:
-        percent === undefined
-          ? undefined
-          : (props) => (
-              <Text style={[styles.headerPercent, { color: props.tintColor }]}>
-                {percent}%
-              </Text>
-            ),
+      headerRight: (props) => (
+        <Text style={[styles.headerPercent, { color: props.tintColor }]}>
+          {percent === undefined ? "" : `${percent}%`}
+        </Text>
+      ),
     });
   }, [navigation, percent, styles.headerPercent, themeOrdinalNumber]);
 
