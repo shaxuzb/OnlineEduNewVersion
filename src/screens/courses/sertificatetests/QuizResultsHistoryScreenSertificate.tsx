@@ -134,7 +134,7 @@ export default function QuizResultsHistoryScreenSertificate({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { userId, themeId, themeName } = route.params;
 
-  const { data, isLoading, error, refetch } = useQuizResultsHistory(
+  const { data, isPending, isFetching, error, refetch } = useQuizResultsHistory(
     userId,
     themeId,
   );
@@ -275,7 +275,7 @@ export default function QuizResultsHistoryScreenSertificate({
         </View>
       </SafeAreaView>
 
-      {isLoading ? (
+      {isPending || (isFetching && items.length === 0) ? (
         <LoadingData />
       ) : error ? (
         <ErrorData refetch={refetch} />

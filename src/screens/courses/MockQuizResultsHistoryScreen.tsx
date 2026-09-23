@@ -126,7 +126,7 @@ export default function MockQuizResultsHistoryScreen({ route }: Props) {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { userId, mockTestId } = route.params;
 
-  const { data, isLoading, error, refetch } = useMockQuizResultsHistory(
+  const { data, isPending, isFetching, error, refetch } = useMockQuizResultsHistory(
     userId,
     mockTestId,
   );
@@ -246,7 +246,7 @@ export default function MockQuizResultsHistoryScreen({ route }: Props) {
     <View style={styles.container}>
       <StatusBar barStyle={theme.isDark ? "light-content" : "dark-content"} />
 
-      {isLoading ? (
+      {isPending || (isFetching && items.length === 0) ? (
         <LoadingData />
       ) : error ? (
         <ErrorData refetch={refetch} />

@@ -56,3 +56,36 @@ export const shouldShowStatisticsEmptyState = ({
   isFetching: boolean;
   hasData: boolean;
 }) => isFetched && !isFetching && !hasData;
+
+export type StatisticsViewState = "loading" | "error" | "empty" | "ready";
+
+export type StatisticsQueryState = {
+  /** `false` when the query is disabled because its parameters are missing. */
+  isEnabled: boolean;
+  isPending: boolean;
+  isFetching: boolean;
+  hasError: boolean;
+  hasData: boolean;
+};
+
+/**
+ * Derives a single view state from a react-query result.
+ *
+ * Mixing `isLoading`, `isFetching` and `isFetched` by hand made the results
+ * screen flash its error state on the first render of a cached-but-empty
+ * query, and hide the spinner while a background refetch was running. Keeping
+ * the precedence in one place (data > loading > error > empty) removes both.
+ */
+export const resolveStatisticsViewState = ({
+  isEnabled,
+  isPending,
+  isFetching,
+  hasError,
+  hasData,
+}: StatisticsQueryState): StatisticsViewState => {
+  if (!isEnabled) return hasData ? "ready" : "empty";
+  if (hasData) return "ready";
+  if (isFetching || isPending) return "loading";
+  if (hasError) return "error";
+  return "empty";
+};

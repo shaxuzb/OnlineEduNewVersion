@@ -19,11 +19,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Pdf from "react-native-pdf";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import Constants from "expo-constants";
-import * as SecureStore from "expo-secure-store";
 import { BORDER_RADIUS, COLORS, FONT_SIZES, SPACING } from "@/src/utils";
 import { useTheme } from "@/src/context/ThemeContext";
 import {
@@ -33,10 +30,9 @@ import {
 } from "@/src/hooks/useQuiz";
 import { AnswerKey, QuizAnswer, Theme } from "@/src/types";
 import { CustomStyledCard } from "@/src/components/ui/cards/CustomStyledCard";
-import PdfLoadingState from "@/src/components/courses/PdfLoadingState";
+import ProtectedPdfViewer from "@/src/components/courses/ProtectedPdfViewer";
 import { moderateScale } from "react-native-size-matters";
 import { ScaledSheet } from "react-native-size-matters";
-import { shouldShowPdfLoading } from "./pdfLoadingUtils";
 import {
   getMockTestGridMaxHeight,
   splitMockTestColumns,
@@ -97,91 +93,6 @@ const ErrorState = React.memo(({ onRetry }: { onRetry: () => void }) => (
   </SafeAreaView>
 ));
 
-const PdfViewer = React.memo(
-  ({
-    mockTestId,
-    authToken,
-    isAuthLoading,
-  }: {
-    mockTestId: number;
-    authToken: string | null;
-    isAuthLoading: boolean;
-  }) => {
-    const theme = useTheme();
-    const styles = useMemo(() => createStyles(theme.theme), [theme.theme]);
-    const [isPdfLoading, setIsPdfLoading] = useState(true);
-
-    const handleLoadComplete = useCallback((_numberOfPages: number) => {
-      setIsPdfLoading(false);
-    }, []);
-
-    const handleError = useCallback((error: any) => {
-      setIsPdfLoading(false);
-      Alert.alert(
-        "Xatolik",
-        "PDF faylni ochishda xatolik yuz berdi. Fayl mavjudligini tekshiring.",
-        [{ text: "OK" }],
-      );
-      console.error("PDF Error:", error);
-    }, []);
-
-    useEffect(() => {
-      setIsPdfLoading(true);
-    }, [authToken, mockTestId]);
-
-    if (isAuthLoading) {
-      return (
-        <PdfLoadingState
-          color={theme.theme.colors.primary}
-          backgroundColor={theme.theme.colors.background}
-        />
-      );
-    }
-
-    if (!authToken) {
-      return (
-        <View style={styles.errorContainer}>
-          <Ionicons name="document-outline" size={64} color={COLORS.gray} />
-          <Text style={styles.errorTitle}>Autentifikatsiya xatosi</Text>
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.pdfViewer}>
-        <Pdf
-          source={{
-            uri: `${Constants.expoConfig?.extra?.API_URL}/api/mock-tests/${mockTestId}/pdf`,
-            headers: { Authorization: `Bearer ${authToken}` },
-            cache: false,
-            method: "get",
-          }}
-          onLoadComplete={handleLoadComplete}
-          onError={handleError}
-          style={styles.pdf}
-          trustAllCerts={false}
-          enablePaging={false}
-          horizontal={false}
-          spacing={0}
-          password=""
-          scale={1}
-          enableDoubleTapZoom
-          minScale={1}
-          maxScale={5}
-          renderActivityIndicator={() => (
-            <ActivityIndicator size="large" color={COLORS.primary} />
-          )}
-        />
-        {shouldShowPdfLoading(authToken, isPdfLoading) && (
-          <PdfLoadingState
-            color={theme.theme.colors.primary}
-            backgroundColor={theme.theme.colors.background}
-          />
-        )}
-      </View>
-    );
-  },
-);
 
 const OptionButton = React.memo(
   ({
@@ -312,8 +223,6 @@ export default function MockQuizScreen({
   >({});
   const [showTestModal, setShowTestModal] = useState(false);
   const [showTestIndex, setShowTestIndex] = useState(1);
-  const [authToken, setAuthToken] = useState<string | null>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isFinishing, _setIsFinishing] = useState(false);
   const isScreenGuardEnabledRef = useRef(false);
   const guardRequestIdRef = useRef(0);
@@ -355,23 +264,6 @@ export default function MockQuizScreen({
     return result;
   }, [testData]);
   // Auth token loading
-  useEffect(() => {
-    const loadAuthToken = async () => {
-      try {
-        const sessionData = await SecureStore.getItemAsync("session");
-        if (sessionData) {
-          const { token } = JSON.parse(sessionData);
-          setAuthToken(token);
-        }
-      } catch (error) {
-        console.error("Error loading auth token:", error);
-      } finally {
-        setIsAuthLoading(false);
-      }
-    };
-
-    loadAuthToken();
-  }, []);
 
   // Load saved answer when question changes
   // useEffect(() => {
@@ -681,11 +573,7 @@ export default function MockQuizScreen({
       {/* PDF Content */}
       <View style={styles.pdfContainer}>
         {/* {pdfBlob && authToken ? ( */}
-        <PdfViewer
-          mockTestId={numericMockTestId}
-          authToken={authToken}
-          isAuthLoading={isAuthLoading}
-        />
+        <ProtectedPdfViewer path={`mock-tests/${numericMockTestId}/pdf`} />
         {/* ) : (
           <View style={styles.errorContainer}>
             <Ionicons name="document-outline" size={64} color={COLORS.gray} />

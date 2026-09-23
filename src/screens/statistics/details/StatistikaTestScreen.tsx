@@ -25,7 +25,7 @@ import { moderateScale } from "react-native-size-matters";
 import {
   getStatisticsResultActions,
   getStatisticsResultSource,
-  shouldShowStatisticsEmptyState,
+  resolveStatisticsViewState,
 } from "../statisticsSourceUtils";
 
 function StatistikaTestScreen({
@@ -52,10 +52,10 @@ function StatistikaTestScreen({
 
   const {
     data: themeTestStatistics,
-    isLoading: themeTestLoading,
+    isPending: themeTestPending,
     isFetching: themeTestFetching,
-    isFetched: themeTestFetched,
     error: themeTestError,
+    refetch: refetchThemeTest,
   } = useSubjectTestStatistics(
     Number(userId),
     Number(subjectId),
@@ -65,10 +65,10 @@ function StatistikaTestScreen({
 
   const {
     data: mockQuizResults,
-    isLoading: mockResultsLoading,
+    isPending: mockResultsPending,
     isFetching: mockResultsFetching,
-    isFetched: mockResultsFetched,
     error: mockResultsError,
+    refetch: refetchMockResults,
   } = useMockQuizResults(
     Number(userId),
     isMockSubject ? Number(testId) : 0,
@@ -77,10 +77,9 @@ function StatistikaTestScreen({
   const {
     data: nationalQuizResults,
     isPending: nationalResultsPending,
-    isLoading: nationalResultsLoading,
     isFetching: nationalResultsFetching,
-    isFetched: nationalResultsFetched,
     error: nationalResultsError,
+    refetch: refetchNationalResults,
   } = useQuizResults(Number(userId), isNationalSubject ? Number(themeId) : 0);
 
   const subjectTestStatistics = useMemo<ThemeTestStatistic | undefined>(() => {
@@ -140,40 +139,57 @@ function StatistikaTestScreen({
     );
   }, [nationalQuizResults]);
 
-  const isLoading = isNationalSubject
-    ? nationalResultsPending ||
-      nationalResultsLoading ||
-      nationalResultsFetching ||
-      (!nationalResultsFetched && !nationalQuizResults?.[0])
-    : isMockSubject
-      ? mockResultsLoading ||
-        mockResultsFetching ||
-        (!mockResultsFetched && !mockQuizResults?.[0])
-      : themeTestLoading ||
-        themeTestFetching ||
-        (!themeTestFetched && !subjectTestStatistics);
-  const hasError = isNationalSubject
-    ? (Boolean(nationalResultsError) &&
-        nationalResultsFetched &&
-        !nationalResultsFetching) ||
-      shouldShowStatisticsEmptyState({
-        isFetched: nationalResultsFetched,
+  const numericUserId = Number(userId);
+
+  const queryState = isNationalSubject
+    ? {
+        isEnabled: Boolean(numericUserId && Number(themeId)),
+        isPending: nationalResultsPending,
         isFetching: nationalResultsFetching,
+        hasError: Boolean(nationalResultsError),
         hasData: Boolean(nationalQuizResults?.[0]),
-      })
+      }
     : isMockSubject
-      ? (Boolean(mockResultsError) && mockResultsFetched && !mockResultsFetching) ||
-        shouldShowStatisticsEmptyState({
-          isFetched: mockResultsFetched,
+      ? {
+          isEnabled: Boolean(numericUserId && Number(testId)),
+          isPending: mockResultsPending,
           isFetching: mockResultsFetching,
+          hasError: Boolean(mockResultsError),
           hasData: Boolean(mockQuizResults?.[0]),
-        })
-      : (Boolean(themeTestError) && themeTestFetched && !themeTestFetching) ||
-        shouldShowStatisticsEmptyState({
-          isFetched: themeTestFetched,
+        }
+      : {
+          isEnabled: Boolean(
+            numericUserId && Number(subjectId) && Number(testId),
+          ),
+          isPending: themeTestPending,
           isFetching: themeTestFetching,
+          hasError: Boolean(themeTestError),
           hasData: Boolean(subjectTestStatistics),
-        });
+        };
+
+  const viewState = resolveStatisticsViewState(queryState);
+  const isLoading = viewState === "loading";
+  const hasError = viewState === "error" || viewState === "empty";
+
+  const handleRetry = useCallback(() => {
+    if (isNationalSubject) {
+      void refetchNationalResults();
+      return;
+    }
+
+    if (isMockSubject) {
+      void refetchMockResults();
+      return;
+    }
+
+    void refetchThemeTest();
+  }, [
+    isMockSubject,
+    isNationalSubject,
+    refetchMockResults,
+    refetchNationalResults,
+    refetchThemeTest,
+  ]);
 
   const handleOpenHistory = useCallback(() => {
     if (resultActions.history === "MockQuizResultsHistory") {
@@ -699,6 +715,17 @@ const createStyles = (theme: Theme) =>
       alignItems: "center",
       paddingHorizontal: SPACING.xl,
       backgroundColor: theme.colors.background,
+    },
+    errorActions: {
+      flexDirection: "row",
+      gap: SPACING.sm,
+      marginTop: SPACING.lg,
+    },
+    errorButton: {
+      paddingHorizontal: SPACING.lg,
+      paddingVertical: SPACING.sm,
+      borderRadius: BORDER_RADIUS.base,
+      alignItems: "center",
     },
     errorTitle: {
       fontSize: FONT_SIZES.xl,
