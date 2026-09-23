@@ -149,7 +149,11 @@ export default function SolutionScreenSertificate({
   } = useQuizResults(Number(userId), Number(themeId));
 
   // const { data: pdfBlob, isLoading } = useTestPdf(Number(testId));
-  const { data: testData } = useThemeTest(Number(testId));
+  const {
+    data: testData,
+    isPending: testPending,
+    error: testError,
+  } = useThemeTest(Number(testId));
 
   const [showTestIndex, _setShowTestIndex] = useState(1);
   // State management
@@ -260,11 +264,15 @@ export default function SolutionScreenSertificate({
     });
   }, [navigation]);
   // Loading and error states
-  if (resultsLoading) {
+  // Both the results and the test itself are required here. Gating only on
+  // the results query showed the error state while the test request was
+  // still in flight, which is exactly what happens when the statistics
+  // screen has already warmed the results cache.
+  if (resultsLoading || testPending) {
     return <LoadingState />;
   }
 
-  if (resultsError || !testData) {
+  if (resultsError || testError || !testData) {
     return <ErrorState onRetry={handleGoBack} />;
   }
 

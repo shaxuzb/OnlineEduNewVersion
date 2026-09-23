@@ -145,7 +145,11 @@ export default function MockSolutionScreen({
   } = useMockQuizResults(Number(userId), Number(mockTestId));
 
   // const { data: pdfBlob, isLoading } = useTestPdf(Number(mockTestId));
-  const { data: testData } = useMockTest(Number(mockTestId));
+  const {
+    data: testData,
+    isPending: testPending,
+    error: testError,
+  } = useMockTest(Number(mockTestId));
 
   const [showTestIndex, setShowTestIndex] = useState(1);
   const [showSolution, setShowSolution] = useState(false);
@@ -259,11 +263,15 @@ export default function MockSolutionScreen({
     });
   }, [navigation]);
   // Loading and error states
-  if (resultsLoading) {
+  // Both the results and the test itself are required here. Gating only on
+  // the results query showed the error state while the test request was
+  // still in flight, which is exactly what happens when the statistics
+  // screen has already warmed the results cache.
+  if (resultsLoading || testPending) {
     return <LoadingState />;
   }
 
-  if (resultsError || !testData) {
+  if (resultsError || testError || !testData) {
     return <ErrorState onRetry={handleGoBack} />;
   }
 

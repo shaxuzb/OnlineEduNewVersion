@@ -27,7 +27,15 @@ export default function ProtectedPdfViewer({
   onLoadStateChange,
 }: ProtectedPdfViewerProps) {
   const { theme } = useTheme();
-  const { source, status, reloadKey, handleLoadComplete, handleError, retry } =
+  const {
+    source,
+    status,
+    errorMessage,
+    reloadKey,
+    handleLoadComplete,
+    handleError,
+    retry,
+  } =
     useProtectedPdfSource(path);
 
   React.useEffect(() => {
@@ -46,6 +54,11 @@ export default function ProtectedPdfViewer({
         <Text style={[styles.errorText, { color: theme.colors.text }]}>
           PDF yuklanmadi
         </Text>
+        {errorMessage ? (
+          <Text style={[styles.errorDetail, { color: COLORS.gray }]}>
+            {errorMessage}
+          </Text>
+        ) : null}
         <TouchableOpacity
           style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}
           onPress={retry}
@@ -69,7 +82,10 @@ export default function ProtectedPdfViewer({
     <View style={styles.container}>
       <Pdf
         key={reloadKey}
-        source={{ ...source, cache: false, method: "get" }}
+        // The method is forwarded verbatim to the native HTTP client, and
+        // nginx rejects a lowercase verb with 400 before it ever reaches the
+        // API - so it must stay uppercase.
+        source={{ ...source, cache: false, method: "GET" }}
         onLoadComplete={handleLoadComplete}
         onError={handleError}
         style={styles.pdf}
@@ -106,6 +122,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
+  },
+  errorDetail: {
+    marginTop: 6,
+    fontSize: 12,
+    textAlign: "center",
   },
   errorText: {
     marginTop: 12,

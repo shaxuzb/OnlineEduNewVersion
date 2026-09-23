@@ -14,11 +14,28 @@ export type ProtectedPdfSource = {
   headers: Record<string, string>;
 };
 
+const describePdfError = (error: unknown): string => {
+  if (typeof error === "string") return error;
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return "Noma'lum xatolik";
+    }
+  }
+  return "Noma'lum xatolik";
+};
+
 export type ProtectedPdfStatus = "loading" | "ready" | "error";
 
 export type ProtectedPdfSourceState = {
   source: ProtectedPdfSource | null;
   status: ProtectedPdfStatus;
+  /** Native error text for the failed download, for diagnostics. */
+  errorMessage: string | null;
   /** Bumped whenever the viewer must remount with a fresh token. */
   reloadKey: number;
   handleLoadComplete: () => void;
@@ -41,6 +58,7 @@ export const useProtectedPdfSource = (
   const [source, setSource] = useState<ProtectedPdfSource | null>(null);
   const [status, setStatus] = useState<ProtectedPdfStatus>("loading");
   const [reloadKey, setReloadKey] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const recoveryAttemptedRef = useRef(false);
   const activeRef = useRef(true);
   const statusRef = useRef<ProtectedPdfStatus>("loading");
@@ -66,6 +84,7 @@ export const useProtectedPdfSource = (
   const applySource = useCallback(
     async (forceRefresh: boolean) => {
       setStatus("loading");
+      setErrorMessage(null);
       try {
         const nextSource = await resolveSource(forceRefresh);
         if (!activeRef.current) return;
@@ -75,6 +94,7 @@ export const useProtectedPdfSource = (
         if (!activeRef.current) return;
         console.warn("Protected PDF source failed:", error);
         setSource(null);
+        setErrorMessage(describePdfError(error));
         setStatus("error");
       }
     },
@@ -107,6 +127,7 @@ export const useProtectedPdfSource = (
 
   const handleLoadComplete = useCallback(() => {
     recoveryAttemptedRef.current = false;
+    setErrorMessage(null);
     setStatus("ready");
   }, []);
 
@@ -119,6 +140,7 @@ export const useProtectedPdfSource = (
       }
 
       console.warn("Protected PDF error:", error);
+      setErrorMessage(describePdfError(error));
       setStatus("error");
     },
     [applySource],
@@ -132,6 +154,7 @@ export const useProtectedPdfSource = (
   return {
     source,
     status,
+    errorMessage,
     reloadKey,
     handleLoadComplete,
     handleError,
