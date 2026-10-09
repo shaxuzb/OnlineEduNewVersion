@@ -35,8 +35,7 @@ export default function ProtectedPdfViewer({
     handleLoadComplete,
     handleError,
     retry,
-  } =
-    useProtectedPdfSource(path);
+  } = useProtectedPdfSource(path);
 
   React.useEffect(() => {
     onLoadStateChange?.(status === "loading");
@@ -82,10 +81,7 @@ export default function ProtectedPdfViewer({
     <View style={styles.container}>
       <Pdf
         key={reloadKey}
-        // The method is forwarded verbatim to the native HTTP client, and
-        // nginx rejects a lowercase verb with 400 before it ever reaches the
-        // API - so it must stay uppercase.
-        source={{ ...source, cache: false, method: "GET" }}
+        source={source}
         onLoadComplete={handleLoadComplete}
         onError={handleError}
         style={styles.pdf}

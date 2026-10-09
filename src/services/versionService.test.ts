@@ -24,9 +24,11 @@ describe("VersionService", () => {
     global.fetch = jest.fn().mockRejectedValue(new Error("offline")) as any;
 
     const request = VersionService.checkForUpdates();
+    // Attach the handler first: the promise rejects while the timers run.
+    const assertion = expect(request).rejects.toThrow("offline");
     await jest.runAllTimersAsync();
 
-    await expect(request).rejects.toThrow("offline");
+    await assertion;
     expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 

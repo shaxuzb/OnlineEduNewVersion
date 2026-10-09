@@ -17,7 +17,7 @@ import { usePaymentNotificationCount } from "../../hooks/usePaymentNotificationC
 import { modalService } from "../../components/modals/modalService";
 import { moderateScale } from "react-native-size-matters";
 import { FontAwesome6, Ionicons } from "@expo/vector-icons";
-import { TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, TouchableOpacityProps, View } from "react-native";
 import EmptyScreen from "../../screens/empty";
 import LinearGradient from "react-native-linear-gradient";
 import SaveScreen from "../../screens/save/SaveScreen";
@@ -82,7 +82,7 @@ const MainTabNavigator = React.memo(() => {
   const tabBarButton = useCallback((props: BottomTabBarButtonProps) => {
     const filteredProps = Object.fromEntries(
       Object.entries(props).filter(([, value]) => value !== null),
-    ) as BottomTabBarButtonProps;
+    ) as TouchableOpacityProps;
     return <TouchableOpacity activeOpacity={1} {...filteredProps} />;
   }, []);
 

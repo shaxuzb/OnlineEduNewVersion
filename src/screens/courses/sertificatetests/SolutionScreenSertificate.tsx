@@ -250,6 +250,7 @@ export default function SolutionScreenSertificate({
         }, {}),
     );
   }, [testData, showTestIndex]);
+  const headerDegree = quizResults?.[0]?.degree ?? "";
   useEffect(() => {
     navigation.setOptions({
       title: mavzu ?? "IDS mavzulashtirilgan testlar to'plami",
@@ -259,10 +260,10 @@ export default function SolutionScreenSertificate({
 
       freezeOnBlur: true,
       headerRight: () => (
-        <HeaderRight percent={quizResults?.[0]?.degree ?? ""} />
+        <HeaderRight percent={headerDegree} />
       ),
     });
-  }, [navigation]);
+  }, [navigation, mavzu, headerDegree]);
   // Loading and error states
   // Both the results and the test itself are required here. Gating only on
   // the results query showed the error state while the test request was

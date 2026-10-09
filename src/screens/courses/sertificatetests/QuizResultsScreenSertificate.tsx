@@ -7,10 +7,9 @@ import { QuizResultAnswer, Theme } from "@/src/types";
 import { BORDER_RADIUS, COLORS, FONT_SIZES, SPACING } from "@/src/utils";
 import { FontAwesome6, Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import React, { useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
-  BackHandler,
   ScrollView,
   StyleSheet,
   Text,
@@ -20,6 +19,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { moderateScale } from "react-native-size-matters";
 import { shouldShowBlockingQueryLoader } from "@/src/utils/queryStateUtils";
+import { useFocusedHardwareBack } from "@/src/hooks/useFocusedHardwareBack";
 
 type Props = NativeStackScreenProps<
   RootStackParamList,
@@ -31,7 +31,7 @@ export default function QuizResultsScreenSertificate({
   route,
 }: Props) {
   const { theme } = useTheme();
-  const styles = createStyles(theme);
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { plan } = useAuth();
   const { testId, userId, themeId, mavzu } = route.params;
 
@@ -76,7 +76,7 @@ export default function QuizResultsScreenSertificate({
     });
   };
 
-  const handleFinish = () => {
+  const handleFinish = useCallback(() => {
     navigation.reset({
       index: 0,
       routes: [
@@ -91,15 +91,12 @@ export default function QuizResultsScreenSertificate({
         },
       ],
     });
-  };
+  }, [navigation]);
 
-  useEffect(() => {
-    const backHandler = BackHandler.addEventListener(
-      "hardwareBackPress",
-      () => true,
-    );
-    return () => backHandler.remove();
-  }, []);
+  // The header back button and the swipe gesture are disabled here, so the
+  // hardware button is the only way out besides "Yakunlash" - it takes the
+  // same exit instead of doing nothing.
+  useFocusedHardwareBack(handleFinish);
 
   useEffect(() => {
     navigation.setOptions({

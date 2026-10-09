@@ -315,6 +315,9 @@ export default function QuizScreenSertificate({
   } = useThemeTest(numericTestId);
 
   const submitResults = useSubmitTestResults();
+  // `useMutation` returns a new object on every render; only these two members
+  // are stable enough to be listed as hook dependencies.
+  const { mutateAsync: submitAsync, isPending: isSubmitting } = submitResults;
   const currentUserId = useCurrentUserId();
 
   const [answersByKey, setAnswersByKey] = useState<
@@ -531,7 +534,7 @@ export default function QuizScreenSertificate({
     async (options?: { autoSubmit?: boolean }) => {
       const isAutoSubmit = options?.autoSubmit === true;
 
-      if (submitResults.isPending || hasSubmittedRef.current) {
+      if (isSubmitting || hasSubmittedRef.current) {
         return;
       }
 
@@ -582,7 +585,7 @@ export default function QuizScreenSertificate({
       const submitAndNavigate = async () => {
         try {
           hasSubmittedRef.current = true;
-          await submitResults.mutateAsync({
+          await submitAsync({
             testId: numericTestId,
             userId: currentUserId,
             answers: submissionAnswers,
@@ -636,14 +639,26 @@ export default function QuizScreenSertificate({
       numericTestId,
       totalQuestions,
       testData,
-      submitResults,
+      submitAsync,
+      isSubmitting,
       navigation,
       mavzu,
     ],
   );
 
+  // The countdown must keep one steady interval for the whole attempt. Reading
+  // these through refs keeps the effect from tearing the interval down (and
+  // restarting the current second) every time an answer changes or the
+  // question list is opened.
+  const handleFinishTestRef = useRef(handleFinishTest);
+  const showTestModalRef = useRef(showTestModal);
   useEffect(() => {
-    if (!isTimedMode || submitResults.isPending) return;
+    handleFinishTestRef.current = handleFinishTest;
+    showTestModalRef.current = showTestModal;
+  }, [handleFinishTest, showTestModal]);
+
+  useEffect(() => {
+    if (!isTimedMode || isSubmitting) return;
 
     const timer = setInterval(() => {
       const nextValue =
@@ -651,19 +666,19 @@ export default function QuizScreenSertificate({
       remainingSecondsRef.current = nextValue;
 
       const shouldUpdateDisplay =
-        !showTestModal || nextValue === 0 || nextValue % 5 === 0;
+        !showTestModalRef.current || nextValue === 0 || nextValue % 5 === 0;
       if (shouldUpdateDisplay) {
         setRemainingSecondsDisplay(nextValue);
       }
 
       if (nextValue === 0 && !hasTimedOutRef.current) {
         hasTimedOutRef.current = true;
-        handleFinishTest({ autoSubmit: true });
+        void handleFinishTestRef.current({ autoSubmit: true });
       }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isTimedMode, submitResults.isPending, showTestModal, handleFinishTest]);
+  }, [isTimedMode, isSubmitting]);
 
   usePreventRemove(isFocused, ({ data }) => {
     Alert.alert(

@@ -1,18 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
+import * as FileSystem from "expo-file-system";
 import {
   getStoredAccessToken,
   refreshAccessToken,
 } from "../services/AxiosService";
-import {
-  buildProtectedMediaSource,
-  isMediaAuthError,
-} from "../services/mediaAuthService";
+import { buildProtectedMediaSource } from "../services/mediaAuthService";
 
+/** A document that is already on disk, ready for `react-native-pdf`. */
 export type ProtectedPdfSource = {
   uri: string;
-  headers: Record<string, string>;
 };
+
+export type ProtectedPdfStatus = "loading" | "ready" | "error";
+
+export type ProtectedPdfSourceState = {
+  source: ProtectedPdfSource | null;
+  status: ProtectedPdfStatus;
+  /** Reason of the last failure, for diagnostics. */
+  errorMessage: string | null;
+  /** Bumped whenever the viewer must remount with a new file. */
+  reloadKey: number;
+  handleLoadComplete: () => void;
+  handleError: (error: unknown) => void;
+  retry: () => void;
+};
+
+const UNKNOWN_ERROR = "Noma'lum xatolik";
 
 const describePdfError = (error: unknown): string => {
   if (typeof error === "string") return error;
@@ -23,34 +37,54 @@ const describePdfError = (error: unknown): string => {
     try {
       return JSON.stringify(error);
     } catch {
-      return "Noma'lum xatolik";
+      return UNKNOWN_ERROR;
     }
   }
-  return "Noma'lum xatolik";
+  return UNKNOWN_ERROR;
 };
 
-export type ProtectedPdfStatus = "loading" | "ready" | "error";
+const isAuthStatus = (status: number) => status === 401 || status === 403;
 
-export type ProtectedPdfSourceState = {
-  source: ProtectedPdfSource | null;
-  status: ProtectedPdfStatus;
-  /** Native error text for the failed download, for diagnostics. */
-  errorMessage: string | null;
-  /** Bumped whenever the viewer must remount with a fresh token. */
-  reloadKey: number;
-  handleLoadComplete: () => void;
-  handleError: (error: unknown) => void;
-  retry: () => void;
+const isSuccessStatus = (status: number) => status >= 200 && status < 300;
+
+let downloadSequence = 0;
+
+const createCacheFileUri = () => {
+  if (!FileSystem.cacheDirectory) {
+    throw new Error("Cache directory is unavailable");
+  }
+
+  downloadSequence += 1;
+  return `${FileSystem.cacheDirectory}protected-pdf-${Date.now()}-${downloadSequence}.pdf`;
+};
+
+const discardFile = (uri: string | null) => {
+  if (!uri) return;
+  void FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined);
+};
+
+const downloadWithToken = async (path: string, token: string) => {
+  const { uri, headers } = buildProtectedMediaSource(path, token);
+  const fileUri = createCacheFileUri();
+
+  try {
+    const result = await FileSystem.downloadAsync(uri, fileUri, { headers });
+    return { status: result.status, fileUri };
+  } catch (error) {
+    discardFile(fileUri);
+    throw error;
+  }
 };
 
 /**
- * Resolves an authenticated source for `react-native-pdf`.
+ * Downloads a protected document to the cache and hands the viewer a local
+ * file.
  *
- * `react-native-pdf` downloads the file natively, so it never passes through
- * the axios interceptors that refresh an expired access token. Reading the
- * token once at mount therefore breaks every PDF as soon as the stored token
- * expires. This hook keeps the token lifecycle attached to the viewer:
- * a 401/403 from the native download triggers exactly one refresh + remount.
+ * `react-native-pdf` can download on its own, but it never looks at the HTTP
+ * status: an expired token comes back as a generic "DownloadFailed" with no
+ * code, so there is nothing to recover from. Owning the request here makes the
+ * status visible - a 401/403 triggers exactly one token refresh and retry, and
+ * any other failure is reported with its real status.
  */
 export const useProtectedPdfSource = (
   path: string | null | undefined,
@@ -59,97 +93,94 @@ export const useProtectedPdfSource = (
   const [status, setStatus] = useState<ProtectedPdfStatus>("loading");
   const [reloadKey, setReloadKey] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const recoveryAttemptedRef = useRef(false);
-  const activeRef = useRef(true);
+  const requestIdRef = useRef(0);
+  const fileUriRef = useRef<string | null>(null);
   const statusRef = useRef<ProtectedPdfStatus>("loading");
 
   useEffect(() => {
     statusRef.current = status;
   }, [status]);
 
-  const resolveSource = useCallback(
-    async (forceRefresh: boolean): Promise<ProtectedPdfSource> => {
+  const load = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+    const isCurrent = () => requestIdRef.current === requestId;
+
+    setStatus("loading");
+    setErrorMessage(null);
+
+    try {
       if (!path) throw new Error("Missing PDF path");
 
-      const token = forceRefresh
-        ? await refreshAccessToken()
-        : await getStoredAccessToken();
-      if (!token) throw new Error("Missing media access token");
+      const storedToken = await getStoredAccessToken();
+      if (!storedToken) throw new Error("Missing media access token");
 
-      return buildProtectedMediaSource(path, token);
-    },
-    [path],
-  );
+      let download = await downloadWithToken(path, storedToken);
 
-  const applySource = useCallback(
-    async (forceRefresh: boolean) => {
-      setStatus("loading");
-      setErrorMessage(null);
-      try {
-        const nextSource = await resolveSource(forceRefresh);
-        if (!activeRef.current) return;
-        setSource(nextSource);
-        setReloadKey((key) => key + 1);
-      } catch (error) {
-        if (!activeRef.current) return;
-        console.warn("Protected PDF source failed:", error);
-        setSource(null);
-        setErrorMessage(describePdfError(error));
-        setStatus("error");
+      if (isAuthStatus(download.status)) {
+        discardFile(download.fileUri);
+        download = await downloadWithToken(path, await refreshAccessToken());
       }
-    },
-    [resolveSource],
-  );
+
+      if (!isSuccessStatus(download.status)) {
+        discardFile(download.fileUri);
+        throw new Error(`HTTP ${download.status}`);
+      }
+
+      if (!isCurrent()) {
+        discardFile(download.fileUri);
+        return;
+      }
+
+      discardFile(fileUriRef.current);
+      fileUriRef.current = download.fileUri;
+      setSource({ uri: download.fileUri });
+      setReloadKey((key) => key + 1);
+    } catch (error) {
+      if (!isCurrent()) return;
+      console.warn("Protected PDF download failed:", error);
+      setSource(null);
+      setErrorMessage(describePdfError(error));
+      setStatus("error");
+    }
+  }, [path]);
 
   useEffect(() => {
-    activeRef.current = true;
-    recoveryAttemptedRef.current = false;
-    void applySource(false);
+    void load();
 
     return () => {
-      activeRef.current = false;
+      // Invalidates the in-flight request and removes the protected file.
+      requestIdRef.current += 1;
+      discardFile(fileUriRef.current);
+      fileUriRef.current = null;
     };
-  }, [applySource]);
+  }, [load]);
 
-  // Coming back from background with a token that expired meanwhile only
-  // matters when the viewer is not already showing a rendered document.
+  // A failure caused by being offline or by a token that expired in the
+  // background is worth one more attempt when the app returns.
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
       if (nextState !== "active") return;
       if (statusRef.current !== "error") return;
-
-      recoveryAttemptedRef.current = false;
-      void applySource(true);
+      void load();
     });
 
     return () => subscription.remove();
-  }, [applySource]);
+  }, [load]);
 
   const handleLoadComplete = useCallback(() => {
-    recoveryAttemptedRef.current = false;
     setErrorMessage(null);
     setStatus("ready");
   }, []);
 
-  const handleError = useCallback(
-    (error: unknown) => {
-      if (isMediaAuthError(error) && !recoveryAttemptedRef.current) {
-        recoveryAttemptedRef.current = true;
-        void applySource(true);
-        return;
-      }
-
-      console.warn("Protected PDF error:", error);
-      setErrorMessage(describePdfError(error));
-      setStatus("error");
-    },
-    [applySource],
-  );
+  const handleError = useCallback((error: unknown) => {
+    console.warn("Protected PDF render failed:", error);
+    setErrorMessage(describePdfError(error));
+    setStatus("error");
+  }, []);
 
   const retry = useCallback(() => {
-    recoveryAttemptedRef.current = false;
-    void applySource(true);
-  }, [applySource]);
+    void load();
+  }, [load]);
 
   return {
     source,

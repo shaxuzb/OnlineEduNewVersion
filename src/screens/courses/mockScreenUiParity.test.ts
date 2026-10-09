@@ -10,7 +10,10 @@ describe("mock quiz screen UI parity", () => {
 
     expect(mockScreen).toContain("const HeaderRight = React.memo");
     expect(mockScreen).toContain("const TestModal = React.memo");
-    expect(mockScreen).toContain("const createStyles = (theme: Theme) =>\n  ScaledSheet.create");
+    // Line endings differ between checkouts (CRLF on Windows).
+    expect(mockScreen).toMatch(
+      /const createStyles = \(theme: Theme\) =>\r?\n  ScaledSheet\.create/,
+    );
   });
 
   it("uses the same result, history, and solution UI building blocks as their source screens", () => {

@@ -19,7 +19,8 @@ import Toast from "react-native-toast-message";
 import { BORDER_RADIUS, COLORS, FONT_SIZES, SPACING } from "@/src/utils";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useQuizResults, useThemeTest } from "@/src/hooks/useQuiz";
-import { AnswerKey, Theme } from "@/src/types";
+import { Theme } from "@/src/types";
+import { QuizAttemptQuestion } from "@/src/services/quizAttemptUtils";
 import { CustomStyledCard } from "@/src/components/ui/cards/CustomStyledCard";
 import ProtectedPdfViewer from "@/src/components/courses/ProtectedPdfViewer";
 import LinearGradient from "react-native-linear-gradient";
@@ -235,7 +236,7 @@ export default function SolutionScreen({
   }, [testData, showTestIndex]);
   const groupedSubTest = useMemo(() => {
     if (!testData) return [];
-    const groups: { [key: number]: AnswerKey[] } = {};
+    const groups: { [key: number]: QuizAttemptQuestion[] } = {};
 
     // Guruhlash: subTestNo bo‘yicha
     testData.answerKeys.forEach((item) => {
@@ -247,7 +248,7 @@ export default function SolutionScreen({
 
     // Har bir guruhdan faqat birinchi elementni olish
     const result = Object.values(groups).map(
-      (group) => (group as AnswerKey[])[0].subTestNo,
+      (group) => (group as QuizAttemptQuestion[])[0].subTestNo,
     );
 
     return result;

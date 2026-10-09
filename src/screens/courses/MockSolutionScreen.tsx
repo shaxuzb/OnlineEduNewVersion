@@ -19,7 +19,8 @@ import Toast from "react-native-toast-message";
 import { BORDER_RADIUS, COLORS, FONT_SIZES, SPACING } from "@/src/utils";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useMockQuizResults, useMockTest } from "@/src/hooks/useQuiz";
-import { AnswerKey, Theme } from "@/src/types";
+import { Theme } from "@/src/types";
+import { QuizAttemptQuestion } from "@/src/services/quizAttemptUtils";
 import { CustomStyledCard } from "@/src/components/ui/cards/CustomStyledCard";
 import ProtectedPdfViewer from "@/src/components/courses/ProtectedPdfViewer";
 import LinearGradient from "react-native-linear-gradient";
@@ -235,7 +236,7 @@ export default function MockSolutionScreen({
   }, [testData, showTestIndex]);
   const groupedSubTest = useMemo(() => {
     if (!testData) return [];
-    const groups: { [key: number]: AnswerKey[] } = {};
+    const groups: { [key: number]: QuizAttemptQuestion[] } = {};
 
     // Guruhlash: subTestNo bo‘yicha
     testData.answerKeys.forEach((item) => {
@@ -247,11 +248,12 @@ export default function MockSolutionScreen({
 
     // Har bir guruhdan faqat birinchi elementni olish
     const result = Object.values(groups).map(
-      (group) => (group as AnswerKey[])[0].subTestNo,
+      (group) => (group as QuizAttemptQuestion[])[0].subTestNo,
     );
 
     return result;
   }, [testData]);
+  const headerPercent = quizResults?.[0]?.percent ?? 0;
   useEffect(() => {
     navigation.setOptions({
       title: mockTestName,
@@ -259,9 +261,9 @@ export default function MockSolutionScreen({
         <HeaderTitle title={children} />
       ),
       freezeOnBlur: true,
-      headerRight: () => <HeaderRight percent={quizResults?.[0]?.percent ?? 0} />,
+      headerRight: () => <HeaderRight percent={headerPercent} />,
     });
-  }, [navigation]);
+  }, [navigation, mockTestName, headerPercent]);
   // Loading and error states
   // Both the results and the test itself are required here. Gating only on
   // the results query showed the error state while the test request was

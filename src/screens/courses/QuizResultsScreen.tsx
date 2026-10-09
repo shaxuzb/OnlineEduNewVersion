@@ -6,12 +6,12 @@ import { RootStackParamList } from "@/src/navigation/rootTypes";
 import { QuizResultsResponse, Theme } from "@/src/types";
 import { BORDER_RADIUS, COLORS, FONT_SIZES, SPACING } from "@/src/utils";
 import { shouldShowBlockingQueryLoader } from "@/src/utils/queryStateUtils";
+import { useFocusedHardwareBack } from "@/src/hooks/useFocusedHardwareBack";
 import { FontAwesome6, Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import React, { useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
-  BackHandler,
   ScrollView,
   StyleSheet,
   Text,
@@ -26,7 +26,7 @@ type QuizResultAnswer = QuizResultsResponse[0]["answers"][number];
 
 export default function QuizResultsScreen({ navigation, route }: Props) {
   const { theme } = useTheme();
-  const styles = createStyles(theme);
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { plan } = useAuth();
   const { testId, userId, themeId, mavzu } = route.params;
   const {
@@ -63,7 +63,7 @@ export default function QuizResultsScreen({ navigation, route }: Props) {
     return Object.entries(grouped);
   }, [quizResults]);
 
-  const handleFinish = () => {
+  const handleFinish = useCallback(() => {
     navigation.reset({
       index: 0,
       routes: [
@@ -82,7 +82,7 @@ export default function QuizResultsScreen({ navigation, route }: Props) {
         },
       ],
     });
-  };
+  }, [navigation]);
 
   const handleOpenHistory = () => {
     navigation.navigate("QuizResultsHistorySertificate", {
@@ -91,13 +91,10 @@ export default function QuizResultsScreen({ navigation, route }: Props) {
     });
   };
 
-  useEffect(() => {
-    const backHandler = BackHandler.addEventListener(
-      "hardwareBackPress",
-      () => true,
-    );
-    return () => backHandler.remove();
-  }, []);
+  // The header back button and the swipe gesture are disabled here, so the
+  // hardware button is the only way out besides "Yakunlash" - it takes the
+  // same exit instead of doing nothing.
+  useFocusedHardwareBack(handleFinish);
 
   useEffect(() => {
     navigation.setOptions({

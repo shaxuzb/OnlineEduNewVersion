@@ -28,7 +28,8 @@ import {
   useSubmitMockTestResults,
   useMockTest,
 } from "@/src/hooks/useQuiz";
-import { AnswerKey, QuizAnswer, Theme } from "@/src/types";
+import { QuizAnswer, Theme } from "@/src/types";
+import { QuizAttemptQuestion } from "@/src/services/quizAttemptUtils";
 import { CustomStyledCard } from "@/src/components/ui/cards/CustomStyledCard";
 import ProtectedPdfViewer from "@/src/components/courses/ProtectedPdfViewer";
 import { moderateScale } from "react-native-size-matters";
@@ -139,7 +140,7 @@ const TestGridItem = React.memo(
     isFinishing,
     styles,
   }: {
-    item: AnswerKey;
+    item: QuizAttemptQuestion;
     selectedOption: string | null;
     isFinishing: boolean;
     handleConfirm: (
@@ -215,6 +216,9 @@ export default function MockQuizScreen({
   } = useMockTest(numericMockTestId);
 
   const submitResults = useSubmitMockTestResults();
+  // `useMutation` returns a new object on every render; `mutateAsync` is the
+  // stable member to depend on.
+  const { mutateAsync: submitAsync } = submitResults;
   const currentUserId = useCurrentUserId();
 
   // State management
@@ -246,7 +250,7 @@ export default function MockQuizScreen({
   );
   const groupedSubTest = useMemo(() => {
     if (!testData) return [];
-    const groups: { [key: number]: AnswerKey[] } = {};
+    const groups: { [key: number]: QuizAttemptQuestion[] } = {};
 
     // Guruhlash: subTestNo bo‘yicha
     testData.answerKeys.forEach((item) => {
@@ -258,7 +262,7 @@ export default function MockQuizScreen({
 
     // Har bir guruhdan faqat birinchi elementni olish
     const result = Object.values(groups).map(
-      (group) => (group as AnswerKey[])[0].subTestNo,
+      (group) => (group as QuizAttemptQuestion[])[0].subTestNo,
     );
 
     return result;
@@ -383,7 +387,7 @@ export default function MockQuizScreen({
                     )?.partIndex || 0,
                   answer: answer.selectedOption || "",
                 }));
-              await submitResults.mutateAsync({
+              await submitAsync({
                 testId: numericMockTestId,
                 userId: currentUserId,
                 answers: submissionAnswers,
@@ -425,7 +429,7 @@ export default function MockQuizScreen({
     testData,
     numericMockTestId,
     mockTestName,
-    submitResults,
+    submitAsync,
   ]);
   // useEffect(() => {
   //   if (currentQuestion === totalQuestions && currentAnswer?.isConfirmed) {
@@ -700,7 +704,7 @@ const TestModal = React.memo(
     onClose,
     styles,
   }: {
-    groupedTestData: AnswerKey[];
+    groupedTestData: QuizAttemptQuestion[];
     answersByQuestion: Record<number, string | null>;
     isFinishing: boolean;
     handleConfirm: (
