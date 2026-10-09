@@ -5,10 +5,10 @@ import {
   TouchableOpacity, 
   StyleSheet, 
   Dimensions, 
-  StatusBar,
   Modal 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SystemBars } from 'react-native-edge-to-edge';
 import Video from 'react-native-video';
 
 interface FullscreenVideoPlayerProps {
@@ -85,7 +85,7 @@ export default function FullscreenVideoPlayer({
       supportedOrientations={['portrait', 'landscape']}
       onRequestClose={onClose}
     >
-      <StatusBar hidden />
+      <SystemBars hidden={{ statusBar: true }} />
       <View style={styles.container}>
         {/* Back Button */}
         <View style={styles.topControls}>

@@ -1,7 +1,7 @@
 /**
  * Android video player wrapper.
  * Handles:
- *  - Immersive / sticky navigation bar (hide system UI)
+ *  - Immersive mode (system bars hidden while the player is open)
  *  - Screen-capture prevention (expo-screen-capture)
  *  - Hardware back-button
  *  - Portrait lock on unmount
@@ -11,9 +11,9 @@
 import * as ScreenCapture from "expo-screen-capture";
 import * as ScreenOrientation from "expo-screen-orientation";
 import React, { useCallback, useEffect } from "react";
-import { BackHandler, StatusBar, StyleSheet } from "react-native";
+import { BackHandler, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import SystemNavigationBar from "react-native-system-navigation-bar";
+import { SystemBars } from "react-native-edge-to-edge";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "@/src/navigation/rootTypes";
 import VideoPlayerCore from "./VideoPlayerCore";
@@ -22,13 +22,6 @@ type Props = NativeStackScreenProps<RootStackParamList, "VideoPlayer">;
 
 const VideoPlayerScreen = ({ navigation, route }: Props) => {
   const { lessonTitle, videoFileId } = route.params;
-
-  useEffect(() => {
-    SystemNavigationBar.stickyImmersive();
-    return () => {
-      SystemNavigationBar.navigationShow();
-    };
-  }, []);
 
   useEffect(() => {
     ScreenCapture.preventScreenCaptureAsync().catch(console.warn);
@@ -60,7 +53,13 @@ const VideoPlayerScreen = ({ navigation, route }: Props) => {
 
   return (
     <GestureHandlerRootView style={styles.root}>
-      <StatusBar hidden backgroundColor="#000" />
+      {/*
+        Hides both bars through the edge-to-edge controller. React Native's own
+        StatusBar re-enables `decorFitsSystemWindows` when it shows the bar
+        again, which drops the whole app out of edge-to-edge and breaks every
+        header until restart.
+      */}
+      <SystemBars hidden />
       <VideoPlayerCore
         lessonTitle={lessonTitle}
         videoFileId={videoFileId}

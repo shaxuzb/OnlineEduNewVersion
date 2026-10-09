@@ -10,6 +10,10 @@ const ThemeStatusBar: React.FC = () => {
   const systemBarMode = theme.isDark ? "light" : "dark";
 
   useEffect(() => {
+    // On Android 11+ this call makes React Native set
+    // `decorFitsSystemWindows(true)`, which turns edge-to-edge off for the
+    // whole activity. The bars are already visible there on launch.
+    if (Platform.OS === "android") return;
     StatusBar.setHidden(false, "none");
   }, []);
 

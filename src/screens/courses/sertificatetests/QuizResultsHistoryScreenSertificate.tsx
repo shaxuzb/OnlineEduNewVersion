@@ -8,10 +8,10 @@ import { QuizResultHistoryItem, Theme } from "@/src/types";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { memo, useCallback, useMemo } from "react";
+import { SystemBars } from "react-native-edge-to-edge";
 import {
   FlatList,
   ListRenderItemInfo,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -254,7 +254,7 @@ export default function QuizResultsHistoryScreenSertificate({
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={theme.isDark ? "light-content" : "dark-content"} />
+      <SystemBars style={{ statusBar: theme.isDark ? "light" : "dark" }} />
       <SafeAreaView edges={["top"]} style={styles.navSafeArea}>
         {/* Fixed nav header */}
         <View style={styles.navRow}>

@@ -53,6 +53,7 @@
     "react-native": "0.79.6",
     "react-native-blob-util": "^0.24.10",
     "react-native-device-info": "^14.1.1",
+    "react-native-edge-to-edge": "1.6.0",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-gesture-image-viewer": "^2.0.1",
     "react-native-keyboard-controller": "^1.19.5",
